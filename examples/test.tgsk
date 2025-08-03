@@ -1,0 +1,5 @@
+[math@2+2]>[store:fluid@a]
+[math@4+6]>[store:rigid@b]
+[get@a]>[print]
+[get@b]>[print]
+[math@3]>[store:rigid@b]  // should error, rigid already set
