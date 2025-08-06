@@ -1,36 +1,29 @@
 use std::env;
-use std::fs;
-use std::path::{PathBuf};
+use std::path::PathBuf;
 
 mod interpreter;
-mod packets;
 mod router;
-
-
+mod packets;
 
 fn main() {
+    // Get file path from args or use default
     let args: Vec<String> = env::args().collect();
-
     let filepath = if args.len() > 1 {
         expand_path(&args[1])
     } else {
         PathBuf::from("examples/test.tgsk")
     };
 
-    match fs::read_to_string(&filepath) {
-        Ok(contents) => {
-            println!("Running file: {:?}", filepath);
-            interpreter::run_lines(contents.lines().collect());
+    println!("Running file: {:?}", filepath);
 
-        }
-        Err(e) => {
-            eprintln!("❌ Failed to read '{}': {}", filepath.display(), e);
-            std::process::exit(1);
-        }
+    // Pass file to interpreter
+    if let Err(e) = interpreter::run_file(filepath) {
+        eprintln!("❌ {}", e);
+        std::process::exit(1);
     }
 }
 
-// Expand ~ to home directory on Unix. No-op on Windows.
+// Expand ~ to home directory on Unix, no-op on Windows
 fn expand_path(input: &str) -> PathBuf {
     if cfg!(unix) && input.starts_with("~/") {
         if let Some(home) = dirs::home_dir() {

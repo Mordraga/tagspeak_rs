@@ -1,11 +1,5 @@
 pub mod print;
 pub mod math;
-pub mod store; // 👈 add this
-
-
-// Only if you want these exported to external modules.
-// If not: DELETE these lines entirely.
-
-//pub use print::*;
-//pub use math::*;
-//pub use store::*; // 👈 export for external access
+pub mod store;
+pub mod r#loop;          // loop is reserved, so r#loop escapes it
+pub mod conditionals;    // new module for if/elif/else packets

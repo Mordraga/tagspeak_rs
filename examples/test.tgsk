@@ -1,5 +1,36 @@
-[math@2+2]>[store:fluid@a]
-[math@4+6]>[store:rigid@b]
-[get@a]>[print]
-[get@b]>[print]
-[math@3]>[store:rigid@b]  // should error, rigid already set
+# ====== Single-line Tag ======
+[tag_single:[math@counter+1] > [store:fluid@counter] > [print@counter]]
+
+# ====== Multi-line Tag ======
+[tag_multi:
+    [math@counter+1]
+    [store:fluid@counter]
+    [print@counter]
+]
+
+# ====== Inline block test ======
+[tag_block_test:[math@5+5] > { [math@result*2] > [store:fluid@result] } > [print@result]]
+
+# ====== Initialize counter ======
+[math@0] > [store:fluid@counter]
+
+# ====== Run single-line tag 3 times ======
+[loop3@tag_single]
+
+# ====== Reset counter ======
+[math@0] > [store:fluid@counter]
+
+# ====== Run multi-line tag 3 times ======
+[loop3@tag_multi]
+
+# ====== Math & conditionals ======
+[math@50] > [store:fluid@score]
+[if@score>=50]{
+    [print@You passed!]
+}[else]{
+    [print@You failed!]
+}
+
+# ====== Inline block execution ======
+[math@10] > [store:fluid@result]
+[tag_block_test]
