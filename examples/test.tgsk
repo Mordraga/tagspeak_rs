@@ -1,3 +1,6 @@
+# ====== Initialize counter ======
+[math@0] > [store:fluid@counter]
+
 # ====== Single-line Tag ======
 [tag_single:[math@counter+1] > [store:fluid@counter] > [print@counter]]
 
@@ -8,12 +11,6 @@
     [print@counter]
 ]
 
-# ====== Inline block test ======
-[tag_block_test:[math@5+5] > { [math@result*2] > [store:fluid@result] } > [print@result]]
-
-# ====== Initialize counter ======
-[math@0] > [store:fluid@counter]
-
 # ====== Run single-line tag 3 times ======
 [loop3@tag_single]
 
@@ -23,14 +20,30 @@
 # ====== Run multi-line tag 3 times ======
 [loop3@tag_multi]
 
-# ====== Math & conditionals ======
+# ====== Inline block execution ======
+[math@5+5] > { [math@result*2] > [store:fluid@result] } > [print@result]
+
+# ====== Conditionals ======
 [math@50] > [store:fluid@score]
 [if@score>=50]{
-    [print@You passed!]
+    [print@"Pass case hit"]
 }[else]{
-    [print@You failed!]
+    [print@"Fail case hit"]
 }
 
-# ====== Inline block execution ======
-[math@10] > [store:fluid@result]
-[tag_block_test]
+# ====== Conditionals fail case ======
+[math@40] > [store:fluid@score]
+[if@score>=50]{
+    [print@"Pass case hit"]
+}[else]{
+    [print@"Fail case hit"]
+}
+
+# ====== Nested inline block inside tag ======
+[tag_nested_block:
+    [math@2+2]
+    { [math@4*4] > [print@result] }
+    [print@"Done nested block"]
+]
+
+[tag_nested_block]

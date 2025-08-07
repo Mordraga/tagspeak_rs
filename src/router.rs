@@ -7,22 +7,17 @@ use crate::packets::{
     conditionals,
 };
 
-/// Run a packet chain with a fresh state
 pub fn route(packet_chain: &str, tag_table: &HashMap<String, String>) {
     let mut vars = HashMap::new();
     route_with_vars(packet_chain, &mut vars, tag_table);
 }
 
-/// Run a packet chain with shared vars
 pub fn route_with_vars(
     packet_chain: &str,
     vars: &mut HashMap<String, Var>,
     tag_table: &HashMap<String, String>,
 ) {
-    let packets: Vec<&str> = packet_chain
-        .split(|c: char| c == '>' || c.is_whitespace())
-        .filter(|p| !p.trim().is_empty())
-        .collect();
+    let packets = tokenize_packets(packet_chain);
 
     let mut result = String::new();
     for (i, pkt) in packets.iter().enumerate() {
@@ -35,14 +30,73 @@ pub fn route_with_vars(
     }
 }
 
-/// Parse + execute a single packet
+/// Tokenize into full [ ... ] or { ... } units, ignoring '>' and whitespace
+pub fn tokenize_packets(chain: &str) -> Vec<String> {
+    let mut tokens = Vec::new();
+    let mut buf = String::new();
+    let mut depth_square = 0;
+    let mut depth_curly = 0;
+    let mut in_string = false;
+    let mut chars = chain.chars().peekable();
+
+    while let Some(c) = chars.next() {
+        match c {
+            '"' => {
+                in_string = !in_string;
+                buf.push(c);
+            }
+            '[' if !in_string => {
+                if depth_square == 0 && depth_curly == 0 && !buf.trim().is_empty() {
+                    tokens.push(buf.trim().to_string());
+                    buf.clear();
+                }
+                depth_square += 1;
+                buf.push(c);
+            }
+            ']' if !in_string => {
+                buf.push(c);
+                depth_square -= 1;
+                if depth_square == 0 && depth_curly == 0 {
+                    tokens.push(buf.trim().to_string());
+                    buf.clear();
+                }
+            }
+            '{' if !in_string => {
+                if depth_curly == 0 && depth_square == 0 && !buf.trim().is_empty() {
+                    tokens.push(buf.trim().to_string());
+                    buf.clear();
+                }
+                depth_curly += 1;
+                buf.push(c);
+            }
+            '}' if !in_string => {
+                buf.push(c);
+                depth_curly -= 1;
+                if depth_curly == 0 && depth_square == 0 {
+                    tokens.push(buf.trim().to_string());
+                    buf.clear();
+                }
+            }
+            '>' if !in_string => {
+                // ignore cosmetic >
+            }
+            _ => buf.push(c),
+        }
+    }
+
+    if !buf.trim().is_empty() {
+        tokens.push(buf.trim().to_string());
+    }
+    tokens
+}
+
+
 pub fn run_packet(
     packet: &str,
     input: Option<&str>,
     vars: &mut HashMap<String, Var>,
     tag_table: &HashMap<String, String>,
 ) -> Option<String> {
-    // Ignore standalone braces
     if packet == "{" || packet == "}" {
         return Some(String::new());
     }
@@ -54,27 +108,24 @@ pub fn run_packet(
 
     let inner = &packet[1..packet.len() - 1];
 
-    // Loops
     if let Some((count, tagname)) = tagloop::parse_loop(packet) {
         tagloop::run(&tagname, count, tag_table, vars);
         return Some(String::new());
     }
 
-    // Action packets
     if let Some((action, rest)) = inner.split_once(':') {
-        return handle_action_packet(action, rest, input, vars).ok();
+        return handle_action_packet(action, rest, input, vars, tag_table).ok();
     }
 
-    // Simple operations
-    handle_simple_packet(inner, input, vars)
+    handle_simple_packet(inner, input, vars, tag_table)
 }
 
-/// Handle action packets like store:fluid@x
 fn handle_action_packet(
     action: &str,
     rest: &str,
     input: Option<&str>,
     vars: &mut HashMap<String, Var>,
+    _tag_table: &HashMap<String, String>,
 ) -> Result<String, String> {
     match action {
         "store" => {
@@ -95,11 +146,11 @@ fn handle_action_packet(
     }
 }
 
-/// Handle basic packets
 fn handle_simple_packet(
     inner: &str,
     input: Option<&str>,
     vars: &mut HashMap<String, Var>,
+    tag_table: &HashMap<String, String>,
 ) -> Option<String> {
     if let Some((op, arg)) = inner.split_once('@') {
         match op {
@@ -115,7 +166,7 @@ fn handle_simple_packet(
                 println!("(warn) variable '{}' not found", arg);
                 None
             }),
-            "if" | "elif" | "else" => conditionals::run(op, arg, vars),
+            "if" | "elif" | "else" => conditionals::run(op, arg, vars, tag_table),
             _ => {
                 println!("(warn) unknown operation: [{}]", op);
                 None
