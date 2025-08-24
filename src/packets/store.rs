@@ -1,35 +1,13 @@
-use std::collections::HashMap;
+use anyhow::Result;
+use crate::kernel::{Runtime, Value, Packet};
+use crate::kernel::ast::Arg;
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum VarKind {
-    Fluid,
-    Rigid,
-}
-
-#[derive(Debug, Clone)]
-pub struct Var {
-    pub value: String,
-    pub kind: VarKind,
-}
-
-/// Store a variable in the map.
-/// Returns an error string if rigid and blocked.
-pub fn store_variable(
-    vars: &mut HashMap<String, Var>,
-    kind: VarKind,
-    name: &str,
-    value: &str
-) -> Result<String, String> {
-    if let Some(existing) = vars.get(name) {
-        if existing.kind == VarKind::Rigid {
-            return Err(format!("cannot overwrite rigid variable '{}'", name));
-        }
-    }
-
-    vars.insert(name.to_string(), Var {
-        value: value.to_string(),
-        kind,
-    });
-
-    Ok(value.to_string())
+pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
+    let name = match p.arg.as_ref() {
+        Some(Arg::Ident(id)) => id.as_str(),
+        _ => anyhow::bail!("store needs @<ident>"),
+    };
+    let val = rt.last.clone(); // store the pipeline's last value
+    rt.set_var(name, val.clone());
+    Ok(val)
 }

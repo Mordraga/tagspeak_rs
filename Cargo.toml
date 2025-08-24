@@ -7,3 +7,4 @@ edition = "2024"
 dirs = "5.0"
 clap = { version = "4.5.2", features = ["derive"] }
 meval = "0.2"
+anyhow = "1.0"

@@ -1,180 +1,107 @@
-use std::{collections::HashMap, fs, path::Path};
-use crate::router;
-use crate::packets::store::Var;
+use anyhow::{Result, bail};
 
-/// Read a file and run it
-pub fn run_file(path: impl AsRef<Path>) -> Result<(), String> {
-    let content = fs::read_to_string(path).map_err(|e| format!("Could not read file: {}", e))?;
-    let lines: Vec<&str> = content.lines().collect();
-    run_lines(lines);
-    Ok(())
+#[derive(Clone, Debug)]
+pub struct Span { pub start: usize, pub end: usize }
+
+pub struct Scanner<'a> {
+    src: &'a [u8],
+    pub i: usize,
+    len: usize,
 }
 
-/// Execute script lines with shared state + tag table
-pub fn run_lines(lines: Vec<&str>) {
-    let mut vars: HashMap<String, Var> = HashMap::new();
-    let mut tag_table: HashMap<String, String> = HashMap::new();
-    let mut i = 0;
+impl<'a> Scanner<'a> {
+    pub fn new(s: &'a str) -> Self { Self { src: s.as_bytes(), i: 0, len: s.len() } }
+    pub fn peek(&self) -> Option<char> { (self.i < self.len).then(|| self.src[self.i] as char) }
+    pub fn next(&mut self) -> Option<char> { let c = self.peek()?; self.i += 1; Some(c) }
 
-    while i < lines.len() {
-        let trimmed = lines[i].trim();
-
-        // Skip empty lines and comments
-        if trimmed.is_empty() || trimmed.starts_with('#') {
-            i += 1;
-            continue;
-        }
-
-        // ===== MULTI-LINE TAG DEFINITION =====
-        if trimmed.starts_with('[') && trimmed.split_once(':').is_some() && !trimmed.ends_with(']') {
-            let mut buffer = String::new();
-            buffer.push_str(trimmed);
-            i += 1;
-
-            while i < lines.len() {
-                let ln = lines[i].trim();
-                if ln == "]" {
-                    break; // found closing bracket line
-                }
-                if !ln.is_empty() && !ln.starts_with('#') {
-                    buffer.push(' ');
-                    buffer.push_str(ln);
-                }
-                if ln.ends_with(']') {
-                    break; // closing bracket inline
-                }
-                i += 1;
-            }
-
-            // skip final closing bracket line
-            if i < lines.len() && lines[i].trim() == "]" {
-                i += 1;
-            }
-
-            store_tag(&buffer, &mut tag_table);
-            continue;
-        }
-
-        // ===== SINGLE-LINE TAG DEFINITION =====
-        if trimmed.starts_with('[') && trimmed.split_once(':').is_some() && trimmed.ends_with(']') {
-            store_tag(trimmed, &mut tag_table);
-            i += 1;
-            continue;
-        }
-
-        // ===== NORMAL PACKET OR BLOCK CHAIN =====
-        let clean_line = trimmed.replace('>', " "); // ignore > completely
-
-        if clean_line.contains('{') {
-            execute_inline_blocks(&clean_line, &mut vars, &tag_table);
-        } else {
-            router::route_with_vars(clean_line.trim(), &mut vars, &tag_table);
-        }
-
-        i += 1;
+    fn starts_with(&self, s: &str) -> bool {
+        let n = s.len();
+        self.i + n <= self.len && &self.src[self.i..self.i+n] == s.as_bytes()
     }
-}
-
-/// Store a cleaned tag definition into the table
-fn store_tag(line: &str, table: &mut HashMap<String, String>) {
-    let clean = line.replace("\n", " ").replace(">>", " ").replace('>', " ");
-    if clean.starts_with('[') && clean.ends_with(']') {
-        let inner = &clean[1..clean.len() - 1];
-        if let Some((name, body)) = inner.split_once(':') {
-            table.insert(name.trim().to_string(), body.trim().to_string());
+    fn skip_ws(&mut self) {
+        while let Some(c) = self.peek() {
+            if c.is_whitespace() { self.i += 1; } else { break; }
         }
     }
-}
-
-/// Run any `{ ... }` inline block(s) inside a string
-fn execute_inline_blocks(line: &str, vars: &mut HashMap<String, Var>, tag_table: &HashMap<String, String>) {
-    let mut start = 0;
-    let mut result_line = String::new();
-
-    while let Some(open) = line[start..].find('{') {
-        let abs_open = start + open;
-        result_line.push_str(&line[start..abs_open]);
-        if let Some(close) = find_matching_brace(&line[abs_open..]) {
-            let abs_close = abs_open + close;
-            let block_code = &line[abs_open + 1..abs_close];
-            let res = interpret_inline(block_code.trim(), vars, tag_table);
-            result_line.push_str(&res);
-            start = abs_close + 1;
-        } else {
+    pub fn skip_comments_and_ws(&mut self) {
+        loop {
+            self.skip_ws();
+            if self.peek() == Some('#') {
+                while let Some(c) = self.next() { if c == '\n' { break; } }
+                continue;
+            }
+            if self.starts_with("//") {
+                self.i += 2;
+                while let Some(c) = self.next() { if c == '\n' { break; } }
+                continue;
+            }
+            if self.starts_with("/*") {
+                self.i += 2;
+                while self.i + 1 < self.len {
+                    if self.starts_with("*/") { self.i += 2; break; }
+                    self.i += 1;
+                }
+                continue;
+            }
             break;
         }
     }
-    result_line.push_str(&line[start..]);
-    router::route_with_vars(result_line.trim(), vars, tag_table);
-}
 
-fn find_matching_brace(s: &str) -> Option<usize> {
-    let mut depth = 0;
-    for (i, c) in s.chars().enumerate() {
-        if c == '{' {
-            depth += 1;
-        } else if c == '}' {
-            depth -= 1;
-            if depth == 0 {
-                return Some(i);
+    pub fn eof(&self) -> bool { self.i >= self.len }
+
+    pub fn read_quoted(&mut self) -> Result<String> {
+        if self.next() != Some('"') { bail!("expected '\"'"); }
+        let mut out = String::new();
+        while let Some(c) = self.next() {
+            match c {
+                '\\' => {
+                    let Some(nc) = self.next() else { bail!("unterminated escape in string"); };
+                    out.push(match nc {
+                        'n' => '\n', 'r' => '\r', 't' => '\t', '\\' => '\\', '"' => '"', other => other
+                    });
+                }
+                '"' => return Ok(out),
+                other => out.push(other),
             }
         }
+        bail!("unterminated string")
     }
-    None
-}
 
-/// Run a `{...}` block inline and return its result
-pub fn interpret_inline(
-    code: &str,
-    vars: &mut HashMap<String, Var>,
-    tag_table: &HashMap<String, String>,
-) -> String {
-    let mut expanded = String::new();
-    let mut idx = 0;
-    let chars: Vec<char> = code.chars().collect();
-
-    while idx < chars.len() {
-        if chars[idx] == '{' {
-            // collect block contents
-            let mut depth = 1;
-            let mut j = idx + 1;
-            let mut block = String::new();
-
-            while j < chars.len() && depth > 0 {
-                if chars[j] == '{' {
-                    depth += 1;
-                } else if chars[j] == '}' {
-                    depth -= 1;
-                    if depth == 0 {
-                        break;
-                    }
-                }
-                if depth > 0 {
-                    block.push(chars[j]);
-                }
-                j += 1;
+    pub fn read_until_balanced(&mut self, open: char, close: char) -> Result<String> {
+        // assumes current char == open
+        if self.next() != Some(open) { bail!("expected opener {}", open); }
+        let mut out = String::new();
+        let mut depth = 1usize;
+        while let Some(c) = self.next() {
+            if c == '\\' {
+                if let Some(nc) = self.next() { out.push(c); out.push(nc); }
+                continue;
             }
-
-            // run the inner block recursively
-            let block_result = interpret_inline(block.trim(), vars, tag_table);
-            expanded.push_str(&block_result);
-
-            idx = j + 1; // skip past closing '}'
-        } else {
-            expanded.push(chars[idx]);
-            idx += 1;
+            if c == open { depth += 1; }
+            if c == close {
+                depth -= 1;
+                if depth == 0 { return Ok(out); }
+            }
+            out.push(c);
         }
+        bail!("unbalanced {} ... {}", open, close)
     }
 
-    // Tokenize expanded string into full packets using router's tokenizer
-    let packets = crate::router::tokenize_packets(&expanded);
-
-    let mut result = String::new();
-    for (i, pkt) in packets.iter().enumerate() {
-        let input = if i == 0 { None } else { Some(&result) };
-        if let Some(res) = crate::router::run_packet(pkt.trim(), input.map(|s| s.as_str()), vars, tag_table) {
-            result = res;
+    pub fn read_ident_or_number(&mut self) -> String {
+        let mut s = String::new();
+        while let Some(c) = self.peek() {
+            if c.is_alphanumeric() || c == '_' || c == '.' { s.push(c); self.i += 1; }
+            else { break; }
         }
+        s
     }
-    result
+
+    pub fn read_raw_until(&mut self, terminator: char) -> String {
+        let mut s = String::new();
+        while let Some(c) = self.peek() {
+            if c == terminator { break; }
+            s.push(c); self.i += 1;
+        }
+        s.trim().to_string()
+    }
 }

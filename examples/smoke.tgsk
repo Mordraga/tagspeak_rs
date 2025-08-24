@@ -1,0 +1,17 @@
+// line comments work
+# also fine
+/* block
+   comments
+*/
+
+[note@"=== Init ==="]
+[math@0] > [store@counter] > [print@counter]
+
+[note@"=== Increment thrice ==="]
+[math@counter+1] > [store@counter] > [print@counter]
+[math@counter+1] > [store@counter] > [print@counter]
+[math@counter+1] > [store@counter] > [print@counter]
+[math@0] > [store@counter] > [print@counter]
+
+[note@"=== Simple math ==="]
+[math@"2+2"] > [store@a] > [print@a]
