@@ -1,14 +1,14 @@
 # tagspeak_rs
-##Everything is a Packet
+Everything is a Packet
 Thoughts, code, memory, inputs, emotions — all exist in modular [packet] form. This includes files, functions, commands, and even syntax rules themselves.
 
-##🧠 Syntax Structure
+🧠 Syntax Structure
 TagSpeak follows a simplified English-like grammar:
 
-##📚 Subject → Object → Action
+📚 Subject → Object → Action
 Each packet is modular and symbolic. Meaning is derived from tag type and position — not spacing or indentation.
 
-##📦 Basic Format
+📦 Basic Format
 [subject@value]>[verb@modifier]>[action]
 🔹 Example
 [math@10+10]>[store@result]>[print]
@@ -19,7 +19,7 @@ This reads naturally and operates modularly:
 [math@10+10]: defines the source packet.
 [store@result]: routes the output to memory.
 [print]: invokes a return/display function.
-##🧰 Syntax Primitives
+🧰 Syntax Primitives
 Symbol	Meaning
 [...]	Single packet
 @	Denotes input to the packet
