@@ -16,15 +16,25 @@ fn parse_chain(sc: &mut Scanner) -> Result<Node> {
 
         match sc.peek().unwrap() {
             '[' => {
-                let mut pkt = parse_packet(sc)?;
-                // attach immediate { ... } as packet body if present
-                sc.skip_comments_and_ws();
-                if sc.peek() == Some('{') {
-                    if let Node::Block(body) = parse_block(sc)? {
-                        pkt.body = Some(body);
+                let pkt = parse_packet(sc)?;
+                // [if@(...)] introduces conditional branches
+                if pkt.ns.is_none() && pkt.op == "if" {
+                    let src = match pkt.arg {
+                        Some(Arg::CondSrc(s)) => s,
+                        _ => bail!("if needs @(cond)"),
+                    };
+                    nodes.push(parse_if(sc, src)?);
+                } else {
+                    let mut pkt = pkt;
+                    // attach immediate { ... } as packet body if present
+                    sc.skip_comments_and_ws();
+                    if sc.peek() == Some('{') {
+                        if let Node::Block(body) = parse_block(sc)? {
+                            pkt.body = Some(body);
+                        }
                     }
+                    nodes.push(Node::Packet(pkt));
                 }
-                nodes.push(Node::Packet(pkt));
             }
             '{' => {
                 nodes.push(parse_block(sc)?);
@@ -106,6 +116,12 @@ fn parse_packet(sc: &mut Scanner) -> Result<Packet> {
                 }
             }
             Some(Arg::Str(out))
+        } else if peek(i) == Some('(') {
+            // [myth] goal: grab condition source for later re-parse
+            let mut sub = Scanner::new(&inner[i..]);
+            let cond_src = sub.read_until_balanced('(', ')')?;
+            i += sub.pos();
+            Some(Arg::CondSrc(cond_src))
         } else {
             let raw = inner[i..].trim().to_string();
             if raw.is_empty() {
@@ -134,6 +150,68 @@ fn is_ident_like(s: &str) -> bool {
         _ => return false,
     }
     it.all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
+
+fn parse_if(sc: &mut Scanner, cond_src: String) -> Result<Node> {
+    use crate::packets::conditionals::parse_cond;
+    let cond = parse_cond(&cond_src);
+
+    sc.skip_comments_and_ws();
+    if sc.peek() == Some('>') { sc.next(); }
+    sc.skip_comments_and_ws();
+
+    let then_pkt = parse_packet(sc)?;
+    if then_pkt.ns.is_some() || then_pkt.op != "then" { bail!("expected [then]"); }
+    sc.skip_comments_and_ws();
+    if sc.peek() != Some('{') { bail!("[then] needs block"); }
+    let Node::Block(then_b) = parse_block(sc)? else { unreachable!() };
+
+    sc.skip_comments_and_ws();
+    while sc.peek() == Some('>') { sc.next(); sc.skip_comments_and_ws(); }
+
+    let else_b = parse_or_else(sc)?;
+    Ok(Node::If { cond, then_b, else_b })
+}
+
+fn parse_or_else(sc: &mut Scanner) -> Result<Vec<Node>> {
+    use crate::packets::conditionals::parse_cond;
+    sc.skip_comments_and_ws();
+    if starts_with(sc, "[or@") {
+        let pkt = parse_packet(sc)?;
+        let src = match pkt.arg {
+            Some(Arg::CondSrc(s)) => s,
+            _ => bail!("or needs @(cond)"),
+        };
+        sc.skip_comments_and_ws();
+        if sc.peek() == Some('>') { sc.next(); sc.skip_comments_and_ws(); }
+        let then_pkt = parse_packet(sc)?;
+        if then_pkt.ns.is_some() || then_pkt.op != "then" { bail!("expected [then]"); }
+        sc.skip_comments_and_ws();
+        if sc.peek() != Some('{') { bail!("[then] needs block"); }
+        let Node::Block(then_b) = parse_block(sc)? else { unreachable!() };
+        sc.skip_comments_and_ws();
+        while sc.peek() == Some('>') { sc.next(); sc.skip_comments_and_ws(); }
+        let else_b = parse_or_else(sc)?;
+        Ok(vec![Node::If { cond: parse_cond(&src), then_b, else_b }])
+    } else if starts_with(sc, "[else]") {
+        let _pkt = parse_packet(sc)?; // consume [else]
+        sc.skip_comments_and_ws();
+        if sc.peek() == Some('>') { sc.next(); sc.skip_comments_and_ws(); }
+        let then_pkt = parse_packet(sc)?;
+        if then_pkt.ns.is_some() || then_pkt.op != "then" { bail!("expected [then]"); }
+        sc.skip_comments_and_ws();
+        if sc.peek() != Some('{') { bail!("[then] needs block"); }
+        let Node::Block(block) = parse_block(sc)? else { unreachable!() };
+        Ok(block)
+    } else {
+        Ok(Vec::new())
+    }
+}
+
+fn starts_with(sc: &Scanner, pat: &str) -> bool {
+    let start = sc.pos();
+    let end = start + pat.len();
+    end <= sc.len() && sc.slice(start, end) == pat.as_bytes()
 }
 
 fn unexpected(sc: &Scanner, where_: &str) -> String {
