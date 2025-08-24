@@ -1,7 +1,6 @@
 use std::collections::HashMap;
-use crate::kernel::ast::{Node, Packet, BExpr, /* Comparator if you already use it */};
+use crate::kernel::ast::{Node, Packet};
 use crate::kernel::values::Value;
-use crate::kernel::boolops::cmp_eval; // keep if you use conditionals later
 
 pub struct Runtime {
     pub vars: HashMap<String, Value>,
@@ -50,10 +49,8 @@ impl Runtime {
                 last
             }
             Node::Packet(p) => self.eval_packet(p)?,
-            // If you’ve implemented Node::If already, you can branch here:
-            Node::If { cond: _cond, then_b: _tb, else_b: _eb } => {
-                // Placeholder: wire later when your cond compiler is ready.
-                Value::Unit
+            Node::If { cond, then_b, else_b } => {
+                crate::packets::conditionals::exec(self, cond, then_b, else_b)?
             }
         };
         self.last = out.clone();

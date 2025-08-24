@@ -50,3 +50,41 @@ This reads naturally and operates modularly:
 ---
 
 TagSpeak is intentionally **visually parseable** — for AIs, for humans, for scripts. Everything is a packet. Everything flows.
+
+## 🔀 Conditionals
+
+Use packets to express branching logic:
+
+```
+[if@(expr)]>[then]{ ... }>[or@(expr)]>[then]{ ... }>[else]{ ... }
+```
+
+* `[if@(expr)]` – evaluate the boolean expression.
+* `[or@(expr)]` – optional additional branches; each acts as an `else if`.
+* `[else]` – final fallback when no condition matched.
+
+Boolean expressions support both tag-style and symbolic operators:
+
+| Tag     | Symbol | Meaning |
+| ------- | ------ | ------- |
+| `[eq]`  | `==`   | equals  |
+| `[neq]` | `!=`   | not equals |
+| `[lt]`  | `<`    | less than |
+| `[gt]`  | `>`    | greater than |
+| `[and]` | `&&`   | logical and |
+| `[or]`  | `||`   | logical or |
+| `[not]` | `!`    | logical not |
+
+Example:
+
+```
+[math@1] > [store@x]
+
+[if@(x [eq] 2)]
+[then]{ [print@"eq branch"] }
+[or@(x == 1)]
+[then]{ [print@"double equals branch"] }
+[else]{ [print@"else branch"] }
+```
+
+The script above prints `double equals branch`.

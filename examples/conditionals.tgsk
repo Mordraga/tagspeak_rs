@@ -1,0 +1,14 @@
+[math@1] > [store@x]
+
+[if@(x [eq] 2)]
+[then]{
+    [print@"eq branch"]
+}
+[or@(x == 1)]
+[then]{
+    [print@"double equals branch"]
+}
+[else]{
+    [print@"else branch"]
+}
+

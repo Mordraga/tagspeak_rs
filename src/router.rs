@@ -15,7 +15,16 @@ fn parse_chain(sc: &mut Scanner) -> Result<Node> {
         let ch = sc.peek().unwrap();
 
         match ch {
-            '[' => nodes.push(Node::Packet(parse_packet(sc)?)),
+            '[' => {
+                let pkt = parse_packet(sc)?;
+                if pkt.op == "if" {
+                    nodes.push(parse_if_chain(sc, pkt)?);
+                } else if pkt.op == "or" || pkt.op == "else" {
+                    bail!("unexpected [{}] without preceding [if]", pkt.op);
+                } else {
+                    nodes.push(Node::Packet(pkt));
+                }
+            }
             '{' => nodes.push(parse_block(sc)?),
             '>' => { sc.next(); continue; } // tolerate stray > (optional)
             _   => {
@@ -111,8 +120,9 @@ fn parse_packet(sc: &mut Scanner) -> Result<Packet> {
         } else {
             // read raw until end
             let raw = inner[i..].trim().to_string();
-            // classify: number? ident? else: expr string
-            if let Ok(n) = raw.parse::<f64>() {
+            if matches!(op.as_str(), "if" | "or") {
+                Some(Arg::CondSrc(raw))
+            } else if let Ok(n) = raw.parse::<f64>() {
                 Some(Arg::Number(n))
             } else if is_ident_like(&raw) {
                 Some(Arg::Ident(raw))
@@ -136,4 +146,63 @@ fn is_ident_like(s: &str) -> bool {
         _ => return false,
     }
     chars.all(|c| c.is_ascii_alphanumeric() || c == '_' )
+}
+
+fn parse_if_chain(sc: &mut Scanner, first: Packet) -> Result<Node> {
+    use crate::kernel::boolops::parse_bexpr;
+    use crate::kernel::ast::{BExpr};
+    // first.op is "if" or "or"
+    let cond_src = match first.arg {
+        Some(Arg::CondSrc(ref s)) => s.clone(),
+        _ => bail!("if/or requires a condition"),
+    };
+    let cond: BExpr = parse_bexpr(&cond_src)?;
+
+    // optional separator
+    sc.skip_comments_and_ws();
+    if sc.peek() == Some('>') { sc.next(); }
+    sc.skip_comments_and_ws();
+
+    // expect [then]
+    let then_pkt = parse_packet(sc)?;
+    if then_pkt.op != "then" { bail!("expected [then] after [{}]", first.op); }
+
+    // optional separator
+    sc.skip_comments_and_ws();
+    if sc.peek() == Some('>') { sc.next(); }
+    sc.skip_comments_and_ws();
+
+    if sc.peek() != Some('{') { bail!("expected block after [then]"); }
+    let then_node = parse_block(sc)?;
+    let then_b = match then_node { Node::Block(v) => v, other => vec![other] };
+
+    // after block, consume optional separator
+    sc.skip_comments_and_ws();
+    if sc.peek() == Some('>') { sc.next(); }
+    sc.skip_comments_and_ws();
+
+    // check for [or] or [else]
+    let else_b = if sc.peek() == Some('[') {
+        let pkt = parse_packet(sc)?;
+        match pkt.op.as_str() {
+            "or" => {
+                let nested = parse_if_chain(sc, pkt)?;
+                vec![nested]
+            }
+            "else" => {
+                // optional separator then block
+                sc.skip_comments_and_ws();
+                if sc.peek() == Some('>') { sc.next(); }
+                sc.skip_comments_and_ws();
+                if sc.peek() != Some('{') { bail!("expected block after [else]"); }
+                let eb = parse_block(sc)?;
+                match eb { Node::Block(v) => v, other => vec![other] }
+            }
+            other => bail!("unexpected packet [{}] after conditional", other),
+        }
+    } else {
+        Vec::new()
+    };
+
+    Ok(Node::If { cond, then_b, else_b })
 }
