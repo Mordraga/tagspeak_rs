@@ -29,7 +29,7 @@ pub enum BExpr {
     And(Box<BExpr>, Box<BExpr>),
     Or(Box<BExpr>, Box<BExpr>),
     Not(Box<BExpr>),
-    Lit(Box<Node>),
+    Lit(String), // stores raw packet chain for runtime eval
 }
 
 #[derive(Debug, Clone)]

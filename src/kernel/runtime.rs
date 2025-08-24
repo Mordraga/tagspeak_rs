@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use anyhow::{Result, bail};
 
-use crate::kernel::ast::{Node, Packet, Arg};
+use crate::kernel::ast::{Node, Packet, Arg, BExpr};
 use crate::kernel::values::Value;
 
 pub struct Runtime {
@@ -41,7 +41,16 @@ impl Runtime {
         let out = match n {
             Node::Chain(v) | Node::Block(v) => self.eval_list(v)?,
             Node::Packet(p) => self.eval_packet(p)?,
-            Node::If { .. } => Value::Unit, // wire later with conditionals
+            Node::If { cond, then_b, else_b } => {
+                // [myth] goal: runtime branching
+                if self.eval_if(cond)? {
+                    self.eval_list(then_b)?
+                } else if else_b.is_empty() {
+                    Value::Unit
+                } else {
+                    self.eval_list(else_b)?
+                }
+            }
         };
         self.last = out.clone();
         Ok(out)
@@ -79,5 +88,9 @@ impl Runtime {
     }
     pub fn set_num(&mut self, name: &str, n: f64) {
         self.set_var(name, Value::Num(n));
+    }
+
+    fn eval_if(&mut self, cond: &BExpr) -> Result<bool> {
+        crate::packets::conditionals::eval_cond(self, cond)
     }
 }
