@@ -9,45 +9,53 @@ pub fn parse(src: &str) -> Result<Node> {
 
 fn parse_chain(sc: &mut Scanner) -> Result<Node> {
     let mut nodes = Vec::new();
+
     loop {
         sc.skip_comments_and_ws();
         if sc.eof() { break; }
-        let ch = sc.peek().unwrap();
 
-        match ch {
-            '[' => nodes.push(Node::Packet(parse_packet(sc)?)),
-            '{' => nodes.push(parse_block(sc)?),
-            '>' => { sc.next(); continue; } // tolerate stray > (optional)
-            _   => {
-                // unknown token at top level → ignore line or bail. We’ll ignore until newline.
-                // This keeps comments/blank lines safe if lexer misses them.
-                // But better: bail with context:
-                bail!("unexpected character at top-level: '{}'", ch);
+        match sc.peek().unwrap() {
+            '[' => {
+                let mut pkt = parse_packet(sc)?;
+                // attach immediate { ... } as packet body if present
+                sc.skip_comments_and_ws();
+                if sc.peek() == Some('{') {
+                    if let Node::Block(body) = parse_block(sc)? {
+                        pkt.body = Some(body);
+                    }
+                }
+                nodes.push(Node::Packet(pkt));
             }
+            '{' => {
+                nodes.push(parse_block(sc)?);
+            }
+            '>' => {
+                // tolerate stray or repeated separators
+                sc.next();
+            }
+            _ => bail!(unexpected(sc, "top-level")),
         }
 
-        // optional '>' separators
+        // optional separators; allow multiple and trailing
         sc.skip_comments_and_ws();
-        if sc.peek() == Some('>') { sc.next(); }
+        while sc.peek() == Some('>') { sc.next(); }
     }
+
     Ok(Node::Chain(nodes))
 }
 
 fn parse_block(sc: &mut Scanner) -> Result<Node> {
     let inner = sc.read_until_balanced('{', '}')?;
     let mut sub = Scanner::new(&inner);
-    let node = parse_chain(&mut sub)?;
-    // unwrap one level if we got Chain
-    if let Node::Chain(v) = node {
-        Ok(Node::Block(v))
-    } else {
-        Ok(Node::Block(vec![node]))
+    match parse_chain(&mut sub)? {
+        Node::Chain(v) => Ok(Node::Block(v)),
+        other => Ok(Node::Block(vec![other])),
     }
 }
 
 fn parse_packet(sc: &mut Scanner) -> Result<Packet> {
     let inner = sc.read_until_balanced('[', ']')?;
-    // inner like:   ns:op@arg    |  op@arg   |  op    | ns:op
+    // inner like: ns:op@arg | op@arg | op | ns:op
     let mut ns: Option<String> = None;
     let mut op = String::new();
     let mut arg: Option<Arg> = None;
@@ -55,18 +63,14 @@ fn parse_packet(sc: &mut Scanner) -> Result<Packet> {
     let mut i = 0usize;
     let b = inner.as_bytes();
     let len = b.len();
-
-    // helper to peek/next inside 'inner'
     let peek = |i: usize| -> Option<char> { (i < len).then(|| b[i] as char) };
 
-    // parse ns:op
+    // ns/op (split on first ':', stop at '@')
     let mut acc = String::new();
     while let Some(c) = peek(i) {
         if c == ':' || c == '@' { break; }
         acc.push(c); i += 1;
     }
-    // acc holds 'ns_or_op'
-    // decide: if next char is ':', split into ns + op
     if peek(i) == Some(':') {
         ns = Some(acc.trim().to_string());
         i += 1; acc.clear();
@@ -79,25 +83,19 @@ fn parse_packet(sc: &mut Scanner) -> Result<Packet> {
         op = acc.trim().to_string();
     }
 
-    // parse @arg if present
+    // @arg (optional)
     if peek(i) == Some('@') {
         i += 1;
-        // allow `"quoted"`, number, ident, or raw expr until end
-        // skip one optional leading space
         while peek(i) == Some(' ') { i += 1; }
         arg = if peek(i) == Some('"') {
-            // quoted string
-            // reuse a tiny local scanner on the remainder to capture the quoted
-            let mut j = i;
-            // read quoted
-            if b[j] as char != '"' { bail!("internal string parse error"); }
-            j += 1;
+            // quoted string @"..."
+            let mut j = i + 1;
             let mut out = String::new();
             while j < len {
                 let c = b[j] as char; j += 1;
                 match c {
                     '\\' => {
-                        if j >= len { bail!("unterminated escape"); }
+                        if j >= len { bail!("unterminated escape in string") }
                         let nc = b[j] as char; j += 1;
                         out.push(match nc {
                             'n' => '\n', 'r' => '\r', 't' => '\t', '\\' => '\\', '"' => '"', other => other
@@ -109,15 +107,15 @@ fn parse_packet(sc: &mut Scanner) -> Result<Packet> {
             }
             Some(Arg::Str(out))
         } else {
-            // read raw until end
             let raw = inner[i..].trim().to_string();
-            // classify: number? ident? else: expr string
-            if let Ok(n) = raw.parse::<f64>() {
+            if raw.is_empty() {
+                None
+            } else if let Ok(n) = raw.parse::<f64>() {
                 Some(Arg::Number(n))
             } else if is_ident_like(&raw) {
                 Some(Arg::Ident(raw))
             } else {
-                Some(Arg::Str(raw))
+                Some(Arg::Str(raw)) // treat as expression string (e.g., "counter+1")
             }
         };
     }
@@ -126,14 +124,26 @@ fn parse_packet(sc: &mut Scanner) -> Result<Packet> {
         bail!("empty packet op in [{inner}]");
     }
 
-    Ok(Packet { ns, op, arg })
+    Ok(Packet { ns, op, arg, body: None })
 }
 
 fn is_ident_like(s: &str) -> bool {
-    let mut chars = s.chars();
-    match chars.next() {
-        Some(c) if c.is_ascii_alphabetic() || c == '_' => {},
+    let mut it = s.chars();
+    match it.next() {
+        Some(c) if c.is_ascii_alphabetic() || c == '_' => {}
         _ => return false,
     }
-    chars.all(|c| c.is_ascii_alphanumeric() || c == '_' )
+    it.all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
+
+fn unexpected(sc: &Scanner, where_: &str) -> String {
+    let start = sc.pos().saturating_sub(8);
+    let end = (sc.pos() + 16).min(sc.len());
+    let mut snippet = String::from_utf8_lossy(sc.slice(start, end)).to_string();
+    snippet = snippet.replace('\n', "\\n");
+    format!(
+        "unexpected character at {where_}: '{}' near \"{}\"",
+        sc.peek().unwrap_or('?'),
+        snippet
+    )
 }

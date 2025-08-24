@@ -1,77 +1,83 @@
 use std::collections::HashMap;
-use crate::kernel::ast::{Node, Packet, BExpr, /* Comparator if you already use it */};
+use anyhow::{Result, bail};
+
+use crate::kernel::ast::{Node, Packet, Arg};
 use crate::kernel::values::Value;
-use crate::kernel::boolops::cmp_eval; // keep if you use conditionals later
 
 pub struct Runtime {
     pub vars: HashMap<String, Value>,
-    pub last: Value, // last value in the current chain for pipeline-ish packets
+    pub last: Value,
+    pub tags: HashMap<String, Vec<Node>>, // named blocks from [funct:tag]{...}
 }
 
 impl Runtime {
     pub fn new() -> Self {
-        Self { vars: HashMap::new(), last: Value::Unit }
+        Self {
+            vars: HashMap::new(),
+            last: Value::Unit,
+            tags: HashMap::new(),
+        }
     }
 
-    // store/get
-    pub fn set_var(&mut self, name: &str, val: Value) {
-        self.vars.insert(name.to_string(), val);
-    }
-    pub fn get_var(&self, name: &str) -> Option<Value> {
-        self.vars.get(name).cloned()
-    }
+    // ---- variables ----
+    pub fn set_var(&mut self, name: &str, val: Value) { self.vars.insert(name.to_string(), val); }
+    pub fn get_var(&self, name: &str) -> Option<Value> { self.vars.get(name).cloned() }
 
-    // resolve a packet arg into a Value (Ident/Str/Number)
-    pub fn resolve_arg(&self, arg: &crate::kernel::ast::Arg) -> anyhow::Result<Value> {
-        use crate::kernel::ast::Arg::*;
+    // ---- tags ----
+    pub fn register_tag(&mut self, name: &str, body: Vec<Node>) { self.tags.insert(name.to_string(), body); }
+
+    // ---- args ----
+    pub fn resolve_arg(&self, arg: &Arg) -> Result<Value> {
         Ok(match arg {
-            Number(n) => Value::Num(*n),
-            Str(s)    => Value::Str(s.clone()),
-            Ident(id) => self.get_var(id).unwrap_or(Value::Unit),
-            _ => Value::Unit, // CondSrc etc. are for conditionals; not used here
+            Arg::Number(n) => Value::Num(*n),
+            Arg::Str(s)    => Value::Str(s.clone()),
+            Arg::Ident(id) => self.get_var(id).unwrap_or(Value::Unit),
+            _               => Value::Unit, // reserve for CondSrc/etc
         })
     }
 
-    // evaluate an AST node (update self.last after each step)
-    pub fn eval(&mut self, n: &Node) -> anyhow::Result<Value> {
+    // ---- eval ----
+    pub fn eval(&mut self, n: &Node) -> Result<Value> {
         let out = match n {
-            Node::Chain(list) => {
-                let mut last = Value::Unit;
-                for node in list {
-                    last = self.eval(node)?;
-                }
-                last
-            }
-            Node::Block(list) => {
-                let mut last = Value::Unit;
-                for node in list {
-                    last = self.eval(node)?;
-                }
-                last
-            }
+            Node::Chain(v) | Node::Block(v) => self.eval_list(v)?,
             Node::Packet(p) => self.eval_packet(p)?,
-            // If you’ve implemented Node::If already, you can branch here:
-            Node::If { cond: _cond, then_b: _tb, else_b: _eb } => {
-                // Placeholder: wire later when your cond compiler is ready.
-                Value::Unit
-            }
+            Node::If { .. } => Value::Unit, // wire later with conditionals
         };
         self.last = out.clone();
         Ok(out)
     }
 
-    fn eval_packet(&mut self, p: &Packet) -> anyhow::Result<Value> {
-        // Dispatch to packet handlers in src/packets/*
-        match (p.ns.as_deref(), p.op.as_str()) {
-            (None, "math")  => crate::packets::math::handle(self, p),
-            (None, "store") => crate::packets::store::handle(self, p),
-            (None, "print") => crate::packets::print::handle(self, p),
-            (None, "note")  => crate::packets::note::handle(self, p),
-
-            // (None, "loop")  => crate::packets::r#loop::handle(self, p),
-            // (None, "if")    => crate::packets::conditionals::handle(self, p),
-
-            other => Err(anyhow::anyhow!("unknown operation: [{:?}]", other)),
+    fn eval_list(&mut self, list: &[Node]) -> Result<Value> {
+        let mut last = Value::Unit;
+        for node in list {
+            last = self.eval(node)?;
         }
+        Ok(last)
+    }
+
+    fn eval_packet(&mut self, p: &Packet) -> Result<Value> {
+        match (p.ns.as_deref(), p.op.as_str()) {
+            // namespaced
+            (Some("funct"), _)  => crate::packets::funct::handle(self, p),
+
+            // core
+            (None, "note")      => crate::packets::note::handle(self, p),
+            (None, "math")      => crate::packets::math::handle(self, p),
+            (None, "store")     => crate::packets::store::handle(self, p),
+            (None, "print")     => crate::packets::print::handle(self, p),
+
+            // loop forms: [loop3@tag] or [loop@N]{...}
+            (None, op) if op.starts_with("loop") => crate::packets::r#loop::handle(self, p),
+
+            other => bail!("unknown operation: {:?}", other),
+        }
+    }
+
+    // small helpers for numeric vars used by packets
+    pub fn get_num(&self, name: &str) -> Option<f64> {
+        self.get_var(name).and_then(|v| v.try_num())
+    }
+    pub fn set_num(&mut self, name: &str, n: f64) {
+        self.set_var(name, Value::Num(n));
     }
 }

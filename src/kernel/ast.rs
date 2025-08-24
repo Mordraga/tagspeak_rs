@@ -12,6 +12,7 @@ pub struct Packet {
     pub ns: Option<String>,
     pub op: String,
     pub arg: Option<Arg>,
+    pub body: Option<Vec<Node>>,
 }
 
 #[derive(Debug, Clone)]

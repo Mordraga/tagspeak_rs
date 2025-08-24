@@ -1,17 +1,17 @@
-// line comments work
-# also fine
-/* block
-   comments
+// This is a comment
+# is also fine
+/* This is
+   a comment block
 */
+[note@"This is also a comment. Tagspeak is modular. Have fun.]
 
-[note@"=== Init ==="]
-[math@0] > [store@counter] > [print@counter]
+[note@"For this code I'm going to use the [note@""] style."]
 
-[note@"=== Increment thrice ==="]
-[math@counter+1] > [store@counter] > [print@counter]
-[math@counter+1] > [store@counter] > [print@counter]
-[math@counter+1] > [store@counter] > [print@counter]
-[math@0] > [store@counter] > [print@counter]
+[note@"Quick and dirty hello world.]
+[print@"Hello World!"]
 
-[note@"=== Simple math ==="]
-[math@"2+2"] > [store@a] > [print@a]
+[note@"Some basic math and storage logic."]
+[math@10+10]>[store@x]>[print@x]
+[math@0]>[store@x]
+[print@x]
+[note@"Looks weird but it runs fluid. Tagspeak is ment to be parsable at a glance. So compared to normal code it looks wierd as hell."]

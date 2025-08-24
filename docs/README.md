@@ -1,29 +1,73 @@
-# tagspeak_rs
-Everything is a Packet
-Thoughts, code, memory, inputs, emotions — all exist in modular [packet] form. This includes files, functions, commands, and even syntax rules themselves.
+# TagSpeak RS
 
-🧠 Syntax Structure
-TagSpeak follows a simplified English-like grammar:
+TagSpeak is a symbolic, packet-based language designed to be **human-readable** and **machine-parsable**.  
+This Rust implementation (`tagspeak_rs`) provides an interpreter that can parse and execute `.tgsk` scripts.
 
-📚 Subject → Object → Action
-Each packet is modular and symbolic. Meaning is derived from tag type and position — not spacing or indentation.
+---
 
-📦 Basic Format
-[subject@value]>[verb@modifier]>[action]
-🔹 Example
-[math@10+10]>[store@result]>[print]
-"Do math with 10 + 10, store the result, then print it."
+## ✨ Core Ideas
+- **Everything is a packet** → `[op@arg]`
+- **Packets can chain** with `>` → `[math@2+2] > [print@result]`
+- **Blocks** use `{ ... }` → group multiple packets
+- **Strings** use quotes → `[print@"hello world"]`
+- **Comments** supported → `#`, `//`, `/* ... */`
 
-This reads naturally and operates modularly:
+---
 
-[math@10+10]: defines the source packet.
-[store@result]: routes the output to memory.
-[print]: invokes a return/display function.
-🧰 Syntax Primitives
-Symbol	Meaning
-[...]	Single packet
-@	Denotes input to the packet
->	Output / routing between packets
-:	Used for nested logic (optional)
-->	Symbolic flow inside a packet (pure logic)
-TagSpeak is intentionally visually parseable — for AIs, for humans, for scripts. Everything is a packet. Everything flows.
+## 🔧 Features Implemented
+- **math** → evaluate expressions with `meval`
+- **store** → assign variables
+- **print** → output values or strings
+- **note** → dev/debug annotation
+- **funct** → define named blocks
+- **loop** → two styles:
+  - `[loop@3]{ ... }` → inline loop
+  - `[funct:step]{ ... } … [loop3@step]` → tag loop (modular, reusable)
+
+---
+
+## 📦 Example `.tgsk`
+
+```tgsk
+// comments are fine
+[note@"Init counter"]
+[math@0] > [store@counter] > [print@counter]
+
+[note@"Inline loop"]
+[loop@3]{ [math@counter+1] > [store@counter] > [print@counter] }
+
+[note@"Tag loop"]
+[funct:step]{ [math@counter+1] > [store@counter] > [print@counter] }
+[math@0] > [store@counter] > [print@counter]
+[loop3@step]
+```
+
+---
+
+## 🚀 Run
+
+```bash
+cargo run -- examples/smoke.tgsk
+```
+
+Expected output:
+
+```
+0
+1
+2
+3
+0
+1
+2
+3
+```
+
+---
+
+## 🛣 Roadmap
+- [x] math/store/print/note
+- [x] funct + loop (inline + tag)
+- [ ] call tags directly (`[call@step]`)
+- [ ] conditionals (`[if@(x>2)]{...}[else]{...}`)
+- [ ] modular imports / red.tgsk boundaries

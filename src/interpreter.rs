@@ -10,6 +10,12 @@ pub struct Scanner<'a> {
 }
 
 impl<'a> Scanner<'a> {
+    // ---- debug/introspection helpers ----
+    pub fn pos(&self) -> usize { self.i }
+    pub fn len(&self) -> usize { self.len }
+    pub fn slice(&self, start: usize, end: usize) -> &[u8] { &self.src[start..end] }
+
+    // ---- core ----
     pub fn new(s: &'a str) -> Self { Self { src: s.as_bytes(), i: 0, len: s.len() } }
     pub fn peek(&self) -> Option<char> { (self.i < self.len).then(|| self.src[self.i] as char) }
     pub fn next(&mut self) -> Option<char> { let c = self.peek()?; self.i += 1; Some(c) }
@@ -18,23 +24,31 @@ impl<'a> Scanner<'a> {
         let n = s.len();
         self.i + n <= self.len && &self.src[self.i..self.i+n] == s.as_bytes()
     }
+
     fn skip_ws(&mut self) {
         while let Some(c) = self.peek() {
             if c.is_whitespace() { self.i += 1; } else { break; }
         }
     }
+
     pub fn skip_comments_and_ws(&mut self) {
         loop {
             self.skip_ws();
+
+            // # line comment
             if self.peek() == Some('#') {
                 while let Some(c) = self.next() { if c == '\n' { break; } }
                 continue;
             }
+
+            // // line comment
             if self.starts_with("//") {
                 self.i += 2;
                 while let Some(c) = self.next() { if c == '\n' { break; } }
                 continue;
             }
+
+            // /* block comment */
             if self.starts_with("/*") {
                 self.i += 2;
                 while self.i + 1 < self.len {
@@ -43,6 +57,7 @@ impl<'a> Scanner<'a> {
                 }
                 continue;
             }
+
             break;
         }
     }
