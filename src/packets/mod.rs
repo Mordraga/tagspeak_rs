@@ -1,7 +1,17 @@
+mod util;
 pub mod print;
 pub mod math;
 pub mod store;
-pub mod r#loop;          
+pub mod r#loop;
 pub mod conditionals;
 pub mod note;
 pub mod funct;
+pub mod eq;
+pub mod ne;
+pub mod gt;
+pub mod lt;
+pub mod ge;
+pub mod le;
+pub mod and;
+pub mod or;
+pub mod not;
