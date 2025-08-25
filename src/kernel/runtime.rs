@@ -74,6 +74,15 @@ impl Runtime {
             (None, "math")      => crate::packets::math::handle(self, p),
             (None, "store")     => crate::packets::store::handle(self, p),
             (None, "print")     => crate::packets::print::handle(self, p),
+            (None, "eq")        => crate::packets::eq::handle(self, p),
+            (None, "ne")        => crate::packets::ne::handle(self, p),
+            (None, "gt")        => crate::packets::gt::handle(self, p),
+            (None, "lt")        => crate::packets::lt::handle(self, p),
+            (None, "ge")        => crate::packets::ge::handle(self, p),
+            (None, "le")        => crate::packets::le::handle(self, p),
+            (None, "and")       => crate::packets::and::handle(self, p),
+            (None, "or")        => crate::packets::or::handle(self, p),
+            (None, "not")       => crate::packets::not::handle(self, p),
 
             // loop forms: [loop3@tag] or [loop@N]{...}
             (None, op) if op.starts_with("loop") => crate::packets::r#loop::handle(self, p),
