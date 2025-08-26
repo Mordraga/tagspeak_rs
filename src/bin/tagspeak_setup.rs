@@ -185,7 +185,9 @@ impl App {
                 }
             }
             Ok(s) => {
-                self.set_busy(false, &format!("Build failed (exit code {s})"));
+                // [myth] goal: surface the numeric exit code
+                let code = s.code().map(|c| c.to_string()).unwrap_or_else(|| "unknown".into());
+                self.set_busy(false, &format!("Build failed (exit code {code})"));
             }
             Err(e) => {
                 self.set_busy(false, &format!("Couldn’t launch cargo: {e}"));
@@ -276,6 +278,14 @@ fn do_uninstall() -> Result<()> {
 fn refresh_icons() -> Result<()> {
     // [myth] goal: refresh icons without tanking Explorer
     // [myth] tradeoff: if the call fails, we don't get feedback
-    unsafe { SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, 0, 0); }
+    // SAFETY: pointers are null and flags are documented constants
+    unsafe {
+        SHChangeNotify(
+            SHCNE_ASSOCCHANGED as i32,
+            SHCNF_IDLIST,
+            std::ptr::null(),
+            std::ptr::null(),
+        );
+    }
     Ok(())
 }
