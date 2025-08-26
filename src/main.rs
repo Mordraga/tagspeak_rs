@@ -6,6 +6,7 @@ mod router;
 use kernel::Runtime;
 use std::env;
 use std::fs;
+use std::path::Path;
 
 fn main() -> anyhow::Result<()> {
     // path arg or default
@@ -16,7 +17,7 @@ fn main() -> anyhow::Result<()> {
     let src = fs::read_to_string(&path)?;
 
     let ast = router::parse(&src)?;
-    let mut rt = Runtime::new()?;
+    let mut rt = Runtime::from_entry(Path::new(&path))?;
     let _ = rt.eval(&ast)?;
     Ok(())
 }

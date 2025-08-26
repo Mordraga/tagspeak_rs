@@ -1,7 +1,8 @@
-pub mod print;
-pub mod math;
-pub mod store;
-pub mod r#loop;          
 pub mod conditionals;
-pub mod note;
 pub mod funct;
+pub mod load;
+pub mod r#loop;
+pub mod math;
+pub mod note;
+pub mod print;
+pub mod store;
