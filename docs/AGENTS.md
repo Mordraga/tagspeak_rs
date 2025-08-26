@@ -86,21 +86,17 @@ Read aloud: “Take this data (5+5), then tell me the result.”
 
 ## Conditionals
 
-### [if] / [then] / [or] / [else]
-- **Role:** Conditional chains.  
-- **Grammar:**  
+### [if]
+- **Role:** Inline conditional flow.
+- **Grammar:**
   ```tgsk
-  [if@(cond)] > [then]{ ... }
-    > [or@(cond)] > [then]{ ... }
-    > [else]{ ... }
+  [if@([lhs][cmp][rhs]>{[actions]}>[result])]
   ```
-- **Output:** Last value of executed branch or `Unit`.
+- **Output:** Executes `{[actions]}` and `[result]` when comparison is true, otherwise returns `Unit`.
 
-**Examples:**
+**Example:**
 ```tgsk
-[if@(x==1)] > [then]{ [print@"one"] }
-  > [or@(x==2)] > [then]{ [print@"two"] }
-  > [else]{ [print@"other"] }
+[if@([math@1][gt][math@0]>{[print@"yes"]}>[math@2])]
 ```
 
 ---

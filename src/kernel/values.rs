@@ -1,5 +1,5 @@
 // values.rs
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Value { Unit, Bool(bool), Num(f64), Str(String) }
 
 impl Value {

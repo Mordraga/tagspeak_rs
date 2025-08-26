@@ -69,5 +69,5 @@ Expected output:
 - [x] math/store/print/note
 - [x] funct + loop (inline + tag)
 - [ ] call tags directly (`[call@step]`)
-- [ ] conditionals (`[if@(x>2)]{...}[else]{...}`)
+- [x] conditionals (`[if@([a][gt][b]>{[...]}>[...])]`)
 - [ ] modular imports / red.tgsk boundaries

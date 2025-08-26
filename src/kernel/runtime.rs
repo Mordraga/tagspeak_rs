@@ -74,6 +74,7 @@ impl Runtime {
             (None, "math")      => crate::packets::math::handle(self, p),
             (None, "store")     => crate::packets::store::handle(self, p),
             (None, "print")     => crate::packets::print::handle(self, p),
+            (None, "if")        => crate::packets::conditionals::handle(self, p),
 
             // loop forms: [loop3@tag] or [loop@N]{...}
             (None, op) if op.starts_with("loop") => crate::packets::r#loop::handle(self, p),
