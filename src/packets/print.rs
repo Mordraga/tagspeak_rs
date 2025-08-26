@@ -16,5 +16,6 @@ fn pretty(v: &Value) -> String {
         Value::Num(n) => format!("{}", n),
         Value::Bool(b) => format!("{}", b),
         Value::Unit => String::from("()"),
+        Value::Doc(d) => d.json.to_string(),
     }
 }
