@@ -19,7 +19,7 @@ pub struct App {
     #[nwg_layout(parent: window)]
     layout: nwg::GridLayout,
 
-    #[nwg_control(text: "Hey! This is TagSpeak.\nPick your engine exe and install .tgsk")]
+    #[nwg_control(text: "Hey! Welcome to Tagspeak! It's a little scrappy. Don't mind the crash after install. That's part of the gimmick.")]
     #[nwg_layout_item(layout: layout, row: 0, col: 0, col_span: 4)]
     lbl: nwg::Label,
 
