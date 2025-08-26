@@ -55,6 +55,15 @@ pub struct App {
     #[nwg_events(OnButtonClick: [App::exit])]
     #[nwg_layout_item(layout: layout, row: 3, col: 3)]
     btn_close: nwg::Button,
+
+    #[nwg_control(text: "")]
+    #[nwg_layout_item(layout: layout, row: 4, col: 0, col_span: 4)]
+    lbl_status: nwg::Label,
+
+    #[nwg_control(text: "Build engine")]
+    #[nwg_events(OnButtonClick: [App::build_engine])]
+    #[nwg_layout_item(layout: layout, row: 3, col: 2)]
+    btn_build: nwg::Button,
 }
 
 impl App {
@@ -68,10 +77,16 @@ impl App {
             }
         }
         // nice spacing so DPI doesn’t squish stuff
-        self.layout.set_spacing(8, 8);
-        self.layout.set_margin(12, 12, 12, 12);
+        self.layout.spacing(8);
+        self.layout.margin([12, 12, 12, 12]);
 
         self.update_enabled();
+
+        // if engine not found, offer to build
+        if !std::path::Path::new(&self.tb_engine.text()).exists() {
+        self.lbl_status.set_text("Engine not found. Click “Build engine”.");
+    }
+
     }
 
     fn update_enabled(&self) {
@@ -128,16 +143,97 @@ impl App {
         }
     }
 
+    fn build_engine(&self) {
+        self.set_busy(true, "Building TagSpeak engine… this can take a minute");
+
+        // Locate repo root: ...\tagspeak_rs\target\release\setup.exe -> pop 3
+        let repo = match std::env::current_exe()
+            .ok()
+            .and_then(|mut p| { for _ in 0..3 { let _ = p.pop(); } Some(p) })
+        {
+            Some(p) => p,
+            None => { self.set_busy(false, "Couldn’t resolve repo root"); return; }
+        };
+
+        // sanity check
+        let mut cargo_toml = repo.clone();
+        cargo_toml.push("Cargo.toml");
+        if !cargo_toml.exists() {
+            self.set_busy(false, "Cargo.toml not found at repo root");
+            return;
+        }
+
+        // find `cargo` (PATH or common location)
+        let cargo = find_cargo();
+
+        let status = std::process::Command::new(cargo)
+            .current_dir(&repo)
+            .args(["build", "--release", "-p", "tagspeak_rs"])
+            .status();
+
+        match status {
+            Ok(s) if s.success() => {
+                let mut exe = repo.clone();
+                exe.push(r"target\release\tagspeak_rs.exe");
+                if exe.exists() {
+                    self.tb_engine.set_text(&exe.display().to_string());
+                    self.update_enabled();
+                    self.set_busy(false, "Build complete ✔");
+                } else {
+                    self.set_busy(false, "Build succeeded, but tagspeak_rs.exe not found");
+                }
+            }
+            Ok(s) => {
+                self.set_busy(false, &format!("Build failed (exit code {s})"));
+            }
+            Err(e) => {
+                self.set_busy(false, &format!("Couldn’t launch cargo: {e}"));
+            }
+        }
+    }
+
+    fn set_busy(&self, busy: bool, msg: &str) {
+        // quick UX: disable buttons during work + show status message
+        self.btn_browse.set_enabled(!busy);
+        self.btn_install.set_enabled(!busy);
+        self.btn_uninstall.set_enabled(!busy);
+        self.btn_run.set_enabled(!busy);
+        self.btn_build.set_enabled(!busy);
+        self.lbl_status.set_text(msg);
+    }
+
+
     fn exit(&self) { nwg::stop_thread_dispatch(); }
 }
+
+fn find_cargo() -> std::path::PathBuf {
+    use std::path::PathBuf;
+    // Try PATH first
+    if let Ok(path) = which::which("cargo") {
+        return path;
+    }
+    // Fallback to typical Windows install
+    let mut p = dirs::home_dir().unwrap_or_else(|| PathBuf::from("C:\\"));
+    p.push(r".cargo\bin\cargo.exe");
+    p
+}
+
 
 fn main() {
     nwg::init().expect("NWG init failed");
     nwg::Font::set_global_family("Segoe UI").ok();
+
     let app = App::build_ui(Default::default()).expect("UI build failed");
-    app.init_defaults();                 // <-- do this BEFORE the event loop
+
+    // 👑 set window icon from embedded .ico
+    if let Ok(icon) = nwg::Icon::from_bin(include_bytes!("../../misc/Tagspeak.ico")) {
+        app.window.set_icon(Some(&icon));
+    }
+
+    app.init_defaults();
     nwg::dispatch_thread_events();
 }
+
 
 /* ---------- registry helpers ---------- */
 fn do_install(engine_exe: PathBuf) -> Result<()> {
