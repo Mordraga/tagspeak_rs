@@ -1,0 +1,10 @@
+
+[load@modify_demo/hello.json]>[save@hello]
+[mod@hello]{
+    [ins(test)@42]
+}>[save@test]>[print@test] 
+    
+[load@modify_demo/hello.json]>[save@test] 
+[mod@hello]{
+    [del(test)]
+}>[save@hello]>[print@hello]
