@@ -35,3 +35,42 @@ pub fn resolve(root: &Path, requested: &Path) -> Result<PathBuf> {
     }
     Ok(normalized)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use anyhow::Result;
+    use std::{fs, path::Path};
+    use tempfile::tempdir;
+
+    #[test]
+    fn find_root_locates_red_tgsk() -> Result<()> {
+        let dir = tempdir()?;
+        println!("created temp dir {:?}", dir.path());
+        fs::write(dir.path().join("red.tgsk"), "")?;
+        println!("placed red.tgsk at {:?}", dir.path().join("red.tgsk"));
+        let nested = dir.path().join("a/b/c");
+        fs::create_dir_all(&nested)?;
+        println!("created nested path {:?}", nested);
+        let found = find_root(&nested);
+        println!("find_root returned {:?}", found);
+        assert_eq!(found, Some(dir.path().to_path_buf()));
+        Ok(())
+    }
+
+    #[test]
+    fn resolve_keeps_paths_inside_root() -> Result<()> {
+        let dir = tempdir()?;
+        let root = dir.path();
+        println!("root path {:?}", root);
+        fs::create_dir_all(root.join("safe"))?;
+        println!("created safe dir {:?}", root.join("safe"));
+        let resolved = resolve(root, Path::new("safe/file"))?;
+        println!("resolve returned {:?}", resolved);
+        assert_eq!(resolved, root.join("safe/file"));
+        let err = resolve(root, Path::new("../escape")).unwrap_err();
+        println!("resolve error {:?}", err);
+        assert_eq!(err.to_string(), "E_BOUNDARY_RED");
+        Ok(())
+    }
+}
