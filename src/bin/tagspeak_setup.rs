@@ -3,7 +3,8 @@ use anyhow::Result;
 use native_windows_gui as nwg;
 use native_windows_derive as nwd;
 use nwg::NativeUi;
-use std::{path::PathBuf, process::Command};
+use std::path::PathBuf;
+use windows_sys::Win32::UI::Shell::{SHChangeNotify, SHCNE_ASSOCCHANGED, SHCNF_IDLIST};
 use winreg::{enums::*, RegKey};
 
 const PROGID: &str = "TagSpeakFile";
@@ -19,7 +20,7 @@ pub struct App {
     #[nwg_layout(parent: window)]
     layout: nwg::GridLayout,
 
-    #[nwg_control(text: "Hey! This is TagSpeak.\nPick your engine exe and install .tgsk")]
+    #[nwg_control(text: "Hey! Welcome to Tagspeak! It's a little scrappy. Don't mind the crash after install. That's part of the gimmick.")]
     #[nwg_layout_item(layout: layout, row: 0, col: 0, col_span: 4)]
     lbl: nwg::Label,
 
@@ -184,7 +185,9 @@ impl App {
                 }
             }
             Ok(s) => {
-                self.set_busy(false, &format!("Build failed (exit code {s})"));
+                // [myth] goal: surface the numeric exit code
+                let code = s.code().map(|c| c.to_string()).unwrap_or_else(|| "unknown".into());
+                self.set_busy(false, &format!("Build failed (exit code {code})"));
             }
             Err(e) => {
                 self.set_busy(false, &format!("Couldn’t launch cargo: {e}"));
@@ -268,9 +271,21 @@ fn do_uninstall() -> Result<()> {
     Ok(())
 }
 
+/// Notify Windows that file associations changed so icons refresh.
+///
+/// # Errors
+/// Currently returns `Ok(())` because [`SHChangeNotify`] has no error reporting.
 fn refresh_icons() -> Result<()> {
-    let _ = Command::new("ie4uinit.exe").arg("-ClearIconCache").status();
-    let _ = Command::new("taskkill").args(["/IM","explorer.exe","/F"]).status();
-    let _ = Command::new("explorer.exe").status();
+    // [myth] goal: refresh icons without tanking Explorer
+    // [myth] tradeoff: if the call fails, we don't get feedback
+    // SAFETY: pointers are null and flags are documented constants
+    unsafe {
+        SHChangeNotify(
+            SHCNE_ASSOCCHANGED as i32,
+            SHCNF_IDLIST,
+            std::ptr::null::<std::ffi::c_void>(),
+            std::ptr::null::<std::ffi::c_void>(),
+        );
+    }
     Ok(())
 }
