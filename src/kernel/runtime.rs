@@ -106,8 +106,6 @@ impl Runtime {
             (None, "store") => crate::packets::store::handle(self, p),
             (None, "print") => crate::packets::print::handle(self, p),
             (None, "load") => crate::packets::load::handle(self, p),
-            (None, "save") => crate::packets::save::handle(self, p),
-            (None, "mod") => crate::packets::modify::handle(self, p),
 
             // loop forms: [loop3@tag] or [loop@N]{...}
             (None, op) if op.starts_with("loop") => crate::packets::r#loop::handle(self, p),
