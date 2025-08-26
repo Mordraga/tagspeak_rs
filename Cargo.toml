@@ -9,15 +9,31 @@ dirs = "5"
 clap = { version = "4.5.2", features = ["derive"] }
 meval = "0.2"
 anyhow = "1"
-winreg = "0.52"
-native-windows-gui = "1.0.13"
-native-windows-derive = "1.0"
-windows-sys = { version = "0.52", features = ["Win32_UI_Shell"] }
-
+winreg = { version = "0.52", optional = true }
+native-windows-gui = { version = "1.0.13", optional = true }
+native-windows-derive = { version = "1.0", optional = true }
+windows-sys = { version = "0.52", features = ["Win32_UI_Shell"], optional = true }
+winit = { version = "0.28", optional = true }
 
 [build-dependencies]
-winres = "0.1"
+winres = { version = "0.1", optional = true }
+
+[features]
+windows = [
+    "native-windows-gui",
+    "native-windows-derive",
+    "winreg",
+    "windows-sys",
+    "winres",
+]
+linux = ["winit"]
 
 [[bin]]
 name = "tagspeak_setup"
 path = "src/bin/tagspeak_setup.rs"
+required-features = ["windows"]
+
+[[bin]]
+name = "tagspeak_setup_linux"
+path = "src/bin/tagspeak_setup_linux.rs"
+required-features = ["linux"]

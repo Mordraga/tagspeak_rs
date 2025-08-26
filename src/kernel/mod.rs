@@ -1,9 +1,10 @@
 // src/kernel/mod.rs
-pub mod values;
-pub mod runtime;
 pub mod ast;
 pub mod boolops;
+pub mod fs_guard;
+pub mod runtime;
+pub mod values;
 
-pub use values::Value;
+pub use ast::{Arg, BExpr, Comparator, Node, Packet};
 pub use runtime::Runtime;
-pub use ast::{Node, Packet, Arg, BExpr, Comparator};
+pub use values::Value;

@@ -239,7 +239,7 @@ pub fn eval_cond(rt: &mut Runtime, cond: &BExpr) -> Result<bool> {
     match cond {
         BExpr::Lit(src) => {
             let node = crate::router::parse(src)?;
-            let mut tmp = Runtime::new();
+            let mut tmp = Runtime::new()?;
             tmp.vars = rt.vars.clone();
             tmp.tags = rt.tags.clone();
             // [myth] goal: numbers <= 0 and empty strings are false
@@ -249,7 +249,7 @@ pub fn eval_cond(rt: &mut Runtime, cond: &BExpr) -> Result<bool> {
         BExpr::Or(a, b) => Ok(eval_cond(rt, a)? || eval_cond(rt, b)?),
         BExpr::Not(e) => Ok(!eval_cond(rt, e)?),
         BExpr::Cmp { lhs, cmp, rhs } => {
-            let mut tmp = Runtime::new();
+            let mut tmp = Runtime::new()?;
             tmp.vars = rt.vars.clone();
             let lv = tmp.eval(lhs)?;
             let rv = tmp.eval(rhs)?;
@@ -269,7 +269,7 @@ mod tests {
         let script = "[if@([math@0])]>[then]{[math@1]>[store@x]}>\
                       [or@([math@1])]>[then]{[math@2]>[store@x]}>\
                       [else]>[then]{[math@3]>[store@x]}";
-        let mut rt = Runtime::new();
+        let mut rt = Runtime::new()?;
         let node = router::parse(script)?;
         rt.eval(&node)?;
         assert_eq!(rt.get_num("x"), Some(2.0));
@@ -281,7 +281,7 @@ mod tests {
         let script = "[if@(1>1)]>[then]{[math@10]>[store@x]}>\
                       [or@(1[lt]1)]>[then]{[math@20]>[store@x]}>\
                       [else]>[then]{[math@30]>[store@x]}";
-        let mut rt = Runtime::new();
+        let mut rt = Runtime::new()?;
         let node = router::parse(script)?;
         rt.eval(&node)?;
         assert_eq!(rt.get_num("x"), Some(30.0));

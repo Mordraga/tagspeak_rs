@@ -1,12 +1,10 @@
-// build.rs (root)
+#[cfg(feature = "windows")]
 fn main() {
-    #[cfg(windows)]
-    {
-        let mut res = winres::WindowsResource::new();
-        // engine icon:
-        res.set_icon("misc/Tagspeak.ico");
-        // manifest for Common Controls v6:
-        res.set_manifest_file("misc/app.manifest");
-        res.compile().expect("Failed to embed resources");
-    }
+    let mut res = winres::WindowsResource::new();
+    res.set_icon("misc/Tagspeak.ico");
+    res.set_manifest_file("misc/app.manifest");
+    res.compile().expect("Failed to embed resources");
 }
+
+#[cfg(not(feature = "windows"))]
+fn main() {}

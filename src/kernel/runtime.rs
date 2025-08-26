@@ -1,38 +1,49 @@
-use std::collections::HashMap;
 use anyhow::{Result, bail};
+use std::collections::HashMap;
+use std::path::PathBuf;
 
-use crate::kernel::ast::{Node, Packet, Arg, BExpr};
+use crate::kernel::ast::{Arg, BExpr, Node, Packet};
+use crate::kernel::fs_guard::find_root;
 use crate::kernel::values::Value;
 
 pub struct Runtime {
     pub vars: HashMap<String, Value>,
     pub last: Value,
     pub tags: HashMap<String, Vec<Node>>, // named blocks from [funct:tag]{...}
+    pub effective_root: Option<PathBuf>,
 }
 
 impl Runtime {
-    pub fn new() -> Self {
-        Self {
+    pub fn new() -> Result<Self> {
+        let cwd = std::env::current_dir()?;
+        Ok(Self {
             vars: HashMap::new(),
             last: Value::Unit,
             tags: HashMap::new(),
-        }
+            effective_root: find_root(&cwd),
+        })
     }
 
     // ---- variables ----
-    pub fn set_var(&mut self, name: &str, val: Value) { self.vars.insert(name.to_string(), val); }
-    pub fn get_var(&self, name: &str) -> Option<Value> { self.vars.get(name).cloned() }
+    pub fn set_var(&mut self, name: &str, val: Value) {
+        self.vars.insert(name.to_string(), val);
+    }
+    pub fn get_var(&self, name: &str) -> Option<Value> {
+        self.vars.get(name).cloned()
+    }
 
     // ---- tags ----
-    pub fn register_tag(&mut self, name: &str, body: Vec<Node>) { self.tags.insert(name.to_string(), body); }
+    pub fn register_tag(&mut self, name: &str, body: Vec<Node>) {
+        self.tags.insert(name.to_string(), body);
+    }
 
     // ---- args ----
     pub fn resolve_arg(&self, arg: &Arg) -> Result<Value> {
         Ok(match arg {
             Arg::Number(n) => Value::Num(*n),
-            Arg::Str(s)    => Value::Str(s.clone()),
+            Arg::Str(s) => Value::Str(s.clone()),
             Arg::Ident(id) => self.get_var(id).unwrap_or(Value::Unit),
-            _               => Value::Unit, // reserve for CondSrc/etc
+            _ => Value::Unit, // reserve for CondSrc/etc
         })
     }
 
@@ -41,7 +52,11 @@ impl Runtime {
         let out = match n {
             Node::Chain(v) | Node::Block(v) => self.eval_list(v)?,
             Node::Packet(p) => self.eval_packet(p)?,
-            Node::If { cond, then_b, else_b } => {
+            Node::If {
+                cond,
+                then_b,
+                else_b,
+            } => {
                 // [myth] goal: runtime branching
                 if self.eval_if(cond)? {
                     self.eval_list(then_b)?
@@ -67,13 +82,13 @@ impl Runtime {
     fn eval_packet(&mut self, p: &Packet) -> Result<Value> {
         match (p.ns.as_deref(), p.op.as_str()) {
             // namespaced
-            (Some("funct"), _)  => crate::packets::funct::handle(self, p),
+            (Some("funct"), _) => crate::packets::funct::handle(self, p),
 
             // core
-            (None, "note")      => crate::packets::note::handle(self, p),
-            (None, "math")      => crate::packets::math::handle(self, p),
-            (None, "store")     => crate::packets::store::handle(self, p),
-            (None, "print")     => crate::packets::print::handle(self, p),
+            (None, "note") => crate::packets::note::handle(self, p),
+            (None, "math") => crate::packets::math::handle(self, p),
+            (None, "store") => crate::packets::store::handle(self, p),
+            (None, "print") => crate::packets::print::handle(self, p),
 
             // loop forms: [loop3@tag] or [loop@N]{...}
             (None, op) if op.starts_with("loop") => crate::packets::r#loop::handle(self, p),
