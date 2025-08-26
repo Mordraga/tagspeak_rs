@@ -1,6 +1,6 @@
-use anyhow::{Result, bail};
+use anyhow::{bail, Result};
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::kernel::ast::{Arg, BExpr, Node, Packet};
 use crate::kernel::fs_guard::find_root;
@@ -11,16 +11,32 @@ pub struct Runtime {
     pub last: Value,
     pub tags: HashMap<String, Vec<Node>>, // named blocks from [funct:tag]{...}
     pub effective_root: Option<PathBuf>,
+    pub cwd: PathBuf,
 }
 
 impl Runtime {
     pub fn new() -> Result<Self> {
         let cwd = std::env::current_dir()?;
+        Self::from_start(&cwd)
+    }
+
+    pub fn from_entry(entry: &Path) -> Result<Self> {
+        let start = entry.parent().unwrap_or_else(|| Path::new("."));
+        Self::from_start(start)
+    }
+
+    fn from_start(start: &Path) -> Result<Self> {
+        let root = find_root(start);
+        let cwd = match &root {
+            Some(r) => start.strip_prefix(r).unwrap_or(Path::new("")).to_path_buf(),
+            None => PathBuf::new(),
+        };
         Ok(Self {
             vars: HashMap::new(),
             last: Value::Unit,
             tags: HashMap::new(),
-            effective_root: find_root(&cwd),
+            effective_root: root,
+            cwd,
         })
     }
 
@@ -89,6 +105,7 @@ impl Runtime {
             (None, "math") => crate::packets::math::handle(self, p),
             (None, "store") => crate::packets::store::handle(self, p),
             (None, "print") => crate::packets::print::handle(self, p),
+            (None, "load") => crate::packets::load::handle(self, p),
 
             // loop forms: [loop3@tag] or [loop@N]{...}
             (None, op) if op.starts_with("loop") => crate::packets::r#loop::handle(self, p),
@@ -107,5 +124,26 @@ impl Runtime {
 
     fn eval_if(&mut self, cond: &BExpr) -> Result<bool> {
         crate::packets::conditionals::eval_cond(self, cond)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    #[test]
+    fn from_entry_detects_red_root() {
+        let base = std::env::temp_dir().join(format!("tgsk_rt_test_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&base);
+        fs::create_dir_all(base.join("sub")).unwrap();
+        fs::write(base.join("red.tgsk"), "").unwrap();
+        let script = base.join("sub").join("main.tgsk");
+        fs::write(&script, "").unwrap();
+
+        let rt = Runtime::from_entry(&script).unwrap();
+        assert_eq!(rt.effective_root.as_deref(), Some(base.as_path()));
+
+        fs::remove_dir_all(base).unwrap();
     }
 }
