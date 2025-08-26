@@ -1,11 +1,12 @@
+#![cfg(feature = "windows")]
 #![windows_subsystem = "windows"]
 use anyhow::Result;
-use native_windows_gui as nwg;
 use native_windows_derive as nwd;
+use native_windows_gui as nwg;
 use nwg::NativeUi;
 use std::path::PathBuf;
-use windows_sys::Win32::UI::Shell::{SHChangeNotify, SHCNE_ASSOCCHANGED, SHCNF_IDLIST};
-use winreg::{enums::*, RegKey};
+use windows_sys::Win32::UI::Shell::{SHCNE_ASSOCCHANGED, SHCNF_IDLIST, SHChangeNotify};
+use winreg::{RegKey, enums::*};
 
 const PROGID: &str = "TagSpeakFile";
 const DISPLAY: &str = "TagSpeak Script";
@@ -71,7 +72,9 @@ impl App {
     fn init_defaults(&self) {
         // try to auto-fill engine path (…\tagspeak_rs\target\release\tagspeak_rs.exe)
         if let Ok(mut here) = std::env::current_exe() {
-            for _ in 0..2 { here = here.parent().unwrap().to_path_buf(); } // up from target\release
+            for _ in 0..2 {
+                here = here.parent().unwrap().to_path_buf();
+            } // up from target\release
             here.push("tagspeak_rs\\target\\release\\tagspeak_rs.exe");
             if here.exists() {
                 self.tb_engine.set_text(&here.display().to_string());
@@ -85,9 +88,9 @@ impl App {
 
         // if engine not found, offer to build
         if !std::path::Path::new(&self.tb_engine.text()).exists() {
-        self.lbl_status.set_text("Engine not found. Click “Build engine”.");
-    }
-
+            self.lbl_status
+                .set_text("Engine not found. Click “Build engine”.");
+        }
     }
 
     fn update_enabled(&self) {
@@ -148,12 +151,17 @@ impl App {
         self.set_busy(true, "Building TagSpeak engine… this can take a minute");
 
         // Locate repo root: ...\tagspeak_rs\target\release\setup.exe -> pop 3
-        let repo = match std::env::current_exe()
-            .ok()
-            .and_then(|mut p| { for _ in 0..3 { let _ = p.pop(); } Some(p) })
-        {
+        let repo = match std::env::current_exe().ok().and_then(|mut p| {
+            for _ in 0..3 {
+                let _ = p.pop();
+            }
+            Some(p)
+        }) {
             Some(p) => p,
-            None => { self.set_busy(false, "Couldn’t resolve repo root"); return; }
+            None => {
+                self.set_busy(false, "Couldn’t resolve repo root");
+                return;
+            }
         };
 
         // sanity check
@@ -186,7 +194,10 @@ impl App {
             }
             Ok(s) => {
                 // [myth] goal: surface the numeric exit code
-                let code = s.code().map(|c| c.to_string()).unwrap_or_else(|| "unknown".into());
+                let code = s
+                    .code()
+                    .map(|c| c.to_string())
+                    .unwrap_or_else(|| "unknown".into());
                 self.set_busy(false, &format!("Build failed (exit code {code})"));
             }
             Err(e) => {
@@ -205,8 +216,9 @@ impl App {
         self.lbl_status.set_text(msg);
     }
 
-
-    fn exit(&self) { nwg::stop_thread_dispatch(); }
+    fn exit(&self) {
+        nwg::stop_thread_dispatch();
+    }
 }
 
 fn find_cargo() -> std::path::PathBuf {
@@ -220,7 +232,6 @@ fn find_cargo() -> std::path::PathBuf {
     p.push(r".cargo\bin\cargo.exe");
     p
 }
-
 
 fn main() {
     nwg::init().expect("NWG init failed");
@@ -237,10 +248,11 @@ fn main() {
     nwg::dispatch_thread_events();
 }
 
-
 /* ---------- registry helpers ---------- */
 fn do_install(engine_exe: PathBuf) -> Result<()> {
-    if !engine_exe.exists() { anyhow::bail!("Engine exe not found: {}", engine_exe.display()); }
+    if !engine_exe.exists() {
+        anyhow::bail!("Engine exe not found: {}", engine_exe.display());
+    }
     let engine = engine_exe.display().to_string();
     let default_icon = format!("{},0", engine);
 
