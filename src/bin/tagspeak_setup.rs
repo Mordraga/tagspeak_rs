@@ -3,7 +3,8 @@ use anyhow::Result;
 use native_windows_gui as nwg;
 use native_windows_derive as nwd;
 use nwg::NativeUi;
-use std::{path::PathBuf, process::Command};
+use std::path::PathBuf;
+use windows_sys::Win32::UI::Shell::{SHChangeNotify, SHCNE_ASSOCCHANGED, SHCNF_IDLIST};
 use winreg::{enums::*, RegKey};
 
 const PROGID: &str = "TagSpeakFile";
@@ -268,9 +269,13 @@ fn do_uninstall() -> Result<()> {
     Ok(())
 }
 
+/// Notify Windows that file associations changed so icons refresh.
+///
+/// # Errors
+/// Currently returns `Ok(())` because [`SHChangeNotify`] has no error reporting.
 fn refresh_icons() -> Result<()> {
-    let _ = Command::new("ie4uinit.exe").arg("-ClearIconCache").status();
-    let _ = Command::new("taskkill").args(["/IM","explorer.exe","/F"]).status();
-    let _ = Command::new("explorer.exe").status();
+    // [myth] goal: refresh icons without tanking Explorer
+    // [myth] tradeoff: if the call fails, we don't get feedback
+    unsafe { SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, 0, 0); }
     Ok(())
 }
