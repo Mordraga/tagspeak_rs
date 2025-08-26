@@ -1,0 +1,13 @@
+[funct:test]>{
+    [note@"Notice how > is used."]
+    [if@(1>1)]>{[math@10]>[store@x]}>
+
+    [note@"[lt] is just as valid as < also."]
+    [or@(1[lt]1)]>{[math@20]>[store@x]}>
+
+    [note@"since both are false, the fuction defaults to else."]
+    [else]>{[math@30]>[store@x]}
+}>
+[loop1@test]>
+[print@x]
+[note@"Final result should be 30."]
