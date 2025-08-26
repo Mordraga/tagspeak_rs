@@ -1,0 +1,8 @@
+[note@"Print squares from 1 to 5"]
+
+[math@1]>[store@i]
+[loop@5]{
+    [math@i*i]>[store@last]
+    [math@i+1]>[store@i]
+    >[print@i]>[print@"squared is"]>[print@last]
+}
