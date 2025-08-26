@@ -114,11 +114,6 @@ cargo test
 
 ---
 
-### 4. **Contribution**
-
-If you welcome contributions, add:
-
-```markdown
 ## Contributing
 
 Pull requests and issues are welcome! See `src/` for code organization.
