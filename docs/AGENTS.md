@@ -5,7 +5,36 @@ Each agent is a symbolic `[packet]` that can be chained with `>` or grouped with
 Everything in TagSpeak is a packet.
 
 ---
+## Flow of TagSpeak
 
+TagSpeak is a dataflow language.
+Unlike imperative languages where control is the focus, TagSpeak emphasizes the flow of values from source → transformation → action.
+
+### Execution Flow
+
+[packet source code]  
+   ↓ (lex/parse packets)  
+AST (Node tree: Chain, Packet, If, Block, etc.)  
+   ↓ (dispatch nodes)  
+Router (maps AST nodes to packet modules)  
+   ↓ (execute)  
+Runtime (manages variables, tags, last value, state)  
+   ↓  
+Packet Handlers (math, store, print, loop, conditionals, etc.)
+
+
+### Grammar Flow
+
+[data] > [modify_data] > [final_action]
+
+
+Example:
+
+[math@5+5] > [print]
+
+
+Read aloud: “Take this data (5+5), then tell me the result.”
+---
 ## Core Packets
 
 ### [math]
@@ -117,4 +146,5 @@ Such as:
 
 1. Everything is a packet.  
 2. User-dependent flow: sugar (e.g. `==`) and canonical packets (`[eq]`) coexist.  
-3. Packets must be human-readable and machine-parsable.  
+3. Packets must be human-readable and machine-parsable.
+
