@@ -283,8 +283,8 @@ fn refresh_icons() -> Result<()> {
         SHChangeNotify(
             SHCNE_ASSOCCHANGED as i32,
             SHCNF_IDLIST,
-            std::ptr::null(),
-            std::ptr::null(),
+            std::ptr::null::<std::ffi::c_void>(),
+            std::ptr::null::<std::ffi::c_void>(),
         );
     }
     Ok(())
