@@ -1,5 +1,6 @@
 pub mod conditionals;
 pub mod funct;
+pub mod call;
 pub mod load;
 pub mod r#loop;
 pub mod math;

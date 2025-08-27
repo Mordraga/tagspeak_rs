@@ -1,0 +1,9 @@
+[funct@profile]{
+  [log(json)@profile.json]{
+    [key(name)@"Saryn"]
+    [sect@stats]{
+      [key(level)@5]
+    }
+  }
+}
+[call@profile]
