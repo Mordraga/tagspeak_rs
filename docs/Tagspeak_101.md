@@ -1,102 +1,164 @@
 # TagSpeak 101
 
-Welcome to TagSpeak — a symbolic mini-language where **everything is a packet**.
+## What is TagSpeak?
+
+TagSpeak is a **dataflow-oriented DSL** designed for clarity and accessibility between humans and AI models. Unlike imperative languages, TagSpeak flows data through chained packets, each represented as `[packet@arg]` blocks. The goal is to be both **human-readable** and **machine-parsable**.
 
 ---
 
-## 🧩 What’s a Packet?
-The basic unit is `[op@arg]`.  
-Think of it as: **verb + data**.
+## Core Concepts
 
-Examples:
-- `[math@2+2]`
-- `[store@counter]`
-- `[print@"hello"]`
+1. **Packets**
+   Everything in TagSpeak is a `[packet]`. Packets transform, store, or route data.
 
-Packets **chain** with `>`:
+   Example:
+
+   ```tgsk
+   [math@5+5]>[print]
+   ```
+
+   → outputs `10`
+
+2. **Dataflow, not imperative**
+   Execution flows left to right, through pipes (`>`), carrying values forward.
+
+   Example:
+
+   ```tgsk
+   [msg@"hi"]>[store@greeting]
+   ```
+
+   → stores `hi` as `greeting`.
+
+3. **Inline sugar + canonical packets**
+   Human-friendly syntax (`==`, `>`, etc.) coexists with explicit packets like `[eq]`, `[gt]`, `[and]`.
+
+---
+
+## Packet Types
+
+### Value Packets
+
+* `[msg@"string"]` → create a string literal.
+* `[int@int]` → create an integer.
+* `[bool@true|false]` → create a bool true|false statement.
+* `[note@"message"]` → inline documentation/annotation.
+
+### Function Packets
+
+* `[print]` → print the last value. can also use `[print@value]` to print specific values.
+* `[math@expr]` → evaluate math expression.
+* `[store@name]` → save last value under variable name.
+
+### File Packets
+
+* `[save@file]` → save current runtime state to file.
+* `[load(json|yaml|toml)@file]` → load values/config from a file.
+* `[log@file.json]` → dump last value to a JSON file (quick + dirty mode).
+* `[log(json|yaml|toml)@file]{...}` → structured logging mode: build and write formatted docs.
+* `[mod@var]{...}` → edit an in-memory document previously loaded and saved into a variable. Supports operators:
+
+  * `comp` → set a value if absent.
+  * `comp!` → overwrite existing value.
+  * `merge` → deep merge object structures.
+  * `del` → delete a field/path.
+  * `ins` → insert a new value.
+
+### Control Flow Packets
+
+* `[loopN]{...}` → repeat enclosed block `N` times.
+* `[cond(condition)]{...}[else]{...}` → conditional branching, run one block if true, else the other.
+* `[funct@name]{...}` → define a reusable function.
+* `[call@name]` → call a function defined with `[funct]`.
+
+### Structured Logging Helpers
+
+* `[key(name)@value]` → insert a key/value pair inside a structured `[log]` block.
+* `[sect@section]{...}` → create a nested object/table (JSON/YAML/TOML style sections).
+
+---
+
+## Examples
+
+### Quick Dump
+
 ```tgsk
-[math@2+2] > [store@x] > [print@x]
+[math@2+2]>[log@result.json]
 ```
 
----
+Produces `result.json`:
 
-## 🔲 Blocks
-Use `{ ... }` to group packets into a sequence.
+```json
+4
+```
+
+### JSON Structured Log
 
 ```tgsk
-[loop@3]{ 
-  [print@"hi"] 
+[log(json)@profile.json]{
+  [key(name)@"Saryn"]
+  [key(age)@25]
+  [key(active)@true]
 }
 ```
 
----
+Produces `profile.json`:
 
-## 🗒 Comments
-TagSpeak allows 3 styles:
-```tgsk
-# hash
-// double slash
-/* block comment */
+```json
+{
+  "name": "Saryn",
+  "age": 25,
+  "active": true
+}
 ```
 
----
+### YAML Structured Log
 
-## ⚙️ Built-in Packets
-
-### `[math@expr]`
-Evaluate an expression.  
 ```tgsk
-[math@5*2] > [print]
+[log(yaml)@profile.yaml]{
+  [key(name)@"Saryn"]
+  [key(age)@25]
+}
 ```
 
-### `[store@var]`
-Assigns the last value to `var`.  
-```tgsk
-[math@10] > [store@x]
+Produces `profile.yaml`:
+
+```yaml
+name: Saryn
+age: 25
 ```
 
-### `[print@val]`
-Output either a value or string.  
+### TOML Structured Log
+
 ```tgsk
-[print@"hello world"]
+[log(toml)@Cargo.toml]{
+  [sect@package]{
+    [key(name)@"tagspeak"]
+    [key(version)@"0.1.0"]
+  }
+  [sect@dependencies]{
+    [key(anyhow)@"1"]
+    [key(serde)@"1"]
+  }
+}
 ```
 
-### `[note@"..."]`
-Inline annotation; printed in dev/debug mode.
+Produces `Cargo.toml`:
 
-### `[funct:tag]{ ... }`
-Define a named block of code.  
-```tgsk
-[funct:step]{ [print@"inside step"] }
+```toml
+[package]
+name = "tagspeak"
+version = "0.1.0"
+
+[dependencies]
+anyhow = "1"
+serde = "1"
 ```
-
-### `[loop@N]{ ... }`
-Run the block N times (inline loop).
-
-### `[loopN@tag]`
-Run a named block N times.  
-```tgsk
-[funct:step]{ [print@"hi"] }
-[loop3@step]
-```
-
----
-
-## 🚦 Design Rules
-1. **Everything is a packet.**
-2. **User-dependent flow** → syntax has sugar and modularity; you choose.
-3. **Readable to humans, parseable by machines.**
 
 ---
 
-## 🛠 Try It
-Create `examples/hello.tgsk`:
+## Design Principles
 
-```tgsk
-[print@"Hello, TagSpeak!"]
-```
-
-Run:
-```bash
-cargo run -- examples/hello.tgsk
-```
+* **Human-friendly** but machine-precise.
+* **Composable** — packets can nest and chain.
+* **Extensible** — future packets may add arrays, merges, or other structures.
