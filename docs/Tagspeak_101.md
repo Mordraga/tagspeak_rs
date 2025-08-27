@@ -1,37 +1,34 @@
 # TagSpeak 101
 
+### Audience
+
+This file is a quick reference for **Codex-style agents** and humans who need to read or write TagSpeak (`.tgsk`) programs.
+
+---
+
 ## What is TagSpeak?
 
-TagSpeak is a **dataflow-oriented DSL** designed for clarity and accessibility between humans and AI models. Unlike imperative languages, TagSpeak flows data through chained packets, each represented as `[packet@arg]` blocks. The goal is to be both **human-readable** and **machine-parsable**.
+TagSpeak is a **dataflow-oriented DSL**. Instead of mutating state with imperative statements, values move left → right through chained **packets**. Each packet has the shape `[packet@arg]` and transforms the value it receives.
+
+Data is always carried forward by the `>` connector:
+
+```tgsk
+[msg@"hi"]>[store@greeting]>[print]
+```
+
+1. `[msg]` produces "hi".
+2. `[store]` saves it under `greeting`.
+3. `[print]` outputs it.
+
+Keep TagSpeak syntax intact—**do not translate** packets to Rust, Python, or other languages.
 
 ---
 
 ## Core Concepts
 
-1. **Packets**
-   Everything in TagSpeak is a `[packet]`. Packets transform, store, or route data.
-
-   Example:
-
-   ```tgsk
-   [math@5+5]>[print]
-   ```
-
-   → outputs `10`
-
-2. **Dataflow, not imperative**
-   Execution flows left to right, through pipes (`>`), carrying values forward.
-
-   Example:
-
-   ```tgsk
-   [msg@"hi"]>[store@greeting]
-   ```
-
-   → stores `hi` as `greeting`.
-
-3. **Inline sugar + canonical packets**
-   Human-friendly syntax (`==`, `>`, etc.) coexists with explicit packets like `[eq]`, `[gt]`, `[and]`.
+1. **Everything is a packet** – packets transform, store, or route data.
+2. **Inline sugar vs. canonical packets** – friendly forms (`>` or `==`) have explicit equivalents (`[pipe]`, `[eq]`). Prefer canonical packets when clarity matters.
+3. **Structured file operations** – when emitting files, prefer `[log(json|yaml|toml)@path]{...}` over ad‑hoc writes.
 
 ---
 
