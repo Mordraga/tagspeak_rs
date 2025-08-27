@@ -1,6 +1,5 @@
-use anyhow::{bail, Result};
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use anyhow::{Result, bail};
 
 use crate::kernel::ast::{Arg, BExpr, Node, Packet};
 use crate::kernel::fs_guard::find_root;
@@ -8,6 +7,8 @@ use crate::kernel::values::Value;
 
 pub struct Runtime {
     pub vars: HashMap<String, Value>,
+    pub ctx_vars: HashMap<String, Vec<(BExpr, Value)>>,
+    pub rigid: HashSet<String>,
     pub last: Value,
     pub tags: HashMap<String, Vec<Node>>, // named blocks from [funct:tag]{...}
     pub effective_root: Option<PathBuf>,
@@ -33,6 +34,8 @@ impl Runtime {
         };
         Ok(Self {
             vars: HashMap::new(),
+            ctx_vars: HashMap::new(),
+            rigid: HashSet::new(),
             last: Value::Unit,
             tags: HashMap::new(),
             effective_root: root,
@@ -41,12 +44,8 @@ impl Runtime {
     }
 
     // ---- variables ----
-    pub fn set_var(&mut self, name: &str, val: Value) {
-        self.vars.insert(name.to_string(), val);
-    }
-    pub fn get_var(&self, name: &str) -> Option<Value> {
-        self.vars.get(name).cloned()
-    }
+    pub fn set_var(&mut self, name: &str, val: Value) { self.vars.insert(name.to_string(), val); }
+    pub fn get_var(&self, name: &str) -> Option<Value> { self.vars.get(name).cloned() }
 
     // ---- tags ----
     pub fn register_tag(&mut self, name: &str, body: Vec<Node>) {
@@ -101,11 +100,10 @@ impl Runtime {
             (Some("funct"), _) => crate::packets::funct::handle(self, p),
 
             // core
-            (None, "note") => crate::packets::note::handle(self, p),
-            (None, "math") => crate::packets::math::handle(self, p),
-            (None, "store") => crate::packets::store::handle(self, p),
-            (None, "print") => crate::packets::print::handle(self, p),
-            (None, "load") => crate::packets::load::handle(self, p),
+            (None, "note")      => crate::packets::note::handle(self, p),
+            (None, "math")      => crate::packets::math::handle(self, p),
+            (None, "store")     => crate::packets::store::handle(self, p),
+            (None, "print")     => crate::packets::print::handle(self, p),
 
             // loop forms: [loop3@tag] or [loop@N]{...}
             (None, op) if op.starts_with("loop") => crate::packets::r#loop::handle(self, p),
@@ -118,8 +116,8 @@ impl Runtime {
     pub fn get_num(&self, name: &str) -> Option<f64> {
         self.get_var(name).and_then(|v| v.try_num())
     }
-    pub fn set_num(&mut self, name: &str, n: f64) {
-        self.set_var(name, Value::Num(n));
+    pub fn set_num(&mut self, name: &str, n: f64) -> Result<()> {
+        self.set_var(name, Value::Num(n))
     }
 
     fn eval_if(&mut self, cond: &BExpr) -> Result<bool> {

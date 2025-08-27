@@ -1,3 +1,1 @@
-[load@load_json/config.json]>[store@cfg]>[print@cfg]
-[load@load_yaml/test.yaml]>[store@test]>[print@test]
-[load@load_toml/self.toml]>[store@self]>[print@self]
+
