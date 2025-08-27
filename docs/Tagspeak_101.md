@@ -1,37 +1,34 @@
 # TagSpeak 101
 
+### Audience
+
+This file is a quick reference for **Codex-style agents** and humans who need to read or write TagSpeak (`.tgsk`) programs.
+
+---
+
 ## What is TagSpeak?
 
-TagSpeak is a **dataflow-oriented DSL** designed for clarity and accessibility between humans and AI models. Unlike imperative languages, TagSpeak flows data through chained packets, each represented as `[packet@arg]` blocks. The goal is to be both **human-readable** and **machine-parsable**.
+TagSpeak is a **dataflow-oriented DSL**. Instead of mutating state with imperative statements, values move left → right through chained **packets**. Each packet has the shape `[packet@arg]` and transforms the value it receives.
+
+Data is always carried forward by the `>` connector:
+
+```tgsk
+[msg@"hi"]>[store@greeting]>[print]
+```
+
+1. `[msg]` produces "hi".
+2. `[store]` saves it under `greeting`.
+3. `[print]` outputs it.
+
+Keep TagSpeak syntax intact—**do not translate** packets to Rust, Python, or other languages.
 
 ---
 
 ## Core Concepts
 
-1. **Packets**
-   Everything in TagSpeak is a `[packet]`. Packets transform, store, or route data.
-
-   Example:
-
-   ```tgsk
-   [math@5+5]>[print]
-   ```
-
-   → outputs `10`
-
-2. **Dataflow, not imperative**
-   Execution flows left to right, through pipes (`>`), carrying values forward.
-
-   Example:
-
-   ```tgsk
-   [msg@"hi"]>[store@greeting]
-   ```
-
-   → stores `hi` as `greeting`.
-
-3. **Inline sugar + canonical packets**
-   Human-friendly syntax (`==`, `>`, etc.) coexists with explicit packets like `[eq]`, `[gt]`, `[and]`.
+1. **Everything is a packet** – packets transform, store, or route data.
+2. **Inline sugar vs. canonical packets** – friendly forms (`>` or `==`) have explicit equivalents (`[pipe]`, `[eq]`). Prefer canonical packets when clarity matters.
+3. **Structured file operations** – when emitting files, prefer `[log(json|yaml|toml)@path]{...}` over ad‑hoc writes.
 
 ---
 
@@ -41,7 +38,7 @@ TagSpeak is a **dataflow-oriented DSL** designed for clarity and accessibility b
 
 * `[msg@"string"]` → create a string literal.
 * `[int@int]` → create an integer.
-* `[bool@true|false]` → create a bool true|false statement.
+* `[bool@true|false]` → create a boolean literal (`true` or `false`).
 * `[note@"message"]` → inline documentation/annotation.
 
 ### Function Packets
@@ -53,7 +50,7 @@ TagSpeak is a **dataflow-oriented DSL** designed for clarity and accessibility b
 ### File Packets
 
 * `[save@file]` → save current runtime state to file.
-* `[load(json|yaml|toml)@file]` → load values/config from a file.
+* `[load@file.ext]` → load values/config from a file; format is inferred from the extension.
 * `[log@file.json]` → dump last value to a JSON file (quick + dirty mode).
 * `[log(json|yaml|toml)@file]{...}` → structured logging mode: build and write formatted docs.
 * `[mod@var]{...}` → edit an in-memory document previously loaded and saved into a variable. Supports operators:
@@ -67,7 +64,9 @@ TagSpeak is a **dataflow-oriented DSL** designed for clarity and accessibility b
 ### Control Flow Packets
 
 * `[loopN]{...}` → repeat enclosed block `N` times.
-* `[cond(condition)]{...}[else]{...}` → conditional branching, run one block if true, else the other.
+* `[if(condition)]{...}` → run block if condition true.
+* `[or(condition)]{...}` → else-if style branch.
+* `[else]{...}` → fallback branch for preceding conditionals.
 * `[funct@name]{...}` → define a reusable function.
 * `[call@name]` → call a function defined with `[funct]`.
 
