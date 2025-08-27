@@ -1,2 +1,14 @@
 pub mod conditionals;
 pub mod funct;
+pub mod bool;
+pub mod int;
+pub mod load;
+pub mod log;
+pub mod r#loop;
+pub mod math;
+pub mod modify;
+pub mod msg;
+pub mod note;
+pub mod print;
+pub mod save;
+pub mod store;

@@ -1,7 +1,5 @@
-use crate::kernel::{Packet, Runtime, Value};
 use anyhow::Result;
-use crate::kernel::{Runtime, Value, Packet};
-use crate::kernel::ast::Arg;
+use crate::kernel::{Packet, Runtime, Value};
 
 pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
     let v = match p.arg.as_ref() {
@@ -17,6 +15,7 @@ fn pretty(v: &Value) -> String {
         Value::Str(s) => s.clone(),
         Value::Num(n) => format!("{}", n),
         Value::Bool(b) => format!("{}", b),
+        Value::Doc(_) => String::from("<doc>"),
         Value::Unit    => String::from("()"),
     }
 }
