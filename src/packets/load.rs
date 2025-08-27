@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Result, Context};
 use std::fs;
 use std::path::Path;
 
@@ -22,20 +22,36 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
         .as_ref()
         .ok_or_else(|| anyhow::anyhow!("no red.tgsk root"))?;
 
-    let rel_path = if raw.starts_with('/') {
-        &raw[1..]
-    } else {
-        raw.as_str()
-    };
-    let candidate = if raw.starts_with('/') {
+    let anchor_from_root = raw.starts_with('/');
+    let rel_path = if anchor_from_root { &raw[1..] } else { raw.as_str() };
+
+    let candidate = if anchor_from_root {
         Path::new(rel_path).to_path_buf()
     } else {
         rt.cwd.join(rel_path)
     };
 
+    // 👇 DEBUG #1: before resolve
+    #[cfg(debug_assertions)]
+    eprintln!(
+        "[load] raw={:?}\n  cwd={}\n  root={}\n  rel={}\n  candidate={}",
+        raw,
+        rt.cwd.display(),
+        root.display(),
+        rel_path,
+        candidate.display()
+    );
+
     let path = resolve(root, &candidate)?;
-    let content = fs::read_to_string(&path)?;
-    let meta = fs::metadata(&path)?;
+
+    // 👇 DEBUG #2: after resolve (final absolute path)
+    #[cfg(debug_assertions)]
+    eprintln!("[load] resolved={}", path.display());
+
+    let content = fs::read_to_string(&path)
+        .with_context(|| format!("reading {}", path.display()))?;
+    let meta = fs::metadata(&path)
+        .with_context(|| format!("stat {}", path.display()))?;
     let mtime = meta.modified()?;
     let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_string();
 
@@ -55,6 +71,7 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
     let doc = Document::new(json, path, ext, mtime, root.clone());
     Ok(Value::Doc(doc))
 }
+
 
 #[cfg(test)]
 mod tests {

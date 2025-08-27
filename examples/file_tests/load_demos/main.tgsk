@@ -1,0 +1,5 @@
+[load@./file_tests/load_demos/load_json/config.json] > [store@cfg] > [print@cfg]
+
+[load@./file_tests/load_demos/load_yaml/test.yaml] > [store@test] > [print@test]
+
+[load@./file_tests/load_demos/load_toml/self.toml] > [store@self] > [print@self]
