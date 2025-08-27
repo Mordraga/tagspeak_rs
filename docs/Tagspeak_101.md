@@ -155,6 +155,17 @@ anyhow = "1"
 serde = "1"
 ```
 
+### Functions
+
+```tgsk
+[funct@greet]{
+  [msg@"hi"]
+}
+[call@greet]
+```
+
+→ defines a reusable `greet` block then runs it, leaving `"hi"` as the current value.
+
 ---
 
 ## Design Principles

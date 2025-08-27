@@ -122,7 +122,7 @@ impl Runtime {
     fn eval_packet(&mut self, p: &Packet) -> Result<Value> {
         match (p.ns.as_deref(), p.op.as_str()) {
             // namespaced
-            (Some("funct"), _) => crate::packets::funct::handle(self, p),
+            (Some("funct"), _) | (None, "funct") => crate::packets::funct::handle(self, p),
 
             // core
             (None, "note") => crate::packets::note::handle(self, p),
@@ -136,7 +136,8 @@ impl Runtime {
             (None, "int") => crate::packets::int::handle(self, p),
             (None, "bool") => crate::packets::r#bool::handle(self, p),
             (None, "msg") => crate::packets::msg::handle(self, p),
-            (None, "log") => crate::packets::log::handle(self, p),
+            (None, op) if op.starts_with("log") => crate::packets::log::handle(self, p),
+            (None, "call") => crate::packets::call::handle(self, p),
 
             // loop forms: [loop3@tag] or [loop@N]{...}
             (None, op) if op.starts_with("loop") => crate::packets::r#loop::handle(self, p),
