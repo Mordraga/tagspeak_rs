@@ -4,7 +4,7 @@ use std::time::SystemTime;
 
 use serde_json::Value as JsonValue;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Value {
     Unit,
     Bool(bool),
@@ -13,7 +13,7 @@ pub enum Value {
     Doc(Document),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Document {
     pub json: JsonValue,
     pub path: PathBuf,

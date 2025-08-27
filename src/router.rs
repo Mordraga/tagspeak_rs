@@ -97,43 +97,25 @@ fn parse_packet(sc: &mut Scanner) -> Result<Packet> {
     if peek(i) == Some('@') {
         i += 1;
         while peek(i) == Some(' ') { i += 1; }
-        arg = if peek(i) == Some('"') {
-            // quoted string @"..."
-            let mut j = i + 1;
-            let mut out = String::new();
-            while j < len {
-                let c = b[j] as char; j += 1;
-                match c {
-                    '\\' => {
-                        if j >= len { bail!("unterminated escape in string") }
-                        let nc = b[j] as char; j += 1;
-                        out.push(match nc {
-                            'n' => '\n', 'r' => '\r', 't' => '\t', '\\' => '\\', '"' => '"', other => other
-                        });
-                    }
-                    '"' => { i = j; break; }
-                    other => out.push(other),
-                }
-            }
-            Some(Arg::Str(out))
-        } else if peek(i) == Some('(') {
-            // [myth] goal: grab condition source for later re-parse
-            let mut sub = Scanner::new(&inner[i..]);
-            let cond_src = sub.read_until_balanced('(', ')')?;
-            i += sub.pos();
-            Some(Arg::CondSrc(cond_src))
+        let raw = inner[i..].trim().to_string();
+        if raw.is_empty() {
+            arg = None;
+        } else if raw.starts_with('"') && raw.contains('+') {
+            arg = Some(Arg::Str(raw));
+        } else if raw.starts_with('"') {
+            let mut sc = Scanner::new(&raw);
+            let s = sc.read_quoted()?;
+            arg = Some(Arg::Str(s));
+        } else if raw.starts_with('(') {
+            arg = Some(Arg::CondSrc(raw));
+        } else if let Ok(n) = raw.parse::<f64>() {
+            arg = Some(Arg::Number(n));
+        } else if is_ident_like(&raw) {
+            arg = Some(Arg::Ident(raw));
         } else {
-            let raw = inner[i..].trim().to_string();
-            if raw.is_empty() {
-                None
-            } else if let Ok(n) = raw.parse::<f64>() {
-                Some(Arg::Number(n))
-            } else if is_ident_like(&raw) {
-                Some(Arg::Ident(raw))
-            } else {
-                Some(Arg::Str(raw)) // treat as expression string (e.g., "counter+1")
-            }
-        };
+            arg = Some(Arg::Str(raw));
+        }
+        i = len;
     }
 
     if op.is_empty() {

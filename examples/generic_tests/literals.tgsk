@@ -1,0 +1,3 @@
+[int@5+10] > [store@num]
+[bool@true] > [store@flag]
+[msg@"hi"+"there"] > [print]
