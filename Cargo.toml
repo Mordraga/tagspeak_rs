@@ -10,31 +10,27 @@ dirs = "5"
 clap = { version = "4.5.2", features = ["derive"] }
 meval = "0.2"
 anyhow = "1"
+
+# Windows-only deps
+[target.'cfg(target_os = "windows")'.dependencies]
 winreg = "0.52"
 native-windows-gui = "1.0.13"
 native-windows-derive = "1.0"
 windows-sys = { version = "0.52", features = ["Win32_UI_Shell"] }
 
+[target.'cfg(target_os = "windows")'.build-dependencies]
+winres = "0.1"
 
-[build-dependencies]
-winres = { version = "0.1", optional = true }
+# Linux-only deps (add only if you actually use it)
+[target.'cfg(target_os = "linux")'.dependencies]
+winit = "0.29"
 
-[features]
-windows = [
-    "native-windows-gui",
-    "native-windows-derive",
-    "winreg",
-    "windows-sys",
-    "winres",
-]
-linux = ["winit"]
+# no [features] block needed
 
 [[bin]]
 name = "tagspeak_setup"
 path = "src/bin/tagspeak_setup.rs"
-required-features = ["windows"]
 
 [[bin]]
 name = "tagspeak_setup_linux"
 path = "src/bin/tagspeak_setup_linux.rs"
-required-features = ["linux"]

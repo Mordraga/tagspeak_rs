@@ -1,14 +1,17 @@
+@ -129,3 +129,125 @@ mod tests {
+    }
+}
+
+
 use anyhow::Result;
 use std::fs;
 use std::path::Path;
 
-use serde_json::Value as JsonValue;
 use serde_yaml::Value as YamlValue;
 use toml::Value as TomlValue;
 
 use crate::kernel::ast::Arg;
 use crate::kernel::fs_guard::resolve;
-use crate::kernel::values::Document;
 use crate::kernel::{Packet, Runtime, Value};
 
 pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
@@ -35,32 +38,25 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
 
     let path = resolve(root, &candidate)?;
     let content = fs::read_to_string(&path)?;
-    let meta = fs::metadata(&path)?;
-    let mtime = meta.modified()?;
-    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_string();
-
-    let json: JsonValue = match ext.as_str() {
+    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+    let content = match ext {
         "yaml" | "yml" => {
             let val: YamlValue = serde_yaml::from_str(&content)?;
-            serde_json::to_value(val)?
+            serde_json::to_string(&val)?
         }
         "toml" => {
             let val: TomlValue = toml::from_str(&content)?;
-            serde_json::to_value(val)?
+            serde_json::to_string(&val)?
         }
-        "json" | "" => serde_json::from_str(&content)?,
-        _ => anyhow::bail!("format_unsupported"),
+        _ => content,
     };
-
-    let doc = Document::new(json, path, ext, mtime, root.clone());
-    Ok(Value::Doc(doc))
+    Ok(Value::Str(content))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::fs;
-    use serde_json::json;
 
     #[test]
     fn loads_file_within_red_root() {
@@ -71,13 +67,13 @@ mod tests {
         fs::write(base.join("red.tgsk"), "").unwrap();
         fs::write(base.join("something/config.json"), "{\"hi\":1}").unwrap();
         let script = base.join("sub").join("main.tgsk");
-        fs::write(&script, "[load@/something/config.json]>[save@cfg]").unwrap();
+        fs::write(&script, "[load@/something/config.json]>[store@cfg]").unwrap();
 
         let ast = crate::router::parse(&fs::read_to_string(&script).unwrap()).unwrap();
         let mut rt = Runtime::from_entry(&script).unwrap();
         let _ = rt.eval(&ast).unwrap();
         match rt.get_var("cfg") {
-            Some(Value::Doc(doc)) => assert_eq!(doc.json, json!({"hi":1})),
+            Some(Value::Str(s)) => assert_eq!(s, "{\"hi\":1}"),
             other => panic!("unexpected value: {:?}", other),
         }
 
@@ -93,13 +89,13 @@ mod tests {
         fs::write(base.join("red.tgsk"), "").unwrap();
         fs::write(base.join("something/config.yaml"), "hi: 1\n").unwrap();
         let script = base.join("sub").join("main.tgsk");
-        fs::write(&script, "[load@/something/config.yaml]>[save@cfg]").unwrap();
+        fs::write(&script, "[load@/something/config.yaml]>[store@cfg]").unwrap();
 
         let ast = crate::router::parse(&fs::read_to_string(&script).unwrap()).unwrap();
         let mut rt = Runtime::from_entry(&script).unwrap();
         let _ = rt.eval(&ast).unwrap();
         match rt.get_var("cfg") {
-            Some(Value::Doc(doc)) => assert_eq!(doc.json, json!({"hi":1})),
+            Some(Value::Str(s)) => assert_eq!(s, "{\"hi\":1}"),
             other => panic!("unexpected value: {:?}", other),
         }
 
@@ -115,17 +111,16 @@ mod tests {
         fs::write(base.join("red.tgsk"), "").unwrap();
         fs::write(base.join("something/config.toml"), "hi = 1\n").unwrap();
         let script = base.join("sub").join("main.tgsk");
-        fs::write(&script, "[load@/something/config.toml]>[save@cfg]").unwrap();
+        fs::write(&script, "[load@/something/config.toml]>[store@cfg]").unwrap();
 
         let ast = crate::router::parse(&fs::read_to_string(&script).unwrap()).unwrap();
         let mut rt = Runtime::from_entry(&script).unwrap();
         let _ = rt.eval(&ast).unwrap();
         match rt.get_var("cfg") {
-            Some(Value::Doc(doc)) => assert_eq!(doc.json, json!({"hi":1})),
+            Some(Value::Str(s)) => assert_eq!(s, "{\"hi\":1}"),
             other => panic!("unexpected value: {:?}", other),
         }
 
         fs::remove_dir_all(base).unwrap();
     }
 }
-
