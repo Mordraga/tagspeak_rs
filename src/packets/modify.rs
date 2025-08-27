@@ -21,7 +21,7 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
         }
     }
 
-    rt.set_var(handle, Value::Doc(doc.clone()));
+    rt.set_var(handle, Value::Doc(doc.clone()))?;
     Ok(Value::Doc(doc))
 }
 

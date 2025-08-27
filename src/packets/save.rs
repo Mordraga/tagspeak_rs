@@ -39,13 +39,13 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
         let meta = fs::metadata(&doc.path)?;
         doc.mtime = meta.modified()?;
         doc.last_json = doc.json.clone();
-        rt.set_var(handle, Value::Doc(doc.clone()));
+        rt.set_var(handle, Value::Doc(doc.clone()))?;
         Ok(Value::Doc(doc))
     } else {
         // not yet registered -> register from last value
         match rt.last.clone() {
             Value::Doc(doc) => {
-                rt.set_var(handle, Value::Doc(doc.clone()));
+                rt.set_var(handle, Value::Doc(doc.clone()))?;
                 Ok(Value::Doc(doc))
             }
             _ => bail!("save needs document in pipeline"),

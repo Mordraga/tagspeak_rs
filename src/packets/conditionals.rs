@@ -9,6 +9,9 @@ pub fn handle(_rt: &mut Runtime, _p: &crate::kernel::Packet) -> Result<Value> {
 
 pub fn parse_cond(src: &str) -> BExpr {
     let s = src.trim();
+    if s.starts_with('(') && s.ends_with(')') {
+        return parse_cond(&s[1..s.len()-1]);
+    }
 
     // try logical OR first (lowest precedence)
     for pat in ["||", "[or]"] {
