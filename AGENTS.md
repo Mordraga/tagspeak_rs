@@ -64,15 +64,86 @@ Codex should treat `.tgsk` files as **DSL**, not general-purpose code.
 * `[or(condition)]{...}` → else-if style branching.
 * `[else]{...}` → fallback branch for conditionals.
 * `[funct@name]{...}` → define a reusable function.
-
-### 🛠️ In Progress / Planned
-
 * `[log(json|yaml|toml)@file]{...}` → structured logging mode. 
   * `[key(name)@value]` → insert a key/value pair in a structured `[log]` block.
   * `[sect@section]{...}` → create a nested object/table (JSON/YAML/TOML style).
 * `[call@funct_name] → call function directly
 
+### 🛠️ In Progress / Planned
+
 ---
+
+### ⚠️ Issues
+Possible issue with load file paths.
+
+## Features
+
+### Planned
+#### Editor / VS Code niceties
+
+Run selection / run file: execute the highlighted chain and show output in an integrated panel.
+
+Inline probes: hover a > and see the last value that flowed through (ghost text; opt-in).
+
+Outline view: a “Flows” tree that lists chains/blocks; click to jump.
+
+Hover docs: packet docs + examples pulled from your rust docstrings (no codegen, just display).
+
+Formatter: align > pipes, normalize spaces/newlines, enforce trailing-comma rules (one-click “Fix all”).
+
+Quick Fixes: on errors, offer actions like “set project root”, “open allowlist”, “dry-run this block”.
+
+Run tagspeak within VS code.
+
+#### Debuggability & safety (no syntax changes)
+
+Sourcemaps: runtime → source mapping with caret highlight on the exact packet that threw.
+
+Stepper: step-over/into blocks; show a timeline of values (non-mutating preview).
+
+Dry-run mode: simulate, show would-write and would-modify diffs for file ops.
+
+Flow IDs: each execution path gets an ID; logs, probes, and colors all match that ID.
+
+#### Visualization
+
+Graph view: live DAG render of the current file (click a node to jump in the editor).
+
+Data lineage: pick a var and see where it’s written/read across the file (small side panel).
+
+Export: one-click Graphviz/DOT or PNG of the flow for docs.
+
+Linting (friendly, not bossy)
+
+Unreachable branch hints (e.g., mutually exclusive guards).
+
+Unused values: warn when a chain produces a value that never gets consumed.
+
+FS guardrails: warn on writes outside the project allowlist; quick-add to allowlist.
+
+#### Testing & stability
+
+Golden tests: .tgsk.test files (inputs + expected outputs) with snapshot update cmd.
+
+Fuzz the tokenizer: built-in fuzz runner for bracket/quote edge cases; saves crashing seeds.
+
+Minimal repro bundle: command that zips the failing snippet + env into a sharable case.
+
+#### Project ergonomics
+
+Sidecar config: .tgskrc for root, env vars, allowlists, and default modes (dry-run, probes).
+
+Examples launcher: list & run anything in examples/ with one click, capture outputs to /out.
+
+Perf pulse: tiny footer showing per-packet timings + total run (helps spot hot spots).
+
+#### Accessibility & polish
+
+SR-friendly errors: structured messages with code, one-line summary, and full detail on expand.
+
+Copy-ready snippets: every error/output block has a copy button and a “Explain run” expand.
+
+### Implimented
 
 ## Do Not Touch
 
