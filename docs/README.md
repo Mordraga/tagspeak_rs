@@ -1,7 +1,7 @@
 # TagSpeak RS
 
-TagSpeak is a symbolic, packet-based language designed to be **human-readable** and **machine-parsable**.  
-This Rust implementation (`tagspeak_rs`) provides an interpreter that can parse and execute `.tgsk` scripts.
+TagSpeak is a symbolic, packet-based language designed to be **human-readable** and **machine-parsable**.
+This Rust implementation (`tagspeak_rs`) provides an interpreter for `.tgsk` scripts. See [TagSpeak 101](Tagspeak_101.md) for a quick reference.
 
 ---
 
@@ -15,19 +15,19 @@ This Rust implementation (`tagspeak_rs`) provides an interpreter that can parse 
 ---
 
 ## 🔧 Features Implemented
-- **math** → evaluate expressions with `meval`
+- **math** → evaluate expressions
 - **store** → assign variables
 - **print** → output values or strings
-- **note** → dev/debug annotation
-- **funct** → define named blocks
-- **loop** → two styles:
-  - `[loop@3]{ ... }` → inline loop
-  - `[funct:step]{ ... } … [loop3@step]` → tag loop (modular, reusable)
-- **load** → load JSON/YAML/TOML files **relative to the nearest `red.tgsk`**  
-  (`[load@./file/path/relative/to/red.tgsk]`)
-- **red.tgsk** → Root file marker/sentinel file. Must exist in your project root; all file access is sandboxed to this boundary.
-
-...
+- **note** → inline documentation
+- **funct** → define reusable blocks
+- **call** → invoke functions (`[call@name]`)
+- **loop** → `[loop3]{ ... }` or `[loop3@funct]`
+- **if/or/else** → conditional branching
+- **load** → read JSON/YAML/TOML based on file extension
+- **save** → persist runtime state
+- **log** → structured file logging (`[log(json|yaml|toml)@file]{...}`)
+- **mod** → edit in-memory documents
+- **red.tgsk** → sentinel file marking the project root for file access
 
 ### Notes
 
@@ -57,6 +57,6 @@ cargo test
 ## 🛣 Roadmap
 - [x] math/store/print/note
 - [x] funct + loop (inline + tag)
-- [ ] call tags directly (`[call@step]`)
-- [ ] conditionals (`[if@(x>2)]{...}[else]{...}`)
+- [x] call tags directly (`[call@step]`)
+- [x] conditionals (`[if@(x>2)]{...}[else]{...}`)
 - [ ] modular imports / red.tgsk boundaries
