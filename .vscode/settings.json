@@ -1,0 +1,11 @@
+{
+    "rust-analyzer.checkOnSave.command": "clippy",
+    "rust-analyzer.cargo.features": "all",
+    "files.associations": {
+        "*.tgsk": "plaintext"
+    },
+    "[rust]": {
+        "editor.defaultFormatter": "rust-lang.rust-analyzer",
+        "editor.formatOnSave": true
+    }
+}

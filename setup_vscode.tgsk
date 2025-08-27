@@ -1,0 +1,19 @@
+[log(json)@.vscode/settings.json]{
+  [key(rust-analyzer.checkOnSave.command)@"clippy"]
+  [key(rust-analyzer.cargo.features)@"all"]
+  [sect@files.associations]{
+    [key("*.tgsk")@"plaintext"]
+  }
+  [sect@[rust]]{
+    [key(editor.defaultFormatter)@"rust-lang.rust-analyzer"]
+    [key(editor.formatOnSave)@true]
+  }
+}
+
+[log(json)@.vscode/extensions.json]{
+  [key(recommendations)@[
+    "rust-lang.rust-analyzer",
+    "vadimcn.vscode-lldb",
+    "tamasfe.even-better-toml"
+  ]]
+}
