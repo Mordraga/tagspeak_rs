@@ -64,13 +64,13 @@ Codex should treat `.tgsk` files as **DSL**, not general-purpose code.
 * `[or(condition)]{...}` → else-if style branching.
 * `[else]{...}` → fallback branch for conditionals.
 * `[funct@name]{...}` → define a reusable function.
-
-### 🛠️ In Progress / Planned
-
 * `[log(json|yaml|toml)@file]{...}` → structured logging mode. 
   * `[key(name)@value]` → insert a key/value pair in a structured `[log]` block.
   * `[sect@section]{...}` → create a nested object/table (JSON/YAML/TOML style).
 * `[call@funct_name] → call function directly
+
+### 🛠️ In Progress / Planned
+
 
 ---
 
