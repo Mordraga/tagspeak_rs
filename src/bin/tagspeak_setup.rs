@@ -1,16 +1,26 @@
-#![cfg(feature = "windows")]
-#![windows_subsystem = "windows"]
+#![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
+
+#[cfg(target_os = "windows")]
 use anyhow::Result;
+#[cfg(target_os = "windows")]
 use native_windows_derive as nwd;
+#[cfg(target_os = "windows")]
 use native_windows_gui as nwg;
+#[cfg(target_os = "windows")]
 use nwg::NativeUi;
+#[cfg(target_os = "windows")]
 use std::path::PathBuf;
+#[cfg(target_os = "windows")]
 use windows_sys::Win32::UI::Shell::{SHCNE_ASSOCCHANGED, SHCNF_IDLIST, SHChangeNotify};
+#[cfg(target_os = "windows")]
 use winreg::{RegKey, enums::*};
 
+#[cfg(target_os = "windows")]
 const PROGID: &str = "TagSpeakFile";
+#[cfg(target_os = "windows")]
 const DISPLAY: &str = "TagSpeak Script";
 
+#[cfg(target_os = "windows")]
 #[derive(Default, nwd::NwgUi)]
 pub struct App {
     #[nwg_control(size: (560, 260), title: "TagSpeak Setup", flags: "WINDOW|VISIBLE")]
@@ -68,6 +78,7 @@ pub struct App {
     btn_build: nwg::Button,
 }
 
+#[cfg(target_os = "windows")]
 impl App {
     fn init_defaults(&self) {
         // try to auto-fill engine path (…\tagspeak_rs\target\release\tagspeak_rs.exe)
@@ -221,6 +232,7 @@ impl App {
     }
 }
 
+#[cfg(target_os = "windows")]
 fn find_cargo() -> std::path::PathBuf {
     use std::path::PathBuf;
     // Try PATH first
@@ -233,6 +245,7 @@ fn find_cargo() -> std::path::PathBuf {
     p
 }
 
+#[cfg(target_os = "windows")]
 fn main() {
     nwg::init().expect("NWG init failed");
     nwg::Font::set_global_family("Segoe UI").ok();
@@ -248,7 +261,11 @@ fn main() {
     nwg::dispatch_thread_events();
 }
 
+#[cfg(not(target_os = "windows"))]
+fn main() {}
+
 /* ---------- registry helpers ---------- */
+#[cfg(target_os = "windows")]
 fn do_install(engine_exe: PathBuf) -> Result<()> {
     if !engine_exe.exists() {
         anyhow::bail!("Engine exe not found: {}", engine_exe.display());
@@ -274,6 +291,7 @@ fn do_install(engine_exe: PathBuf) -> Result<()> {
     Ok(())
 }
 
+#[cfg(target_os = "windows")]
 fn do_uninstall() -> Result<()> {
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
     let classes = hkcu.open_subkey_with_flags("Software\\Classes", KEY_ALL_ACCESS)?;
@@ -287,6 +305,7 @@ fn do_uninstall() -> Result<()> {
 ///
 /// # Errors
 /// Currently returns `Ok(())` because [`SHChangeNotify`] has no error reporting.
+#[cfg(target_os = "windows")]
 fn refresh_icons() -> Result<()> {
     // [myth] goal: refresh icons without tanking Explorer
     // [myth] tradeoff: if the call fails, we don't get feedback

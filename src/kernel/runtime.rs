@@ -1,4 +1,5 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use std::path::{Path, PathBuf};
 use anyhow::{Result, bail};
 
 use crate::kernel::ast::{Arg, BExpr, Node, Packet};
@@ -44,7 +45,10 @@ impl Runtime {
     }
 
     // ---- variables ----
-    pub fn set_var(&mut self, name: &str, val: Value) { self.vars.insert(name.to_string(), val); }
+    pub fn set_var(&mut self, name: &str, val: Value) -> Result<()> {
+        self.vars.insert(name.to_string(), val);
+        Ok(())
+    }
     pub fn get_var(&self, name: &str) -> Option<Value> { self.vars.get(name).cloned() }
 
     // ---- tags ----
@@ -117,7 +121,8 @@ impl Runtime {
         self.get_var(name).and_then(|v| v.try_num())
     }
     pub fn set_num(&mut self, name: &str, n: f64) -> Result<()> {
-        self.set_var(name, Value::Num(n))
+        self.set_var(name, Value::Num(n))?;
+        Ok(())
     }
 
     fn eval_if(&mut self, cond: &BExpr) -> Result<bool> {
