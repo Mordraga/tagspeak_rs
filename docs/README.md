@@ -63,3 +63,7 @@ cargo test
 - [ ] conditionals (`[if@(x>2)]{...}[else]{...}`)
 - [ ] modular imports / red.tgsk boundaries
 
+## Why a gecko?
+Technically an anole, but lizards are some of the most adaptive and modular animals on the planet besides insects. They are found on every continent besides antartica.
+Also, consider: *Lizard. Lizard. Lizard. Lizard.*
+<img src="/misc/Tagspeak.png" alt="TagSpeak Gecko" width="15"/>
