@@ -55,13 +55,31 @@ cargo test
 ```
 
 ---
+## Setup
+* Make sure Rust and its dependencies are installed.
+
+* In repo, in terminal
+### Windows
+```bash
+cargo build --bin tagspeak_setup
+```
+build engine, install
+
+###linux
+```shell
+cargo build --bin tagspeak_setup_linux
+```
+follow instructions
+
+
 
 ## Roadmap
-- [x] math/store/print/note
+- [x] literals/math/[store:rigid][store:context(conditions)]/note
 - [x] funct + loop (inline + tag)
 - [x] call tags directly (`[call@step]`)
-- [ ] conditionals (`[if@(x>2)]{...}[else]{...}`)
-- [ ] modular imports / red.tgsk boundaries
+- [x] conditionals (`[if@(x>2)]{...}[else]{...}`)
+- [x] load/write/modify files (`[log], [mod], [save], [load]`
+- [] modular imports / red.tgsk boundaries
 
 ## Why a gecko?
 Technically an anole, but lizards are some of the most adaptive and modular animals on the planet besides insects. They are found on every continent besides antartica.
