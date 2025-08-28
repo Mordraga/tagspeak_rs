@@ -31,7 +31,7 @@ pub struct App {
     #[nwg_layout(parent: window)]
     layout: nwg::GridLayout,
 
-    #[nwg_control(text: "Hey! Welcome to Tagspeak! It's a little scrappy. Don't mind the crash after install. That's part of the gimmick.")]
+    #[nwg_control(text: "Welcome to TagSpeak Setup. This registers .tgsk with your chosen engine for your user account. No changes until you click Install.")]
     #[nwg_layout_item(layout: layout, row: 0, col: 0, col_span: 4)]
     lbl: nwg::Label,
 
@@ -80,6 +80,22 @@ pub struct App {
 
 #[cfg(target_os = "windows")]
 impl App {
+    fn post_init_cleanup(&self) {
+        // Try to discover the engine via PATH if not set or missing
+        let cur = self.tb_engine.text();
+        if cur.is_empty() || !std::path::Path::new(&cur).exists() {
+            if let Ok(p) = which::which("tagspeak_rs") {
+                self.tb_engine.set_text(&p.display().to_string());
+            }
+        }
+        if !std::path::Path::new(&self.tb_engine.text()).exists() {
+            self.lbl_status
+                .set_text("Select your tagspeak_rs.exe, then click Install to register .tgsk.");
+        }
+        // Normalize odd characters that can sneak into resources
+        self.btn_browse.set_text("Browse...");
+        self.update_enabled();
+    }
     fn init_defaults(&self) {
         // try to auto-fill engine path (…\tagspeak_rs\target\release\tagspeak_rs.exe)
         if let Ok(mut here) = std::env::current_exe() {
@@ -120,16 +136,43 @@ impl App {
             .build(&mut dialog)
             .is_ok()
         {
-            if let Ok(os) = dialog.get_selected_item() {
-                let p = std::path::PathBuf::from(os);
-                self.tb_engine.set_text(&p.display().to_string());
-                self.update_enabled();
+            // Show the dialog; only proceed if user selected a file
+            if dialog.run(Some(&self.window)) {
+                if let Ok(os) = dialog.get_selected_item() {
+                    let p = std::path::PathBuf::from(os);
+                    self.tb_engine.set_text(&p.display().to_string());
+                    self.update_enabled();
+                }
             }
         }
     }
 
     fn install(&self) {
-        let exe = std::path::PathBuf::from(self.tb_engine.text());
+        // Ensure we have an engine; if missing, try to build if Rust toolchain is available.
+        let mut exe = std::path::PathBuf::from(self.tb_engine.text());
+        if !exe.exists() {
+            // Try building if cargo is available
+            if has_cargo() {
+                self.set_busy(true, "Building TagSpeak engine… this can take a minute");
+                self.build_engine();
+                exe = std::path::PathBuf::from(self.tb_engine.text());
+                if !exe.exists() {
+                    self.set_busy(false, "Build finished but engine not found. Select it manually or try again.");
+                    return;
+                }
+            } else {
+                // Offer to open Rust installer page
+                nwg::modal_info_message(
+                    &self.window,
+                    "Rust toolchain required",
+                    "Rust (cargo) is not installed. We'll open rustup.rs in your browser. Install Rust, then return here and click Install again.",
+                );
+                let _ = std::process::Command::new("rundll32")
+                    .args(["url.dll,FileProtocolHandler", "https://rustup.rs"]).spawn();
+                return;
+            }
+        }
+
         if let Err(e) = do_install(exe) {
             nwg::modal_error_message(&self.window, "Install failed", &format!("{e:#}"));
             return;
@@ -258,7 +301,16 @@ fn main() {
     }
 
     app.init_defaults();
+    app.post_init_cleanup();
     nwg::dispatch_thread_events();
+}
+
+#[cfg(target_os = "windows")]
+fn has_cargo() -> bool {
+    if which::which("cargo").is_ok() { return true; }
+    let mut p = dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from("C:\\"));
+    p.push(r".cargo\bin\cargo.exe");
+    p.exists()
 }
 
 #[cfg(not(target_os = "windows"))]
@@ -295,8 +347,16 @@ fn do_install(engine_exe: PathBuf) -> Result<()> {
 fn do_uninstall() -> Result<()> {
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
     let classes = hkcu.open_subkey_with_flags("Software\\Classes", KEY_ALL_ACCESS)?;
-    if let Ok(ext_key) = classes.open_subkey_with_flags(".tgsk", KEY_SET_VALUE) {
-        let _ = ext_key.delete_value("");
+    // Remove the extension mapping and the TagSpeak ProgID subtree if present
+    let _ = classes.delete_subkey_all(".tgsk");
+    let _ = classes.delete_subkey_all(PROGID);
+
+    // Also clear Explorer per-user association cache for .tgsk
+    if let Ok(file_exts) = hkcu.open_subkey_with_flags(
+        "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\FileExts",
+        KEY_ALL_ACCESS,
+    ) {
+        let _ = file_exts.delete_subkey_all(".tgsk");
     }
     Ok(())
 }
