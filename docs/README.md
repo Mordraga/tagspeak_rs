@@ -1,5 +1,5 @@
 # TagSpeak RS
-
+![TagSpeak Gecko](./misc/Tagspeak.png)
 TagSpeak is a symbolic, packet-based language designed to be human-readable and machine-parsable.
 This Rust implementation (`tagspeak_rs`) parses and executes `.tgsk` scripts.
 
