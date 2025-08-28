@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Result, bail};
 use std::fs;
 use std::path::Path;
 
@@ -7,7 +7,8 @@ use toml::Value as TomlValue;
 
 use crate::kernel::ast::Arg;
 use crate::kernel::fs_guard::resolve;
-use crate::kernel::{Packet, Runtime, Value};
+use crate::kernel::values::{Document, Value};
+use crate::kernel::{Packet, Runtime};
 
 pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
     let raw = match &p.arg {
@@ -33,19 +34,33 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
 
     let path = resolve(root, &candidate)?;
     let content = fs::read_to_string(&path)?;
-    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-    let content = match ext {
+    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
+
+    // Parse into a canonical JSON value for in-memory editing
+    let json_val: serde_json::Value = match ext.as_str() {
         "yaml" | "yml" => {
-            let val: YamlValue = serde_yaml::from_str(&content)?;
-            serde_json::to_string(&val)?
+            let yv: YamlValue = serde_yaml::from_str(&content)?;
+            // Convert via serde to JSON value
+            serde_json::to_value(yv)?
         }
         "toml" => {
-            let val: TomlValue = toml::from_str(&content)?;
-            serde_json::to_string(&val)?
+            let tv: TomlValue = toml::from_str(&content)?;
+            serde_json::to_value(tv)?
         }
-        _ => content,
+        "json" | "" => serde_json::from_str(&content).unwrap_or(serde_json::Value::Null),
+        other => bail!("unsupported_ext:{other}"),
     };
-    Ok(Value::Str(content))
+
+    let meta = fs::metadata(&path)?;
+    let mtime = meta.modified()?;
+    let doc = Document::new(
+        json_val,
+        path.clone(),
+        ext,
+        mtime,
+        root.clone(),
+    );
+    Ok(Value::Doc(doc))
 }
 
 #[cfg(test)]
@@ -68,7 +83,7 @@ mod tests {
         let mut rt = Runtime::from_entry(&script).unwrap();
         let _ = rt.eval(&ast).unwrap();
         match rt.get_var("cfg") {
-            Some(Value::Str(s)) => assert_eq!(s, "{\"hi\":1}"),
+            Some(Value::Doc(d)) => assert_eq!(d.json["hi"].as_i64(), Some(1)),
             other => panic!("unexpected value: {:?}", other),
         }
 
@@ -90,7 +105,7 @@ mod tests {
         let mut rt = Runtime::from_entry(&script).unwrap();
         let _ = rt.eval(&ast).unwrap();
         match rt.get_var("cfg") {
-            Some(Value::Str(s)) => assert_eq!(s, "{\"hi\":1}"),
+            Some(Value::Doc(d)) => assert_eq!(d.json["hi"].as_i64(), Some(1)),
             other => panic!("unexpected value: {:?}", other),
         }
 
@@ -112,7 +127,7 @@ mod tests {
         let mut rt = Runtime::from_entry(&script).unwrap();
         let _ = rt.eval(&ast).unwrap();
         match rt.get_var("cfg") {
-            Some(Value::Str(s)) => assert_eq!(s, "{\"hi\":1}"),
+            Some(Value::Doc(d)) => assert_eq!(d.json["hi"].as_i64(), Some(1)),
             other => panic!("unexpected value: {:?}", other),
         }
 

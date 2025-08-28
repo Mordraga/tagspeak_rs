@@ -36,6 +36,11 @@ Codex should treat `.tgsk` files as **DSL**, not general-purpose code.
    * Append new packet modules under `src/packets/`.
    * Never overwrite `router.rs` wholesale — modify only within handlers.
 
+5. **Current Scope**
+   *
+   *
+
+
 ---
 
 ## Packet Status

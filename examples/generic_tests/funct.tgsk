@@ -1,3 +1,0 @@
-[funct:tag1]{
-    [math@10+10]>[store@x]>[loop:tag1@3]
-}>[print@x]

@@ -1,6 +1,6 @@
 [loop3]{
     # Step 1: Start fresh from disk
-    [load@modify_demo/hello.json] > [save@hello]
+    [load@/files/modify_demo/hello.json] > [save@hello]
 
     # Step 2: Insert a new key "test"
     [mod@hello]{ 
@@ -8,7 +8,7 @@
     } > [save@hello]
 
     # Step 3: Reload from disk (forces "test" to be last in file)
-    [load@modify_demo/hello.json] > [save@hello]
+    [load@/files/modify_demo/hello.json] > [save@hello]
 
     # Step 4: Delete "test" key
     [mod@hello]{ 

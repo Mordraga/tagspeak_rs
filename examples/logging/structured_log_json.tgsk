@@ -1,0 +1,6 @@
+[log(json)@/profile.json]{
+  [key(name)@"Saryn"]
+  [key(age)@25]
+  [key(active)@true]
+}
+

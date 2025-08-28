@@ -1,0 +1,11 @@
+[log(toml)@/Cargo.example.toml]{
+  [sect@package]{
+    [key(name)@"tagspeak"]
+    [key(version)@"0.1.0"]
+  }
+  [sect@dependencies]{
+    [key(anyhow)@"1"]
+    [key(serde)@"1"]
+  }
+}
+

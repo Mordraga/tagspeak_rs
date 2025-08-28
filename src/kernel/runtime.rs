@@ -49,7 +49,31 @@ impl Runtime {
         self.vars.insert(name.to_string(), val);
         Ok(())
     }
-    pub fn get_var(&self, name: &str) -> Option<Value> { self.vars.get(name).cloned() }
+    pub fn get_var(&self, name: &str) -> Option<Value> {
+        // direct binding wins
+        if let Some(v) = self.vars.get(name) {
+            return Some(v.clone());
+        }
+
+        // context-aware binding: pick first matching condition
+        if let Some(entries) = self.ctx_vars.get(name) {
+            // Evaluate conditions against a temporary runtime seeded with our vars
+            for (cond, val) in entries {
+                // create a temp runtime to evaluate the condition without side effects
+                let mut tmp = match Runtime::new() {
+                    Ok(r) => r,
+                    Err(_) => continue,
+                };
+                tmp.vars = self.vars.clone();
+                tmp.tags = self.tags.clone();
+                if crate::packets::conditionals::eval_cond(&mut tmp, cond).unwrap_or(false) {
+                    return Some(val.clone());
+                }
+            }
+        }
+
+        None
+    }
 
     // ---- tags ----
     pub fn register_tag(&mut self, name: &str, body: Vec<Node>) {
@@ -103,11 +127,24 @@ impl Runtime {
             // namespaced
             (Some("funct"), _) => crate::packets::funct::handle(self, p),
 
+            // allow namespaced loop syntax: [loop:tag@N]
+            (Some("loop"), _) => crate::packets::r#loop::handle(self, p),
+            // allow namespaced store modes: [store:rigid@x], [store:context(cond)@x]
+            (Some("store"), _) => crate::packets::store::handle(self, p),
+
             // core
             (None, "note")      => crate::packets::note::handle(self, p),
             (None, "math")      => crate::packets::math::handle(self, p),
             (None, "store")     => crate::packets::store::handle(self, p),
             (None, "print")     => crate::packets::print::handle(self, p),
+            (None, "call")      => crate::packets::call::handle(self, p),
+            (None, "msg")       => crate::packets::msg::handle(self, p),
+            (None, "int")       => crate::packets::int::handle(self, p),
+            (None, "bool")      => crate::packets::bool::handle(self, p),
+            (None, "load")      => crate::packets::load::handle(self, p),
+            (None, op) if op.starts_with("log") => crate::packets::log::handle(self, p),
+            (None, "save")      => crate::packets::save::handle(self, p),
+            (None, "mod")       => crate::packets::modify::handle(self, p),
 
             // loop forms: [loop3@tag] or [loop@N]{...}
             (None, op) if op.starts_with("loop") => crate::packets::r#loop::handle(self, p),

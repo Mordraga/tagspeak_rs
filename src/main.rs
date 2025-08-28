@@ -12,7 +12,7 @@ fn main() -> anyhow::Result<()> {
     // path arg or default
     let path = env::args()
         .nth(1)
-        .unwrap_or_else(|| "examples/smoke.tgsk".to_string());
+        .unwrap_or_else(|| "examples/basics/smoke.tgsk".to_string());
     println!("Running file: {}", &path);
     let src = fs::read_to_string(&path)?;
 

@@ -1,5 +1,6 @@
 pub mod conditionals;
 pub mod funct;
+pub mod call;
 pub mod bool;
 pub mod int;
 pub mod load;

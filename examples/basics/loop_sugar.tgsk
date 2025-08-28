@@ -1,0 +1,7 @@
+[funct:bump]{
+  [math@x+2]>[store@x]
+}
+
+[int@1]>[store@x]
+[loop:bump@3]>[print@x]
+

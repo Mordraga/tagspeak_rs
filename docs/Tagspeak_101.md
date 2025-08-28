@@ -49,10 +49,10 @@ Keep TagSpeak syntax intact—**do not translate** packets to Rust, Python, or o
 
 ### File Packets
 
-* `[save@file]` → save current runtime state to file.
-* `[load(json|yaml|toml)@file]` → load values/config from a file.
-* `[log@file.json]` → dump last value to a JSON file (quick + dirty mode).
-* `[log(json|yaml|toml)@file]{...}` → structured logging mode: build and write formatted docs.
+* `[save@handle]` → persist a previously loaded/registered document back to its original file.
+* `[load@file]` → load JSON/YAML/TOML (by file extension) and produce a document handle for in‑memory edits.
+* `[log@file.json]` → dump last value to a JSON file (quick mode).
+* `[log(json|yaml|toml)@file]{...}` → structured logging mode: build and write formatted docs from packets.
 * `[mod@var]{...}` → edit an in-memory document previously loaded and saved into a variable. Supports operators:
 
   * `comp` → set a value if absent.
