@@ -64,5 +64,6 @@ cargo test
 - [ ] modular imports / red.tgsk boundaries
 
 ## Why a gecko?
-Technically an anole, but lizards are some of the most adaptive and modular animals on the planet besides insects. They are found on every continent besides antartica. That and "Lizard, Lizard, Lizard, Lizard."
+Technically an anole, but lizards are some of the most adaptive and modular animals on the planet besides insects. They are found on every continent besides antartica.
+Also, consider: *Lizard. Lizard. Lizard. Lizard.*
 <img src="/misc/Tagspeak.png" alt="TagSpeak Gecko" width="15"/>
