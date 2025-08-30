@@ -55,15 +55,55 @@ cargo test
 ```
 
 ---
+## Setup
+* Make sure Rust and its dependencies are installed.
+
+* In repo, in terminal
+### Windows
+```bash
+cargo build --bin tagspeak_setup
+```
+build engine, install
+
+###linux
+```shell
+cargo build --bin tagspeak_setup_linux
+```
+follow instructions
+
+
 
 ## Roadmap
-- [x] math/store/print/note
+- [x] literals/math/[store:rigid][store:context(conditions)]/note
 - [x] funct + loop (inline + tag)
 - [x] call tags directly (`[call@step]`)
-- [ ] conditionals (`[if@(x>2)]{...}[else]{...}`)
-- [ ] modular imports / red.tgsk boundaries
+- [x] conditionals (`[if@(x>2)]{...}[else]{...}`)
+- [x] load/write/modify files (`[log], [mod], [save], [load]`
+- [] modular imports / red.tgsk boundaries
 
 ## Why a gecko?
 Technically an anole, but lizards are some of the most adaptive and modular animals on the planet besides insects. They are found on every continent besides antartica.
 Also, consider: *Lizard. Lizard. Lizard. Lizard.*
 <img src="/misc/Tagspeak.png" alt="TagSpeak Gecko" width="15"/>
+
+## MIT License
+
+Copyright (c) 2025 Saryn Harris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
