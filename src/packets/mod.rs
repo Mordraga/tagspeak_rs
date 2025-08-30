@@ -11,5 +11,6 @@ pub mod modify;
 pub mod msg;
 pub mod note;
 pub mod print;
+pub mod dump;
 pub mod save;
 pub mod store;

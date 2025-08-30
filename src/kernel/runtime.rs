@@ -137,6 +137,7 @@ impl Runtime {
             (None, "math")      => crate::packets::math::handle(self, p),
             (None, "store")     => crate::packets::store::handle(self, p),
             (None, "print")     => crate::packets::print::handle(self, p),
+            (None, "dump")      => crate::packets::dump::handle(self, p),
             (None, "call")      => crate::packets::call::handle(self, p),
             (None, "msg")       => crate::packets::msg::handle(self, p),
             (None, "int")       => crate::packets::int::handle(self, p),
