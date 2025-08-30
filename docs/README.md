@@ -84,12 +84,10 @@ follow instructions
 - [x] call tags directly (`[call@step]`)
 - [x] conditionals (`[if@(x>2)]{...}[else]{...}`)
 - [x] load/write/modify files (`[log], [mod], [save], [load]`
-- [] modular imports / red.tgsk boundaries
-
-## Why a gecko?
-Technically an anole, but lizards are some of the most adaptive and modular animals on the planet besides insects. They are found on every continent besides antartica.
-Also, consider: *Lizard. Lizard. Lizard. Lizard.*
-<img src="/misc/Tagspeak.png" alt="TagSpeak Gecko" width="15"/>
+- [x] modular imports / red.tgsk boundaries
+- [x] `[http]` calls.
+- [x] `[exec], [run], [yellow]` packets enstated
+- []
 
 ## Safety
 
