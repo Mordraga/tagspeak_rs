@@ -87,7 +87,6 @@ follow instructions
 - [x] modular imports / red.tgsk boundaries
 - [x] `[http]` calls.
 - [x] `[exec], [run], [yellow]` packets enstated
-- []
 
 ## Safety
 
