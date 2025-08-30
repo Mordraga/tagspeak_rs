@@ -323,13 +323,24 @@ fn do_install(engine_exe: PathBuf) -> Result<()> {
         anyhow::bail!("Engine exe not found: {}", engine_exe.display());
     }
     let engine = engine_exe.display().to_string();
-    let default_icon = format!("{},0", engine);
+    // Write a user-local copy of Tagspeak.ico and use it for the filetype icon
+    let default_icon = match write_user_icon() {
+        Ok(path) => path.display().to_string(),
+        Err(_) => format!("{},0", engine), // fallback to exe icon
+    };
 
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
     let classes = hkcu.create_subkey("Software\\Classes")?.0;
 
+    // Map extension -> ProgID
     let ext_key = classes.create_subkey(".tgsk")?.0;
     ext_key.set_value("", &PROGID)?;
+    // Helpful metadata so Windows treats it like text
+    let _ = ext_key.set_value("PerceivedType", &"text");
+    let _ = ext_key.set_value("Content Type", &"text/plain");
+    // Make TagSpeak appear in "Open with" list
+    let open_with = classes.create_subkey(".tgsk\\OpenWithProgids")?.0;
+    let _: Result<()> = open_with.set_value(PROGID, &"").map_err(|e| e.into());
 
     let prog = classes.create_subkey(PROGID)?.0;
     prog.set_value("", &DISPLAY)?;
@@ -340,7 +351,33 @@ fn do_install(engine_exe: PathBuf) -> Result<()> {
     let cmd_key = prog.create_subkey("shell\\open\\command")?.0;
     let command = format!("\"{}\" \"%1\"", engine);
     cmd_key.set_value("", &command)?;
+
+    // Also register the application entry so "Open with" can find the exe
+    if let Some(exe_name) = std::path::Path::new(&engine).file_name().and_then(|s| s.to_str()) {
+        let app_key_path = format!("Applications\\{}\\shell\\open\\command", exe_name);
+        let app_cmd = classes.create_subkey(&app_key_path)?.0;
+        app_cmd.set_value("", &command)?;
+        // Declare supported type for the application
+        let supp = format!("Applications\\{}\\SupportedTypes", exe_name);
+        let supp_key = classes.create_subkey(&supp)?.0;
+        let _: Result<()> = supp_key.set_value(".tgsk", &"").map_err(|e| e.into());
+    }
     Ok(())
+}
+
+#[cfg(target_os = "windows")]
+fn write_user_icon() -> Result<PathBuf> {
+    use std::fs;
+    // Prefer Roaming AppData, fall back to Local if needed
+    let base = dirs::data_dir()
+        .or_else(|| dirs::data_local_dir())
+        .unwrap_or_else(|| dirs::home_dir().unwrap_or_else(|| PathBuf::from("C:/")).join("AppData/Local"));
+    let dir = base.join("TagSpeak");
+    fs::create_dir_all(&dir)?;
+    let path = dir.join("tagspeak.ico");
+    // Write embedded icon bytes
+    fs::write(&path, include_bytes!("../../misc/Tagspeak.ico"))?;
+    Ok(path)
 }
 
 #[cfg(target_os = "windows")]
