@@ -45,7 +45,7 @@ Codex should treat `.tgsk` files as **DSL**, not general-purpose code.
 
     - If `red.tgsk` is missing → `E_BOX_REQUIRED`
     - If a path escapes the root → `E_BOX_VIOLATION`
-    - Outside-world packets (`[exec]`, `[run]`, `[http]`, `[parse]`) always resolve against the box
+    - Outside-world packets (`[exec]`, `[run]`, `[http]`) resolve against the box (paths) or are gated via `.tagspeak.toml` (network)
     - Default posture = **deny** unless explicitly allowed in `.tagspeak.toml`
 
 
@@ -90,6 +90,8 @@ Codex should treat `.tgsk` files as **DSL**, not general-purpose code.
   * `TAGSPEAK_ALLOW_YELLOW=1` approve all yellow prompts
   * `TAGSPEAK_ALLOW_EXEC=1` auto-approve `[exec]`
   * `TAGSPEAK_ALLOW_RUN=1` auto-approve `[run]` (default behavior already permissive)
+* `[http(get|post|put|delete)@url]{ [key(header.Name)@val] [key(json)@{...}] [key(body)@"..."] }` → HTTP client (blocked unless enabled/allowlisted in `.tagspeak.toml`)
+* `[parse(json|yaml|toml)@string]` → parse string into an in-memory document (usable with `[mod]`, `[dump]`)
 
 ### 🛠️ In Progress / Planned
 

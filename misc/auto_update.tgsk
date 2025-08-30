@@ -1,0 +1,33 @@
+[note@"Auto-update TagSpeak engine: fetch latest via git, rebuild, update version.json. All steps are yellow-gated."]
+
+# Fetch + build (confirm)
+[yellow@"Fetch latest and rebuild the engine now?"]{
+  [yellow:exec@"git fetch --tags --quiet"]
+  >[yellow:exec@"git rev-list --count HEAD"]>[store@build_before]
+  >[yellow:exec@"git pull --ff-only"]
+  >[yellow:exec@"cargo build --release"]
+  >[yellow:exec@"git rev-list --count HEAD"]>[store@build_after]
+  >[yellow:exec@"git describe --tags --always --dirty"]>[store@desc]
+  >[yellow:exec@"git rev-parse HEAD"]>[store@sha]
+  >[yellow:exec@"git show -s --format=%cI HEAD"]>[store@date]
+
+  # Report
+  >[if@(build_after>build_before)]>[then]{
+    [msg@"Updated engine to latest commit"]>[print]
+  }>[else]>[then]{
+    [msg@"Already up to date"]>[print]
+  }
+
+  # Write current version info
+  >[log(json)@/misc/version.json]{
+    [key(version)@desc]
+    [key(commit)@sha]
+    [key(date)@date]
+  }
+}
+
+# Optional: copy built engine if TAGSPEAK_ENGINE_PATH is set (Windows)
+[yellow@"Copy built engine to TAGSPEAK_ENGINE_PATH?"]{
+  [yellow:exec@"if defined TAGSPEAK_ENGINE_PATH copy /Y target\\release\\tagspeak_rs.exe \"%TAGSPEAK_ENGINE_PATH%\""]
+}
+

@@ -1,0 +1,2 @@
+[note@"HTTP GET JSON (requires network enabled and allowlisted)"]
+[http(get)@"https://api.example.com/data"]>[print]

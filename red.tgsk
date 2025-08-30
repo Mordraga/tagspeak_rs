@@ -1,0 +1,3 @@
+// red.tgsk — Tagspeak root sentinel
+// This marks the filesystem boundary for resolving file paths.
+// Realistically this file can be empty, but a comment is nice.

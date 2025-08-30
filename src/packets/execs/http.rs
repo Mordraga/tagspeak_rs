@@ -78,7 +78,7 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
                             if !h.is_empty() { req = req.header(h, val); }
                         } else if name == "json" {
                             if let Some(arg) = pkt.arg.as_ref() {
-                                let j = crate::packets::log::arg_to_json(rt, arg)?;
+                                let j = arg_to_json(rt, arg)?;
                                 req = req.json(&j);
                             }
                         } else if name == "body" {
@@ -123,3 +123,34 @@ fn handle_response(mut resp: Response) -> Result<Value> {
     Ok(Value::Str(text))
 }
 
+fn value_to_json(v: Value) -> Result<serde_json::Value> {
+    Ok(match v {
+        Value::Unit => serde_json::Value::Null,
+        Value::Bool(b) => serde_json::Value::Bool(b),
+        Value::Num(n) => serde_json::Value::Number(serde_json::Number::from_f64(n).ok_or_else(|| anyhow::anyhow!("invalid number"))?),
+        Value::Str(s) => serde_json::from_str(&s).unwrap_or(serde_json::Value::String(s)),
+        Value::Doc(d) => d.json,
+    })
+}
+
+fn arg_to_json(rt: &Runtime, arg: &Arg) -> Result<serde_json::Value> {
+    Ok(match arg {
+        Arg::Number(n) => {
+            if n.fract() == 0.0 && *n >= (i64::MIN as f64) && *n <= (i64::MAX as f64) {
+                serde_json::Value::Number(serde_json::Number::from((*n as i64)))
+            } else {
+                serde_json::Value::Number(serde_json::Number::from_f64(*n).ok_or_else(|| anyhow::anyhow!("invalid number"))?)
+            }
+        },
+        Arg::Str(s) => serde_json::from_str(s).unwrap_or(serde_json::Value::String(s.clone())),
+        Arg::Ident(id) => match id.as_str() {
+            "true" => serde_json::Value::Bool(true),
+            "false" => serde_json::Value::Bool(false),
+            "null" => serde_json::Value::Null,
+            other => {
+                if let Some(v) = rt.get_var(other) { value_to_json(v)? } else { serde_json::Value::String(other.to_string()) }
+            }
+        },
+        _ => serde_json::Value::Null,
+    })
+}

@@ -108,6 +108,8 @@ Also, consider: *Lizard. Lizard. Lizard. Lizard.*
   - `run.max_depth` (int) — max nested `[run]` depth.
   - `run.require_yellow` (bool) — require yellow for `[run]` too.
   - `prompts.noninteractive` (bool).
+  - `network.enabled` (bool) — enable outbound HTTP.
+  - `network.allow` (array) — allowlist of prefixes or hosts (e.g., ["https://api.example.com", "*.githubusercontent.com"]).
 
 Example:
 ```
@@ -121,6 +123,10 @@ require_yellow = false
 
 [prompts]
 noninteractive = false
+
+[network]
+enabled = false
+allow = ["https://api.example.com", "*.example.org"]
 ```
 
 ## MIT License

@@ -23,4 +23,3 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
 
     Ok(v)
 }
-

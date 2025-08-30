@@ -151,6 +151,8 @@ impl Runtime {
             (None, "run")       => crate::packets::run::handle(self, p),
             (None, "yellow")    => crate::packets::confirm::handle(self, p),
             (None, "confirm")   => crate::packets::confirm::handle(self, p),
+            (None, op) if op.starts_with("http(") => crate::packets::http::handle(self, p),
+            (None, op) if op.starts_with("parse(") => crate::packets::parse::handle(self, p),
 
             // loop forms: [loop3@tag] or [loop@N]{...}
             (None, op) if op.starts_with("loop") => crate::packets::r#loop::handle(self, p),

@@ -1,0 +1,436 @@
+{
+  // Canonical TagSpeak snippets
+
+  // Output
+  "print (last)": {
+    "prefix": "[print]",
+    "body": ["[print]"],
+    "description": "Print last value to console"
+  },
+  "print (value)": {
+    "prefix": "[printValue]",
+    "body": ["[print@${1}]"],
+    "description": "Print value to console"
+  },
+  "dump (last)": {
+    "prefix": "[dump]",
+    "body": ["[dump]"],
+    "description": "Dump last handle contents to console"
+  },
+  "dump (var)": {
+    "prefix": "dump@",
+    "body": ["[dump@${1}]"], 
+    "description": "Dump handle contents to console"
+  },
+
+  // System exec
+  "exec (stdout)": {
+    "prefix": "[exec]",
+    "body": ["[exec@\"${1:echo hello}\"]"],
+    "description": "Run a shell command; returns stdout"
+  },
+  // Run another TagSpeak script
+  "run tgsk": {
+    "prefix": "[run]",
+    "body": ["[run@/${1:basics/hello_world}.tgsk]"],
+    "description": "Execute another .tgsk file within current runtime"
+  },
+  // Yellow confirm wrapper
+  "yellow confirm": {
+    "prefix": "[yellow]",
+    "body": ["[yellow@\"${1:Are you sure?}\"]{", "  $0", "}"],
+    "description": "Prompt for confirmation before executing enclosed block"
+  },
+  "exec (json)": {
+    "prefix": "[exec:json]",
+    "body": ["[exec(json)@\"${1:echo hi}\"]"],
+    "description": "Run command; returns JSON string {code,stdout,stderr}"
+  },
+
+  // Values & literals
+  "msg": {
+    "prefix": "[msg]",
+    "body": ["[msg@\"${1}\"]"],
+    "description": "String literal"
+  },
+  "int": {
+    "prefix": "[int]",
+    "body": ["[int@${1}]"],
+    "description": "Integer literal"
+  },
+  "bool": {
+    "prefix": "[bool]",
+    "body": ["[bool@${1|true,false|}]"],
+    "description": "Boolean literal"
+  },
+  "note": {
+    "prefix": "[note]",
+    "body": ["[note@\"${1}\"]"],
+    "description": "Note (non-executable comment)"
+  },
+  "math": {
+    "prefix": "[math]",
+    "body": ["[math@$1${2|+,-,*,/|}$3]"],
+    "description": "Math operation"
+  },
+
+  // Variables
+  "store (fluid)": {
+    "prefix": "[store]",
+    "body": ["[store@${1}]"],
+    "description": "Store with fluid binding"
+  },
+  "store (rigid)": {
+    "prefix": "[store:rigid]",
+    "body": ["[store:rigid@${1}]"],
+    "description": "Store with rigid binding"
+  },
+  "store (context)": {
+    "prefix": "[store:context]",
+    "body": ["[store:context(${1}${2|==,>,<,[eq],[lt,[gt]|})@${3}]"],
+    "description": "Store with context condition"
+  },
+
+  // Flow
+  "loop (inline)": {
+    "prefix": "[loop]",
+    "body": ["[loop${1}]{", "  $0", "}"],
+    "description": "inline loop"
+  },
+  "loop (functon)": {
+    "prefix": "[loopfunct]",
+    "body": ["[loop:${1:name}@${2}]"],
+    "description": "loop using a function"
+  },
+  "funct define": {
+    "prefix": "[funct]",
+    "body": ["[funct:${1:name}]{", "  $0", "}"],
+    "description": "define a function"
+  },
+  "call funct": {
+    "prefix": "[call]",
+    "body": ["[call@${1:name}]"],
+    "description": "call a function"
+  },
+
+  //flow blocks
+  "if/then/else": {
+    "prefix": "[if]",
+    "body": [
+      "[if@(${1}${2|==,>,<,[eq],[lt,[gt]|}${3})]>[then]{",
+      "  $2",
+      "}>[else]>[then]{",
+      "  $3",
+      "}"
+    ],
+    "description": "Conditional with else"
+  },
+  "if/or/else": {
+    "prefix": "[ifor]",
+    "body": [
+      "[if@(${1}${2|==,>,<,[eq],[lt,[gt]|}${3})]>[)]>[then]{",
+      "  $4",
+      "}>[or@(${5}${6|==,>,<,[eq],[lt,[gt]|}${7})]>[)]>[then]{",
+      "  $8",
+      "}>[else]>[then]{",
+      "  $9",
+      "}"
+    ],
+    "description": "Conditional with or and else"
+  },
+
+  // Filesystem (rooted at nearest red.tgsk)
+  // Quick operations
+  "load file": {
+    "prefix": "[load]",
+    "body": ["[load@/${1:files/path}.${2|json,yaml,toml|}]"],
+    "description": "Load file"
+  },
+  "save handle": {
+    "prefix": "[save]",
+    "body": ["[save@${1:handle}]"],
+    "description": "Save handle to last loaded file"
+  },
+  "log quick json": {
+    "prefix": "[log]",
+    "body": ["[log@/${1:out}.json]"],
+    "description": "Quick log to JSON file"
+  },
+
+  //Modifiers for log
+  "key": {
+    "prefix": "[key]",
+    "body": ["[key(${1:branch.name})@${2:value}]"],
+    "description": "Key-Value pair for structured logging"
+  },
+  "sect": {
+    "prefix": "[sect]",
+    "body": ["[sect(${1:section.name})]"],
+    "description": "Section Marker for structured logging"
+  },
+
+  // Structured logging
+  "log structured (json)": {
+    "prefix": "[log:json]",
+    "body": [
+      "[log(json)@/${1:file/path}.json]{",
+      "  [key|}(${2:branch.name})@${3:value}]",
+      "}"
+    ]
+  },
+    "log structured (toml)": {
+    "prefix": "[log:toml]",
+    "body": [
+      "[log(toml)@/${1:files/path}.toml]{",
+      "  [${2|key,sect|}(${3:branch.name})@${4:value}]",
+      "}"
+    ]
+  },
+      "log structured (yaml)": {
+    "prefix": "[log:yaml]",
+    "body": [
+      "[log(yaml)@/${1:files/path}.yaml]{",
+      "  [${2|key,sect|}(${3:branch.name})@${4:value}]",
+      "}"
+    ]
+  },
+  // Operators for mod
+  "insert": {
+    "prefix": "[ins]",
+    "body": ["[ins(${1:path})@${2:value}]"],
+    "description": "Insert value at path"
+  },
+  "complement": {
+    "prefix": "[comp]",
+    "body": ["[comp(${1:path})@${2:value}]"],
+    "description": "Add value to existing value at path"
+  },
+  "complement!": {
+    "prefix": "[comp!]",
+    "body": ["[comp!(${1:path})@${2:value}]"],
+    "description": "Force add value to existing value at path"
+  },
+  "merge": {
+    "prefix": "[merge]",
+    "body": ["[merge(${1:path})@${2:value}]"],
+    "description": "Deep Merge value at path"
+  },
+  "delete": {
+    "prefix": "[del]",
+    "body": ["[del(${1:path})]"],
+    "description": "Delete path"
+  },
+
+  // Modify document
+  "mod block (value op)": {
+    "prefix": "[mod]",
+    "body": [
+      "[mod@${1:handle}]{",
+      "  [${2|ins,comp,comp!,merge|}(${3:path})@${4:value}]",
+      "  $0",
+      "}"
+    ],
+    "description": "Modify document with value operation"
+  },
+  "mod block (del op)": {
+    "prefix": "[moddel]",
+    "body": [
+      "[mod@${1:handle}]{",
+      "  [del(${2:path})]",
+      "  $0",
+      "}"
+    ],
+    "description": "Modify document with delete operation"
+  },
+  "mod op (value)": {
+    "prefix": "[modop]",
+    "body": ["[${1|ins,comp,comp!,merge|}(${2:path})@${3:value}]"],
+    "description": "Modify document with value operation"
+  },
+  "mod op (del)": {
+    "prefix": "[delop]",
+    "body": ["[del(${1:path})]"],
+    "description": "Delete path"
+  },
+
+  // Common recipes
+  //[msg]>[print]
+  "recipe: msg/print": {
+    "prefix": "[recipe:mp]",
+    "body": [
+      "[msg@\"$1\"]>[print]"
+    ],
+    "description": "Message and print"
+  },
+  //[msg]>[store]>[print]
+  "recipe: msg/store/print": {
+    "prefix": "[recipe:msp]",
+    "body": [
+      "[msg@\"$1\"]>[store@${2:var}]>[print@${2:var}]"
+    ],
+    "description": "Message, store, and print"
+  },
+  //[int]>[print]
+  "recipe: int/print": {    
+    "prefix": "[recipe:ip]",
+    "body": [
+      "[int@$1]>[print]"
+    ],
+    "description": "Integer and print"
+  },
+  //[int]>[store]>[print]
+  "recipe: int/store/print": {
+    "prefix": "[recipe:isp]",
+    "body": [
+      "[int@$1]>[store@${2:var}]>[print@${2:var}]"
+    ],
+    "description": "Integer, store, and print"
+  },
+  //[int]>[math]>[print]
+  "recipe: int/math/print": {
+    "prefix": "[recipe:imap]",
+    "body": [
+      "[int@${1:5}]>[math@${2|+,-,*,/|}${3:3}]>[print]"
+    ],
+    "description": "Integer, math, and print"
+  },
+  //[int]|[msg]>[store]>[print]
+  "recipe: int/msg/store/print": {
+    "prefix": "[recipe:i|msp]",
+    "body": ["[${1|int,msg|}@$2]>[store@${3:var}]>[print@${3:var}]"
+  ],
+    "description": "Integer or message, store, and print"
+  },
+    //[math]>[store]>[print]
+  "recipe: math/store/print": {
+    "prefix": "[recipe:masp]",
+    "body": [
+      "[math@$1${2|+,-,*,/|}$3]>[store@${4:var}]>[print@${4:var}]"
+    ],
+    "description": "Math, store, and print"
+  },
+
+  //Advanced recipes
+  //[load]>[save]>[dump]
+  "recipe: load/save/dump": {
+    "prefix": "[recipe:lsd]",
+    "body": [
+      "[load@/${1:path}.json]>[save@${2:doc}]>[dump@${2:doc}]"
+    ],
+    "description": "Load, save handle, and dump"
+  },
+  //[if]>[load]>[dump] with else
+  "recipe: if/load/dump": {
+    "prefix": "[recipe:ild]",
+    "body": [
+      "[if@(${1:condition})]>[then]{",
+      "  [load@/${2:infile}.json]>[dump]",
+      "}>[else]>[then]{",
+      "  [msg@\"${3:Condition not met}\"]>[print]",
+      "}"
+    ],
+    "description": "Conditional load and dump with else"
+  },
+
+  // Additional recipes
+  "recipe: load/merge/save": {
+    "prefix": "[recipe:lms]",
+    "body": [
+      "[load@/${1:files/modify_demo/hello}.json]>[save@${2:doc}]",
+      "[mod@${2:doc}]{",
+      "[merge(${3:meta})@{\"version\":${4:1}}]}>[save@${2:doc}]>[dump@${2:doc}]",
+    ],
+    "description": "Load file, deep-merge into path, save, and dump"
+  },
+  "recipe: ensure-parent-then-insert": {
+    "prefix": "[recipe:epi]",
+    "body": [
+      "[load@/${1:files/modify_demo/hello}.json]>[save@${2:doc}]",
+      "[mod@${2:doc}]{[comp!(${3:meta})@{}][ins(${3:meta}.${4:key})@${5:value}]}>",
+      ">[save@${2:doc}]>[dump@${2:doc}]"
+    ],
+    "description": "Create parent with comp!, insert key, save, and dump"
+  },
+  "recipe: delete-key": {
+    "prefix": "[recipe:del]",
+    "body": [
+      "[load@/${1:files/modify_demo/hello}.json]>[save@${2:doc}]",
+      "[mod@${2:doc}]{[del(${3:path})]}>[save@${2:doc}]>[dump@${2:doc}]"
+    ],
+    "description": "Delete path from document and save"
+  },
+  "recipe: init-json-file": {
+    "prefix": "[recipe:init-json]",
+    "body": [
+      "[log(json)@/${1:config}.json]{",
+      "  [key(name)@\"${2:app}\"]",
+      "  [key(version)@\"${3:0.1.0}\"]",
+      "  [sect@${4:settings}]{[key(debug)@${5:true}]}",
+      "}"
+    ],
+    "description": "Create a fresh JSON file with nested section"
+  },
+  "recipe: structured-log-json": {
+    "prefix": "[recipe:slog-json]",
+    "body": [
+      "[log(json)@/${1:profile}.json]{",
+      "  [key(name)@\"${2:Saryn}\"]",
+      "  [key(age)@${3:25}]",
+      "  [sect@${4:contact}]{[key(email)@\"${5:saryn@example.com}\"]}",
+      "}"
+    ],
+    "description": "Structured JSON logging with nested section"
+  },
+  "recipe: structured-log-yaml": {
+    "prefix": "[recipe:slog-yaml]",
+    "body": [
+      "[log(yaml)@/${1:profile}.yaml]{",
+      "  [key(name)@\"${2:Saryn}\"]",
+      "  [key(age)@${3:25}]",
+      "}"
+    ],
+    "description": "Structured YAML logging"
+  },
+  "recipe: structured-log-toml": {
+    "prefix": "[recipe:slog-toml]",
+    "body": [
+      "[log(toml)@/${1:Cargo}.toml]{",
+      "  [sect@package]{",
+      "    [key(name)@\"${2:tagspeak}\"]",
+      "    [key(version)@\"${3:0.1.0}\"]",
+      "  }",
+      "  [sect@dependencies]{",
+      "    [key(anyhow)@\"${4:1}\"]",
+      "    [key(serde)@\"${5:1}\"]",
+      "  }",
+      "}"
+    ],
+    "description": "Structured TOML logging with sections"
+  },
+  "recipe: funct + loop (tag sugar)": {
+    "prefix": "[recipe:fls]",
+    "body": [
+      "[funct:${1:step}]{[msg@\"tick\"]>[print]}",
+      ">[loop${2:5}@${1:step}]"
+    ],
+    "description": "Define a tag and loop over it"
+  },
+  "recipe: conditional modify + save": {
+    "prefix": "[recipe:cond-mod]",
+    "body": [
+      "[load@/${1:files/modify_demo/hello}.json]>[save@${2:doc}]",
+      "[if@(${3:x}>${4:0})]>[then]{[mod@${2:doc}]{[ins(${5:flag})@${6:true}]}}",
+      ">[else]>[then]{[mod@${2:doc}]{[del(${5:flag})]}}",
+      ">[save@${2:doc}]>[dump@${2:doc}]"
+    ],
+    "description": "Conditional insert/delete followed by save"
+  },
+  "recipe: store:context bindings": {
+    "prefix": "[recipe:ctx-store]",
+    "body": [
+      "[msg@\"apologetic\"]>[store:context(${1:x}==1)@${2:tone}]",
+      "[msg@\"neutral\"]>[store:context(${1:x}!=1)@${2:tone}]"
+    ],
+    "description": "Context-aware variable bindings"
+  }
+}
