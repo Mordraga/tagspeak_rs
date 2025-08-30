@@ -36,9 +36,19 @@ Codex should treat `.tgsk` files as **DSL**, not general-purpose code.
    * Append new packet modules under `src/packets/`.
    * Never overwrite `router.rs` wholesale — modify only within handlers.
 
-5. **Current Scope**
-   *
-   *
+5. **The Box Rule**
+
+   * TagSpeak operates off of what is known as* **`red.tgsk`** *in its root.*  
+    That file defines the lid to the **proverbial box.**  
+    Everything TagSpeak — files, commands, network access —  
+    to quote: **“Stays in the damn box.”**
+
+    - If `red.tgsk` is missing → `E_BOX_REQUIRED`
+    - If a path escapes the root → `E_BOX_VIOLATION`
+    - Outside-world packets (`[exec]`, `[run]`, `[http]`, `[parse]`) always resolve against the box
+    - Default posture = **deny** unless explicitly allowed in `.tagspeak.toml`
+
+
 
 
 ---
@@ -73,6 +83,13 @@ Codex should treat `.tgsk` files as **DSL**, not general-purpose code.
   * `[key(name)@value]` → insert a key/value pair in a structured `[log]` block.
   * `[sect@section]{...}` → create a nested object/table (JSON/YAML/TOML style).
 * `[call@funct_name] → call function directly
+* `[exec@"cmd"]` → run shell command; returns stdout string.
+  * Modes: `exec(code)`, `exec(stderr)`, `exec(json)`
+* `[run@/path/script.tgsk]` → parse and execute another TagSpeak script within current runtime (respects red.tgsk root and updates cwd).
+* `[yellow@"message"]{...}` / `[confirm@"message"]{...}` → prompt user before executing enclosed block. Env overrides:
+  * `TAGSPEAK_ALLOW_YELLOW=1` approve all yellow prompts
+  * `TAGSPEAK_ALLOW_EXEC=1` auto-approve `[exec]`
+  * `TAGSPEAK_ALLOW_RUN=1` auto-approve `[run]` (default behavior already permissive)
 
 ### 🛠️ In Progress / Planned
 

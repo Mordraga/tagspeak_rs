@@ -1,0 +1,19 @@
+[note@"Version logger: capture git + build info, write misc/version.json"]
+
+[yellow:exec@"git rev-parse HEAD"]>[store@sha]
+>[yellow:exec@"git rev-parse --abbrev-ref HEAD"]>[store@branch]
+>[yellow:exec@"git describe --tags --always --dirty"]>[store@desc]
+>[yellow:exec@"git show -s --format=%cI HEAD"]>[store@date]
+>[yellow:exec@"git rev-list --count HEAD"]>[store@build]
+>[yellow:exec@"git config --get remote.origin.url"]>[store@remote]
+
+[log(json)@/misc/version.json]{
+  [key(commit)@sha]
+  [key(branch)@branch]
+  [key(version)@desc]
+  [key(date)@date]
+  [key(build)@build]
+  [key(remote)@remote]
+}
+
+[msg@"Wrote misc/version.json with latest commit info"]>[print]

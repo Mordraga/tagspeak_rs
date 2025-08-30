@@ -1,0 +1,2 @@
+[note@"Prompt before running an external command"]
+[yellow@"Run external command: echo Danger!"]{[exec@"echo Danger!"]>[print]}

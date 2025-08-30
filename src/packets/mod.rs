@@ -14,3 +14,8 @@ pub mod print;
 pub mod dump;
 pub mod save;
 pub mod store;
+pub mod exec;
+pub mod run;
+pub mod confirm;
+pub mod http;
+pub mod parse;

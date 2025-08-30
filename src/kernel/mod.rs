@@ -2,6 +2,7 @@
 pub mod ast;
 pub mod boolops;
 pub mod fs_guard;
+pub mod config;
 pub mod runtime;
 pub mod values;
 

@@ -146,9 +146,18 @@ impl Runtime {
             (None, op) if op.starts_with("log") => crate::packets::log::handle(self, p),
             (None, "save")      => crate::packets::save::handle(self, p),
             (None, "mod")       => crate::packets::modify::handle(self, p),
+            (None, "exec")      => crate::packets::exec::handle(self, p),
+            (None, op) if op.starts_with("exec(") => crate::packets::exec::handle(self, p),
+            (None, "run")       => crate::packets::run::handle(self, p),
+            (None, "yellow")    => crate::packets::confirm::handle(self, p),
+            (None, "confirm")   => crate::packets::confirm::handle(self, p),
 
             // loop forms: [loop3@tag] or [loop@N]{...}
             (None, op) if op.starts_with("loop") => crate::packets::r#loop::handle(self, p),
+
+            // namespaced yellow sugar
+            (Some("yellow"), "exec") => crate::packets::confirm::handle_exec(self, p),
+            (Some("yellow"), "run")  => crate::packets::confirm::handle_run(self, p),
 
             other => bail!("unknown operation: {:?}", other),
         }

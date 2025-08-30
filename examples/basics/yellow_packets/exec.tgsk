@@ -1,0 +1,4 @@
+[note@"Run a couple of simple shell commands and inspect results"]
+[exec@"echo hello from exec"]>[print]
+>[exec(code)@"echo ok"]>[store@exit_code]>[print@exit_code]
+>[exec(json)@"echo structured"]>[print]

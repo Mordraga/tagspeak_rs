@@ -31,6 +31,11 @@ This Rust implementation (`tagspeak_rs`) parses and executes `.tgsk` scripts.
 - log →
   - quick: `[log@file.json]` dumps last value as JSON
   - structured: `[log(json|yaml|toml)@file]{ [key(name)@value] [sect@section]{...} }`
+- exec ·+
+  - `[exec@"cmd"]` returns stdout as string
+  - `[exec(code)@"cmd"]` returns exit code as number
+  - `[exec(stderr)@"cmd"]` returns stderr as string
+  - `[exec(json)@"cmd"]` returns a JSON string with `{code,stdout,stderr}`
 - red.tgsk → Root file marker/sentinel. Must exist in your project root; all file access is sandboxed to this boundary.
 
 ...
@@ -85,6 +90,38 @@ follow instructions
 Technically an anole, but lizards are some of the most adaptive and modular animals on the planet besides insects. They are found on every continent besides antartica.
 Also, consider: *Lizard. Lizard. Lizard. Lizard.*
 <img src="/misc/Tagspeak.png" alt="TagSpeak Gecko" width="15"/>
+
+## Safety
+
+- Root required: scripts only run inside a project tree that contains a `red.tgsk` file (nearest ancestor). If absent, the runtime aborts with guidance.
+- Yellow prompts: use `[yellow@"message"]{ ... }` to ask before executing a block.
+- Exec gating: set `TAGSPEAK_ALLOW_EXEC=1` to auto-allow `[exec]` (or answer interactively).
+- Run depth: `[run]` defaults to a max depth of 8; override with `TAGSPEAK_MAX_RUN_DEPTH`.
+- Non-interactive: set `TAGSPEAK_NONINTERACTIVE=1` to disable prompts (operations default-deny unless allowed).
+
+### .tagspeak.toml (optional)
+- Location: project root (next to `red.tgsk`).
+- Precedence: CLI flags > env vars > `.tagspeak.toml` > defaults.
+- Keys:
+  - `security.allow_exec` (bool) — allow `[exec]` without yellow.
+  - `security.exec_allowlist` (array) — commands allowed without yellow (e.g., `["echo","git"]`).
+  - `run.max_depth` (int) — max nested `[run]` depth.
+  - `run.require_yellow` (bool) — require yellow for `[run]` too.
+  - `prompts.noninteractive` (bool).
+
+Example:
+```
+[security]
+allow_exec = false
+exec_allowlist = ["echo", "git"]
+
+[run]
+max_depth = 8
+require_yellow = false
+
+[prompts]
+noninteractive = false
+```
 
 ## MIT License
 
