@@ -1,0 +1,183 @@
+{
+  "canon": {
+    "core": [
+      "array",
+      "bool",
+      "cd",
+      "dump",
+      "env",
+      "eq",
+      "ge",
+      "gt",
+      "int",
+      "le",
+      "len",
+      "lt",
+      "math",
+      "msg",
+      "ne",
+      "note",
+      "obj",
+      "parse",
+      "print",
+      "reflect",
+      "store"
+    ],
+    "execs": [
+      "confirm",
+      "exec",
+      "http",
+      "run",
+      "yellow"
+    ],
+    "files": [
+      "exists",
+      "get",
+      "load",
+      "log",
+      "mod",
+      "save"
+    ],
+    "flow": [
+      "call",
+      "else",
+      "funct",
+      "if",
+      "iter",
+      "loopN",
+      "or"
+    ],
+    "helpers": [
+      "key",
+      "sect"
+    ]
+  },
+  "details": {
+    "bool": {
+      "desc": "→ create a bool true|false statement.",
+      "section": "Value Packets",
+      "sig": "[bool@true|false]",
+      "source": "Tagspeak_101.md"
+    },
+    "call": {
+      "desc": "→ call a function defined with `[funct]`.",
+      "section": "Control Flow Packets",
+      "sig": "[call@name]",
+      "source": "Tagspeak_101.md"
+    },
+    "exec": {
+      "desc": "returns a JSON string with `{code,stdout,stderr}`",
+      "section": "",
+      "sig": "[exec(json)@\"cmd\"]",
+      "source": "README.md"
+    },
+    "funct": {
+      "desc": "or `[loop:step@3]` → tag loop (reusable)",
+      "section": "",
+      "sig": "[funct:step]{ ... } … [loop3@step]",
+      "source": "README.md"
+    },
+    "http": {
+      "desc": "calls.",
+      "section": "Windows",
+      "sig": "[http]",
+      "source": "README.md"
+    },
+    "if": {
+      "desc": ")",
+      "section": "Windows",
+      "sig": "[if@(x>2)]{...}[else]{...}",
+      "source": "README.md"
+    },
+    "int": {
+      "desc": "→ create an integer.",
+      "section": "Value Packets",
+      "sig": "[int@int]",
+      "source": "Tagspeak_101.md"
+    },
+    "key": {
+      "desc": "→ insert a key/value pair inside a structured `[log]` block.",
+      "section": "Structured Logging Helpers",
+      "sig": "[key(name)@value]",
+      "source": "Tagspeak_101.md"
+    },
+    "load": {
+      "desc": "paths are resolved relative to the nearest `red.tgsk`—files outside this boundary cannot be accessed.",
+      "section": "Notes",
+      "sig": "[load@...]",
+      "source": "README.md"
+    },
+    "log": {
+      "desc": "→ structured logging mode: build and write formatted docs from packets.",
+      "section": "File Packets",
+      "sig": "[log(json|yaml|toml)@file]{...}",
+      "source": "Tagspeak_101.md"
+    },
+    "loopN": {
+      "desc": "→ repeat enclosed block `N` times.",
+      "section": "Control Flow Packets",
+      "sig": "[loopN]{...}",
+      "source": "Tagspeak_101.md"
+    },
+    "math": {
+      "desc": "→ evaluate math expression.",
+      "section": "Function Packets",
+      "sig": "[math@expr]",
+      "source": "Tagspeak_101.md"
+    },
+    "mod": {
+      "desc": "→ edit an in-memory document previously loaded and saved into a variable. Supports operators:",
+      "section": "File Packets",
+      "sig": "[mod@var]{...}",
+      "source": "Tagspeak_101.md"
+    },
+    "msg": {
+      "desc": "→ create a string literal.",
+      "section": "Value Packets",
+      "sig": "[msg@\"string\"]",
+      "source": "Tagspeak_101.md"
+    },
+    "note": {
+      "desc": "→ inline documentation/annotation.",
+      "section": "Value Packets",
+      "sig": "[note@\"message\"]",
+      "source": "Tagspeak_101.md"
+    },
+    "print": {
+      "desc": "→ print the last value. can also use `[print@value]` to print specific values.",
+      "section": "Function Packets",
+      "sig": "[print]",
+      "source": "Tagspeak_101.md"
+    },
+    "run": {
+      "desc": "defaults to a max depth of 8; override with `TAGSPEAK_MAX_RUN_DEPTH`.",
+      "section": "Windows",
+      "sig": "[run]",
+      "source": "README.md"
+    },
+    "save": {
+      "desc": "→ persist a previously loaded/registered document back to its original file.",
+      "section": "File Packets",
+      "sig": "[save@handle]",
+      "source": "Tagspeak_101.md"
+    },
+    "sect": {
+      "desc": "→ create a nested object/table (JSON/YAML/TOML style sections).",
+      "section": "Structured Logging Helpers",
+      "sig": "[sect@section]{...}",
+      "source": "Tagspeak_101.md"
+    },
+    "store": {
+      "desc": "→ save last value under variable name.",
+      "section": "Function Packets",
+      "sig": "[store@name]",
+      "source": "Tagspeak_101.md"
+    },
+    "yellow": {
+      "desc": "to ask before executing a block.",
+      "section": "Windows",
+      "sig": "[yellow@\"message\"]{ ... }",
+      "source": "README.md"
+    }
+  }
+}

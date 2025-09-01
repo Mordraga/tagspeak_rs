@@ -1,0 +1,6 @@
+[note@"Append to an array with [mod:push] and iterate it"]
+[parse(json)@"{\"items\":[1,2,3]}"]>[store@doc]
+[mod@doc]{ [push(items)@4] }
+[get(items)@doc]>[store@arr]
+[iter@arr]{ [print@it] }
+

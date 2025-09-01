@@ -1,0 +1,5 @@
+[note@"Canonical comparator packets"]
+[int@10]>[eq@10]>[print]
+[int@5]>[gt@3]>[print]
+[msg@"5"]>[lt@10]>[print]
+

@@ -61,6 +61,8 @@ Keep TagSpeak syntax intact—**do not translate** packets to Rust, Python, or o
   * `del` → delete a field/path.
   * `ins` → insert a new value.
 
+Note: `[print]` is pass-through — it prints and forwards the value for downstream packets. Use `[print@value]` to print a specific value without altering flow.
+
 ### Control Flow Packets
 
 * `[loopN]{...}` → repeat enclosed block `N` times.

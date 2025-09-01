@@ -7,7 +7,7 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
         None => rt.last.clone(),
     };
     println!("{}", pretty(&v));
-    Ok(Value::Unit)
+    Ok(v.clone())
 }
 
 fn pretty(v: &Value) -> String {

@@ -142,6 +142,12 @@ impl Runtime {
             (None, "msg")       => crate::packets::msg::handle(self, p),
             (None, "int")       => crate::packets::int::handle(self, p),
             (None, "bool")      => crate::packets::bool::handle(self, p),
+            (None, "env")       => crate::packets::env::handle(self, p),
+            (None, "cd")        => crate::packets::cd::handle(self, p),
+            (None, "len")       => crate::packets::len::handle(self, p),
+            (None, "array")     => crate::packets::array::handle(self, p),
+            (None, "obj")       => crate::packets::obj::handle(self, p),
+            (None, op) if op.starts_with("reflect(") => crate::packets::reflect::handle(self, p),
             (None, "load")      => crate::packets::load::handle(self, p),
             (None, op) if op.starts_with("log") => crate::packets::log::handle(self, p),
             (None, "save")      => crate::packets::save::handle(self, p),
@@ -153,9 +159,15 @@ impl Runtime {
             (None, "confirm")   => crate::packets::confirm::handle(self, p),
             (None, op) if op.starts_with("http(") => crate::packets::http::handle(self, p),
             (None, op) if op.starts_with("parse(") => crate::packets::parse::handle(self, p),
+            (None, op) if op.starts_with("get(") || op.starts_with("exists(") => crate::packets::query::handle(self, p),
+            (None, "iter")     => crate::packets::iter::handle(self, p),
+            (None, op) if matches!(op, "eq"|"ne"|"lt"|"le"|"gt"|"ge") => crate::packets::compare::handle(self, p),
 
             // loop forms: [loop3@tag] or [loop@N]{...}
             (None, op) if op.starts_with("loop") => crate::packets::r#loop::handle(self, p),
+
+            // namespaced comparators: [cmp:eq@rhs]
+            (Some("cmp"), _) => crate::packets::compare::handle(self, p),
 
             // namespaced yellow sugar
             (Some("yellow"), "exec") => crate::packets::confirm::handle_exec(self, p),

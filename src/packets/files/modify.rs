@@ -52,6 +52,14 @@ fn apply_edit(rt: &Runtime, doc: &mut Document, pkt: &Packet) -> Result<()> {
             let val = arg_to_json(rt, pkt.arg.as_ref().ok_or_else(|| anyhow::anyhow!("ins needs value"))?)?;
             set_value(&mut doc.json, &segments, val, false, false)?;
         }
+        "push" => {
+            let val = arg_to_json(rt, pkt.arg.as_ref().ok_or_else(|| anyhow::anyhow!("push needs value"))?)?;
+            let target = navigate(&mut doc.json, &segments, true)?;
+            if !target.is_array() {
+                bail!("not_array");
+            }
+            target.as_array_mut().unwrap().push(val);
+        }
         other => bail!("unknown edit op: {other}"),
     }
     Ok(())

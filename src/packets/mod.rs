@@ -9,6 +9,13 @@ pub mod core {
     pub mod dump;
     pub mod store;
     pub mod parse;
+    pub mod env;
+    pub mod cd;
+    pub mod len;
+    pub mod compare;
+    pub mod array;
+    pub mod obj;
+    pub mod reflect;
 }
 
 pub mod files {
@@ -16,6 +23,7 @@ pub mod files {
     pub mod log;
     pub mod save;
     pub mod modify;
+    pub mod query;
 }
 
 pub mod flow {
@@ -23,6 +31,7 @@ pub mod flow {
     pub mod call;
     pub mod r#loop;
     pub mod conditionals;
+    pub mod iter;
 }
 
 pub mod execs {
@@ -34,6 +43,7 @@ pub mod execs {
 
 // Re-export for backward compatibility with existing paths
 pub use core::{bool, int, math, msg, note, print, dump, store, parse};
-pub use files::{load, log, save, modify};
-pub use flow::{funct, call, r#loop, conditionals};
+pub use core::{env, cd, len, compare, array, obj, reflect};
+pub use files::{load, log, save, modify, query};
+pub use flow::{funct, call, r#loop, conditionals, iter};
 pub use execs::{exec, run, http, confirm};
