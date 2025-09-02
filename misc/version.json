@@ -1,8 +1,11 @@
 {
   "branch": "experimental\n",
-  "build": 45,
-  "commit": "eb3278c0159d921d1930567f67e9424484904fce\n",
-  "date": "2025-08-30T12:57:36-04:00\n",
+  "build": 46,
+  "commit": "d95fd58aa66d1ffbd182874ec5a9271cd963d3f8\n",
+  "date": "2025-09-01T01:42:40-04:00\n",
+  "engine_sha": "d95fd58aa66d1ffbd182874ec5a9271cd963d3f8\n",
   "remote": "https://github.com/Mordraga/tagspeak_rs.git\n",
-  "version": "eb3278c-dirty\n"
+  "source_sha": "d95fd58aa66d1ffbd182874ec5a9271cd963d3f8\n",
+  "updated_by": "Mordraga\n",
+  "version": "d95fd58-dirty\n"
 }

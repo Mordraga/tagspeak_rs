@@ -29,6 +29,14 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
     if rt.effective_root.is_none() {
         anyhow::bail!("E_NO_RED: [exec] disabled without a red.tgsk root");
     }
+    // Require red mode enabled (session-level)
+    let red = rt
+        .get_var("__red_enabled")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    if !red {
+        anyhow::bail!("E_RED_REQUIRED: enable red with [red@\"...\"] first");
+    }
     let cmdline = match &p.arg {
         Some(Arg::Str(s)) => s.clone(),
         Some(Arg::Ident(id)) => id.clone(),

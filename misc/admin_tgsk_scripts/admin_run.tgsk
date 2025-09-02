@@ -1,3 +1,4 @@
+[red@"Admin scripts. (type ritual phrase)"]
 [run@auto_update.tgsk]
 [run@update_packets_json.tgsk]
 [run@version_update.tgsk]

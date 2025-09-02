@@ -157,10 +157,14 @@ impl Runtime {
             (None, "run")       => crate::packets::run::handle(self, p),
             (None, "yellow")    => crate::packets::confirm::handle(self, p),
             (None, "confirm")   => crate::packets::confirm::handle(self, p),
+            (None, "red")       => crate::packets::red::handle(self, p),
             (None, op) if op.starts_with("http(") => crate::packets::http::handle(self, p),
+            (None, op) if op.starts_with("repl(") => crate::packets::repl::handle(self, p),
             (None, op) if op.starts_with("parse(") => crate::packets::parse::handle(self, p),
             (None, op) if op.starts_with("get(") || op.starts_with("exists(") => crate::packets::query::handle(self, p),
             (None, "iter")     => crate::packets::iter::handle(self, p),
+            (Some("input"), "line") => crate::packets::input::handle(self, p),
+            (None, "input")    => crate::packets::input::handle(self, p),
             (None, op) if matches!(op, "eq"|"ne"|"lt"|"le"|"gt"|"ge") => crate::packets::compare::handle(self, p),
 
             // loop forms: [loop3@tag] or [loop@N]{...}

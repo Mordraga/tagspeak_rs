@@ -117,6 +117,7 @@ These are the guiding rules of TagSpeak. Codex should assume these are **always 
     - Consent is enforced at the syntax level.  
 
 17. **Packet Additions**
+    - Check suggested_packets first. Everytime.
     - Always verify whether a packet is already implemented before suggesting or creating it.
     - Packets must provide end-user value, not exist solely for repo debugging.
     - New packets must honor the core principles:
