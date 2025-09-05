@@ -1,11 +1,16 @@
 [note@"Version logger: capture git + build info, write misc/version.json"]
-
 [yellow:exec@"git rev-parse HEAD"]>[store@sha]
 >[yellow:exec@"git rev-parse --abbrev-ref HEAD"]>[store@branch]
 >[yellow:exec@"git describe --tags --always --dirty"]>[store@desc]
 >[yellow:exec@"git show -s --format=%cI HEAD"]>[store@date]
 >[yellow:exec@"git rev-list --count HEAD"]>[store@build]
 >[yellow:exec@"git config --get remote.origin.url"]>[store@remote]
+>[yellow:exec@"git config user.name"]>[store@generated_by]
+>[yellow:exec@"date -u +%Y-%m-%dT%H:%M:%SZ"]>[store@generated_at]
+>[yellow:exec@"git rev-parse HEAD"]>[store@source_sha]
+>[yellow:exec@"git rev-parse HEAD"]>[store@engine_sha]  
+# ⚠️ replace with reflect if you want engine to report its own commit
+
 
 [log(json)@/misc/version.json]{
   [key(commit)@sha]
@@ -14,6 +19,9 @@
   [key(date)@date]
   [key(build)@build]
   [key(remote)@remote]
+  [key(updated_by)@generated_by]
+  [key(source_sha)@source_sha]
+  [key(engine_sha)@engine_sha]
 }
 
 [msg@"Wrote misc/version.json with latest commit info"]>[print]

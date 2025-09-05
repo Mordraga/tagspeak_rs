@@ -17,76 +17,130 @@ Data is always carried forward by the `>` connector:
 ```
 
 1. `[msg]` produces "hi".
-2. `[store]` saves it under `greeting`.
-3. `[print]` outputs it.
 
-Keep TagSpeak syntax intact—**do not translate** packets to Rust, Python, or other languages.
+2. `[store]` saves it under `greeting`.
+
+3. `[print]` outputs it.
 
 ---
 
 ## Core Concepts
 
 1. **Everything is a packet** – packets transform, store, or route data.
+
 2. **Inline sugar vs. canonical packets** – friendly forms (`>` or `==`) have explicit equivalents (`[pipe]`, `[eq]`). Prefer canonical packets when clarity matters.
+
 3. **Structured file operations** – when emitting files, prefer `[log(json|yaml|toml)@path]{...}` over ad‑hoc writes.
 
 ---
 
-## Packet Types
+## Packet Reference (Canonical)
 
-### Value Packets
+### Core/Data Packets
 
-* `[msg@"string"]` → create a string literal.
-* `[int@int]` → create an integer.
-* `[bool@true|false]` → create a bool true|false statement.
-* `[note@"message"]` → inline documentation/annotation.
+- `[parse(json|yaml|toml)@string]` — parse a string into an in-memory document (usable by `[mod]`, `[dump]`, `[iter]`).
 
-### Function Packets
+- `[array]{ ... }` — produce an in-memory JSON array from enclosed packets. Sugar: `[array@[1,2,3]]`.
 
-* `[print]` → print the last value. can also use `[print@value]` to print specific values.
-* `[math@expr]` → evaluate math expression.
-* `[store@name]` → save last value under variable name.
+- `[obj]{ [key(k)@v] ... }` — produce an in-memory JSON object built from `[key]` and `[sect]`.
 
-### File Packets
+- `[len]` — length of last value (string length, array length, or object key count). Also `[len@var|"text"]`.
 
-* `[save@handle]` → persist a previously loaded/registered document back to its original file.
-* `[load@file]` → load JSON/YAML/TOML (by file extension) and produce a document handle for in‑memory edits.
-* `[log@file.json]` → dump last value to a JSON file (quick mode).
-* `[log(json|yaml|toml)@file]{...}` → structured logging mode: build and write formatted docs from packets.
-* `[mod@var]{...}` → edit an in-memory document previously loaded and saved into a variable. Supports operators:
+- `[env@NAME]` — read an environment variable; returns Unit if missing.
 
-  * `comp` → set a value if absent.
-  * `comp!` → overwrite existing value.
-  * `merge` → deep merge object structures.
-  * `del` → delete a field/path.
-  * `ins` → insert a new value.
+- `[cd@/path]` — change runtime working directory within the red box; returns new cwd like `/sub/dir`.
 
-### Control Flow Packets
+- `[dump]` — pretty-print the last value (documents as pretty JSON); pass-through.
 
-* `[loopN]{...}` → repeat enclosed block `N` times.
-* `[cond(condition)]{...}[else]{...}` → conditional branching, run one block if true, else the other.
-* `[funct@name]{...}` → define a reusable function.
-* `[call@name]` → call a function defined with `[funct]`.
+- `[reflect(packets)]` — introspect canonical packets; `[reflect(packets_full)]` writes `docs/PACKETS.json`. Also `[reflect(vars)]`, `[reflect(runtime)]`, `[reflect(doc)@handle]`.
 
-### Structured Logging Helpers
+- `[input@"Prompt "]` — read a single line from stdin. Returns the entered string. Respects `TAGSPEAK_NONINTERACTIVE=1` (returns Unit). Sugar: `[input:line@"Prompt "]`.
 
-* `[key(name)@value]` → insert a key/value pair inside a structured `[log]` block.
-* `[sect@section]{...}` → create a nested object/table (JSON/YAML/TOML style sections).
+### Comparators
 
+- `[eq@rhs]` — equality comparator against last value (returns bool). Sugar: `==`.
+
+- `[ne@rhs]` — not-equal comparator. Sugar: `!=`.
+
+- `[lt@rhs]` — less-than comparator. Sugar: `<`.
+
+- `[le@rhs]` — less-than-or-equal comparator. Sugar: `<=`.
+
+- `[gt@rhs]` — greater-than comparator. Sugar: `>`.
+
+- `[ge@rhs]` — greater-than-or-equal comparator. Sugar: `>=`.
+
+### Additional File Packets
+
+- `[get(path)@handle]` — read a value at `path` from a document variable; returns that value (or Unit if missing).
+
+- `[exists(path)@handle]` — returns a bool indicating whether `path` exists in the document.
+
+Notes:
+- All file paths resolve inside the nearest `red.tgsk` root; attempts to escape error with `E_BOX_VIOLATION`.
+
+- `[save]`, `[load]`, `[log]`, `[cd]` require a `red.tgsk` present or error with `E_BOX_REQUIRED`.
+
+### Control Flow (Expanded)
+
+- `[loopN]{...}` — repeat enclosed block `N` times. Sugar: `[loop3@tag]`, `[loop:tag@3]`.
+
+- `[if@(cond)] > [then]{...} > [or@(cond)] > [then]{...} > [else] > [then]{...}` — dataflow conditionals with explicit `then` blocks. Comparators and boolean ops allowed in `cond`.
+
+- `[or@(cond)]` — chain additional condition/branch pairs inside an if-chain.
+
+- `[else]` — final fallback branch in an if-chain.
+
+- `[funct:tag]{...}` — define a reusable block under `tag`.
+
+- `[call@tag]` — invoke a function defined with `[funct]`.
+
+- `[iter@handle]{...}` — iterate arrays in a document `handle`; sets `it` (current item) and `idx` (index) during the body.
+
+
+### Exec Packets
+
+- `[exec@"cmd"]` — run a shell command; returns stdout string. Modes: `[exec(code)@"cmd"]` (exit code), `[exec(stderr)@"cmd"]` (stderr), `[exec(json)@"cmd"]` (JSON string `{code,stdout,stderr}`).
+  - Requires a yellow consent block.
+
+- `[run@/path/script.tgsk]` — execute another TagSpeak file inside the same red box; updates cwd relative to that file. Depth limited (default 8, `TAGSPEAK_MAX_RUN_DEPTH`).
+
+- `[http(get|post|put|delete)@url]{ [key(header.Name)@val] [key(json)@{...}] [key(body)@"..."] }` — outbound HTTP; disabled by default. Enable with `.tagspeak.toml` `[network]` and allowlist hosts.
+
+- `[confirm@"message"]{...}` — prompt before running enclosed block. Env opt-in: `TAGSPEAK_ALLOW_YELLOW=1` to approve all.
+
+- `[yellow@"message"]{...}` — alias of `[confirm]`. Sugar: `[yellow:exec@"cmd"]`, `[yellow:run@"/file.tgsk"]` to gate specific ops.
+
+- `[red@"message"]` — session consent toggle (script-level). Presence of `[red]` in a script enables red for that run.
+  - Red gates recursive/meta actions like `[repl]` (red-only).
+  - Red does not bypass yellow; use `[yellow]` for per-action consent on dangerous ops.
+
+- `[repl(model) ]{ ... }` — interactive loop (red-only). Prompts `model>` until `exit/quit`.
+  - Requires red enabled (`[red@"..."]` first), and does not allow nesting (one REPL per session at a time).
+  - Sets `q` to the current input then evaluates the body; prints the body’s output each turn.
+  - Example:
+    ```tgsk
+    [repl(assistant)]{
+      # echo back length of input
+      [len@q]>[print]
+    }
+    ```
 ---
 
 ## Examples
 
 ### Quick Dump
 
-```tgsk
+`tgsk
 [math@2+2]>[log@result.json]
-```
+`
 
 Produces `result.json`:
 
-```json
-4
+```result.json
+{
+  4
+}
 ```
 
 ### JSON Structured Log
@@ -94,8 +148,8 @@ Produces `result.json`:
 ```tgsk
 [log(json)@profile.json]{
   [key(name)@"Saryn"]
-  [key(age)@25]
-  [key(active)@true]
+  [key(age)@26]
+  [key(tagspeak_dev)@true]
 }
 ```
 
@@ -104,8 +158,8 @@ Produces `profile.json`:
 ```json
 {
   "name": "Saryn",
-  "age": 25,
-  "active": true
+  "age": 26,
+  "tagspeak_dev": true
 }
 ```
 
@@ -114,7 +168,7 @@ Produces `profile.json`:
 ```tgsk
 [log(yaml)@profile.yaml]{
   [key(name)@"Saryn"]
-  [key(age)@25]
+  [key(age)@26]
 }
 ```
 
@@ -122,7 +176,7 @@ Produces `profile.yaml`:
 
 ```yaml
 name: Saryn
-age: 25
+age: 26
 ```
 
 ### TOML Structured Log

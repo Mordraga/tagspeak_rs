@@ -1,0 +1,305 @@
+﻿{
+    "canon":  {
+                  "core":  [
+                               "array",
+                               "bool",
+                               "cd",
+                               "dump",
+                               "env",
+                               "eq",
+                               "ge",
+                               "gt",
+                               "int",
+                               "le",
+                               "len",
+                               "lt",
+                               "math",
+                               "msg",
+                               "ne",
+                               "note",
+                               "obj",
+                               "parse",
+                               "print",
+                               "reflect",
+                               "store"
+                           ],
+                  "execs":  [
+                                "confirm",
+                                "exec",
+                                "http",
+                                "red",
+                                "repl",
+                                "run",
+                                "yellow"
+                            ],
+                  "files":  [
+                                "exists",
+                                "get",
+                                "load",
+                                "log",
+                                "mod",
+                                "save"
+                            ],
+                  "flow":  [
+                               "call",
+                               "else",
+                               "funct",
+                               "if",
+                               "iter",
+                               "loopN",
+                               "or"
+                           ],
+                  "helpers":  [
+                                  "key",
+                                  "sect"
+                              ]
+              },
+    "details":  {
+                    "array":  {
+                                  "desc":  "produce an in-memory JSON array from enclosed packets. Sugar: `[array@[1,2,3]]`.",
+                                  "section":  "Core/Data Packets",
+                                  "sig":  "[array]{ ... }",
+                                  "source":  "Tagspeak_101.md"
+                              },
+                    "bool":  {
+                                 "desc":  "boolean literal.",
+                                 "section":  "Core/Data",
+                                 "sig":  "[bool@true|false]",
+                                 "source":  "README.md"
+                             },
+                    "call":  {
+                                 "desc":  "invoke a function defined with `[funct]`.",
+                                 "section":  "Control Flow (Expanded)",
+                                 "sig":  "[call@tag]",
+                                 "source":  "Tagspeak_101.md"
+                             },
+                    "cd":  {
+                               "desc":  "change runtime working directory within the red box; returns new cwd like `/sub/dir`.",
+                               "section":  "Core/Data Packets",
+                               "sig":  "[cd@/path]",
+                               "source":  "Tagspeak_101.md"
+                           },
+                    "confirm":  {
+                                    "desc":  "prompt before running enclosed block. Env opt-in: `TAGSPEAK_ALLOW_YELLOW=1` to approve all.",
+                                    "section":  "Exec Packets",
+                                    "sig":  "[confirm@\"message\"]{...}",
+                                    "source":  "Tagspeak_101.md"
+                                },
+                    "dump":  {
+                                 "desc":  "pretty-print the last value (documents as pretty JSON); pass-through.",
+                                 "section":  "Core/Data Packets",
+                                 "sig":  "[dump]",
+                                 "source":  "Tagspeak_101.md"
+                             },
+                    "else":  {
+                                 "desc":  "final fallback branch in an if-chain.",
+                                 "section":  "Control Flow (Expanded)",
+                                 "sig":  "[else]",
+                                 "source":  "Tagspeak_101.md"
+                             },
+                    "env":  {
+                                "desc":  "read an environment variable; returns Unit if missing.",
+                                "section":  "Core/Data Packets",
+                                "sig":  "[env@NAME]",
+                                "source":  "Tagspeak_101.md"
+                            },
+                    "eq":  {
+                               "desc":  ", `[ne@rhs]`, `[lt@rhs]`, `[le@rhs]`, `[gt@rhs]`, `[ge@rhs]` â€” return bool; sugar `== != \u003c \u003c= \u003e \u003e=`.",
+                               "section":  "Flow",
+                               "sig":  "[eq@rhs]",
+                               "source":  "README.md"
+                           },
+                    "exec":  {
+                                 "desc":  "run a shell command; returns stdout string. Modes: `[exec(code)@\"cmd\"]` (exit code), `[exec(stderr)@\"cmd\"]` (stderr), `[exec(json)@\"cmd\"]` (JSON string `{code,stdout,stderr}`).",
+                                 "section":  "Exec Packets",
+                                 "sig":  "[exec@\"cmd\"]",
+                                 "source":  "Tagspeak_101.md"
+                             },
+                    "exists":  {
+                                   "desc":  "returns a bool indicating whether `path` exists in the document.",
+                                   "section":  "Additional File Packets",
+                                   "sig":  "[exists(path)@handle]",
+                                   "source":  "Tagspeak_101.md"
+                               },
+                    "funct":  {
+                                  "desc":  "or `[loop:step@3]` â†’ tag loop (reusable)",
+                                  "section":  "",
+                                  "sig":  "[funct:step]{ ... } â€¦ [loop3@step]",
+                                  "source":  "README.md"
+                              },
+                    "ge":  {
+                               "desc":  "greater-than-or-equal comparator. Sugar: `\u003e=`.",
+                               "section":  "Comparators",
+                               "sig":  "[ge@rhs]",
+                               "source":  "Tagspeak_101.md"
+                           },
+                    "get":  {
+                                "desc":  "read a value at `path` from a document variable; returns that value (or Unit if missing).",
+                                "section":  "Additional File Packets",
+                                "sig":  "[get(path)@handle]",
+                                "source":  "Tagspeak_101.md"
+                            },
+                    "gt":  {
+                               "desc":  "greater-than comparator. Sugar: `\u003e`.",
+                               "section":  "Comparators",
+                               "sig":  "[gt@rhs]",
+                               "source":  "Tagspeak_101.md"
+                           },
+                    "http":  {
+                                 "desc":  "outbound HTTP; disabled by default. Enable with `.tagspeak.toml` `[network]` and allowlist hosts.",
+                                 "section":  "Exec Packets",
+                                 "sig":  "[http(get|post|put|delete)@url]{ [key(header.Name)@val] [key(json)@{...}] [key(body)@\"...\"] }",
+                                 "source":  "Tagspeak_101.md"
+                             },
+                    "if":  {
+                               "desc":  "dataflow conditionals with explicit `then` blocks. Comparators and boolean ops allowed in `cond`.",
+                               "section":  "Control Flow (Expanded)",
+                               "sig":  "[if@(cond)] \u003e [then]{...} \u003e [or@(cond)] \u003e [then]{...} \u003e [else] \u003e [then]{...}",
+                               "source":  "Tagspeak_101.md"
+                           },
+                    "int":  {
+                                "desc":  "numeric literal.",
+                                "section":  "Core/Data",
+                                "sig":  "[int@int]",
+                                "source":  "README.md"
+                            },
+                    "iter":  {
+                                 "desc":  "iterate arrays in a document `handle`; sets `it` (current item) and `idx` (index) during the body.",
+                                 "section":  "Control Flow (Expanded)",
+                                 "sig":  "[iter@handle]{...}",
+                                 "source":  "Tagspeak_101.md"
+                             },
+                    "le":  {
+                               "desc":  "less-than-or-equal comparator. Sugar: `\u003c=`.",
+                               "section":  "Comparators",
+                               "sig":  "[le@rhs]",
+                               "source":  "Tagspeak_101.md"
+                           },
+                    "len":  {
+                                "desc":  "length of last value (string length, array length, or object key count). Also `[len@var|\"text\"]`.",
+                                "section":  "Core/Data Packets",
+                                "sig":  "[len]",
+                                "source":  "Tagspeak_101.md"
+                            },
+                    "load":  {
+                                 "desc":  "paths are resolved relative to the nearest `red.tgsk`â€”files outside this boundary cannot be accessed.",
+                                 "section":  "Notes",
+                                 "sig":  "[load@...]",
+                                 "source":  "README.md"
+                             },
+                    "log":  {
+                                "desc":  "dumps last value as JSON",
+                                "section":  "",
+                                "sig":  "[log@file.json]",
+                                "source":  "README.md"
+                            },
+                    "loopN":  {
+                                  "desc":  "repeat enclosed block `N` times. Sugar: `[loop3@tag]`, `[loop:tag@3]`.",
+                                  "section":  "Control Flow (Expanded)",
+                                  "sig":  "[loopN]{...}",
+                                  "source":  "Tagspeak_101.md"
+                              },
+                    "lt":  {
+                               "desc":  "less-than comparator. Sugar: `\u003c`.",
+                               "section":  "Comparators",
+                               "sig":  "[lt@rhs]",
+                               "source":  "Tagspeak_101.md"
+                           },
+                    "math":  {
+                                 "desc":  "evaluate math expression.",
+                                 "section":  "Core/Data",
+                                 "sig":  "[math@expr]",
+                                 "source":  "README.md"
+                             },
+                    "mod":  {
+                                "desc":  "edit document.",
+                                "section":  "Files",
+                                "sig":  "[mod@handle]{ comp(path)@v | comp!(path)@v | merge(path)@{...} | del(path) | ins(path)@v | push(path)@v }",
+                                "source":  "README.md"
+                            },
+                    "msg":  {
+                                "desc":  "string literal.",
+                                "section":  "Core/Data",
+                                "sig":  "[msg@\"string\"]",
+                                "source":  "README.md"
+                            },
+                    "ne":  {
+                               "desc":  "not-equal comparator. Sugar: `!=`.",
+                               "section":  "Comparators",
+                               "sig":  "[ne@rhs]",
+                               "source":  "Tagspeak_101.md"
+                           },
+                    "note":  {
+                                 "desc":  "inline annotation (returns Unit).",
+                                 "section":  "Core/Data",
+                                 "sig":  "[note@\"message\"]",
+                                 "source":  "README.md"
+                             },
+                    "obj":  {
+                                "desc":  "produce an in-memory JSON object built from `[key]` and `[sect]`.",
+                                "section":  "Core/Data Packets",
+                                "sig":  "[obj]{ [key(k)@v] ... }",
+                                "source":  "Tagspeak_101.md"
+                            },
+                    "or":  {
+                               "desc":  "chain additional condition/branch pairs inside an if-chain.",
+                               "section":  "Control Flow (Expanded)",
+                               "sig":  "[or@(cond)]",
+                               "source":  "Tagspeak_101.md"
+                           },
+                    "parse":  {
+                                  "desc":  "parse a string into an in-memory document (usable by `[mod]`, `[dump]`, `[iter]`).",
+                                  "section":  "Core/Data Packets",
+                                  "sig":  "[parse(json|yaml|toml)@string]",
+                                  "source":  "Tagspeak_101.md"
+                              },
+                    "print":  {
+                                  "desc":  "print last (or `[print@value]`), pass-through.",
+                                  "section":  "Core/Data",
+                                  "sig":  "[print]",
+                                  "source":  "README.md"
+                              },
+                    "red":  {
+                                "desc":  "session consent toggle (script-level). Presence of  `[red]` in a script enables red for that run; gates recursive/meta actions like `[repl]` and does not bypass yellow. ",
+                                "section":  "Exec Packets",
+                                "sig":  "[red@\"message\"]",
+                                "source":  "Tagspeak_101.md"
+                            },
+                    "reflect":  {
+                                    "desc":  "introspect canonical packets; `[reflect(packets_full)]` writes `docs/PACKETS.json`. Also `[reflect(vars)]`, `[reflect(runtime)]`, `[reflect(doc)@handle]`.",
+                                    "section":  "Core/Data Packets",
+                                    "sig":  "[reflect(packets)]",
+                                    "source":  "Tagspeak_101.md"
+                                },
+                    "repl":  {
+                                 "desc":  "interactive loop (red-only). Prompts `model\u003e` until `exit/quit`.",
+                                 "section":  "Exec Packets",
+                                 "sig":  "[repl(model) ]{ ... }",
+                                 "source":  "Tagspeak_101.md"
+                             },
+                    "run":  {
+                                "desc":  "execute another TagSpeak file inside the same red box; updates cwd relative to that file. Depth limited (default 8, `TAGSPEAK_MAX_RUN_DEPTH`).",
+                                "section":  "Exec Packets",
+                                "sig":  "[run@/path/script.tgsk]",
+                                "source":  "Tagspeak_101.md"
+                            },
+                    "save":  {
+                                 "desc":  ", `[load]`, `[log]`, `[cd]` require a `red.tgsk` present or error with `E_BOX_REQUIRED`.",
+                                 "section":  "Additional File Packets",
+                                 "sig":  "[save]",
+                                 "source":  "Tagspeak_101.md"
+                             },
+                    "store":  {
+                                  "desc":  "save last under `name`. Modes: `[store:rigid@name]`, `[store:fluid@name]`, `[store:context(cond)@name]`.",
+                                  "section":  "Core/Data",
+                                  "sig":  "[store@name]",
+                                  "source":  "README.md"
+                              },
+                    "yellow":  {
+                                   "desc":  "alias of `[confirm]`. Sugar: `[yellow:exec@\"cmd\"]`, `[yellow:run@\"/file.tgsk\"]` to gate specific ops.",
+                                   "section":  "Exec Packets",
+                                   "sig":  "[yellow@\"message\"]{...}",
+                                   "source":  "Tagspeak_101.md"
+                               }
+                }
+}

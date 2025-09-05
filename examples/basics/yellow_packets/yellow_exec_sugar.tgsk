@@ -1,2 +1,2 @@
-[note@"Yellow sugar form for exec"]
+[note@example of using yellow packets with exec sugar syntax]
 [yellow:exec@"echo via sugar"]>[print]

@@ -1,0 +1,7 @@
+[note@Tagspeak also lets you make small explosions with chemistry!]
+[search(chem.json)@"chem.lithium"]>[store@Li]
+[search(chem.json)@"chem.water"]>[store@H2O]
+
+[if(Li&&H2O)]>[then]{[print@"Boom!"]}
+>[or(Li||H2O)]>[then]{[print@"One of them!"]}
+>[else]>[then]{[print@"...Nope"]}

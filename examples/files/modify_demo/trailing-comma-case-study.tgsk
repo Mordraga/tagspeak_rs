@@ -1,0 +1,20 @@
+
+[note@Was a bug with trailing commas in JSON modification. Fixed now!]
+[funct:trailing_comma_case_study]{
+      # Step 1: Start fresh from disk
+    [load@hello.json]>[store@hello]
+
+    # Step 2: Insert a new key "test" and dump to see the result
+    [mod@hello]{ 
+        [ins(test)@42] 
+    } > [save@hello]>[dump]
+
+    # Step 3: Reload from disk (forces "test" to be last in file)
+    [load@hello.json]>[store@hello]
+
+    # Step 4: Delete "test" key dumping to see the result
+    [mod@hello]{ 
+        [del(test)] 
+    } > [save@hello]>[dump]
+}>[loop:trailing_comma_case_study@3]
+

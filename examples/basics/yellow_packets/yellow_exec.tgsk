@@ -1,2 +1,2 @@
-[note@"Prompt before running an external command"]
+[note@Actual canonical example of using yellow packets with exec]
 [yellow@"Run external command: echo Danger!"]{[exec@"echo Danger!"]>[print]}

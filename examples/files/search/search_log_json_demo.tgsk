@@ -1,0 +1,3 @@
+[note@demo searching a json for sodium and logging it to a file]
+[search(chem.json)@"chem.sodium"]>[store@na]
+[log(json)@sodium.json]
