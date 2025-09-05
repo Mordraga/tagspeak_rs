@@ -1,5 +1,0 @@
-[network]
-enabled = true
-allow = [
-  "http://localhost:11434"
-]

@@ -1,0 +1,9 @@
+[note@"Create array and object in-memory, then access fields"]
+[array]{ [int@1] [msg@"two"] [bool@true] }>[store@arr] [note@ Array with 3 elements]
+[len@arr]>[print] [note@ Length of array]
+[get(0)@arr]>[print] [note@ First element of array]
+
+[obj]{ [key(name)@"Saryn"] [key(age)@25] [sect@meta]{ [key(role)@"dev"] } }>[store@person] [note@ Object with 3 keys]
+[get(meta.role)@person]>[print] [note@ Access nested field]
+[dump@person] [note@ Dump entire object]
+

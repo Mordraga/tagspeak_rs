@@ -9,7 +9,6 @@ pub mod core {
     pub mod parse;
     pub mod print;
     pub mod store;
-    pub mod parse;
     pub mod env;
     pub mod cd;
     pub mod len;
@@ -25,11 +24,14 @@ pub mod files {
     pub mod log;
     pub mod modify;
     pub mod query;
+    pub mod save;
 }
 
 pub mod flow {
     pub mod call;
     pub mod conditionals;
+    pub mod funct;
+    pub mod r#loop;
     pub mod iter;
 }
 
@@ -37,9 +39,9 @@ pub mod execs {
     pub mod confirm;
     pub mod exec;
     pub mod http;
-    pub mod confirm;
     pub mod red;
     pub mod repl;
+    pub mod run;
 }
 
 // Re-export for backward compatibility with existing paths
