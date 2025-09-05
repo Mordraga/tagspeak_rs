@@ -1,6 +1,6 @@
+use anyhow::{Result, bail};
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
-use anyhow::{Result, bail};
 
 use crate::kernel::ast::{Arg, BExpr, Node, Packet};
 use crate::kernel::fs_guard::find_root;
@@ -133,24 +133,25 @@ impl Runtime {
             (Some("store"), _) => crate::packets::store::handle(self, p),
 
             // core
-            (None, "note")      => crate::packets::note::handle(self, p),
-            (None, "math")      => crate::packets::math::handle(self, p),
-            (None, "store")     => crate::packets::store::handle(self, p),
-            (None, "print")     => crate::packets::print::handle(self, p),
-            (None, "dump")      => crate::packets::dump::handle(self, p),
-            (None, "call")      => crate::packets::call::handle(self, p),
-            (None, "msg")       => crate::packets::msg::handle(self, p),
-            (None, "int")       => crate::packets::int::handle(self, p),
-            (None, "bool")      => crate::packets::bool::handle(self, p),
-            (None, "load")      => crate::packets::load::handle(self, p),
+            (None, "note") => crate::packets::note::handle(self, p),
+            (None, "math") => crate::packets::math::handle(self, p),
+            (None, "store") => crate::packets::store::handle(self, p),
+            (None, "print") => crate::packets::print::handle(self, p),
+            (None, "dump") => crate::packets::dump::handle(self, p),
+            (None, "call") => crate::packets::call::handle(self, p),
+            (None, "msg") => crate::packets::msg::handle(self, p),
+            (None, "int") => crate::packets::int::handle(self, p),
+            (None, "bool") => crate::packets::bool::handle(self, p),
+            (None, "load") => crate::packets::load::handle(self, p),
+            (None, op) if op.starts_with("search(") => crate::packets::search::handle(self, p),
             (None, op) if op.starts_with("log") => crate::packets::log::handle(self, p),
-            (None, "save")      => crate::packets::save::handle(self, p),
-            (None, "mod")       => crate::packets::modify::handle(self, p),
-            (None, "exec")      => crate::packets::exec::handle(self, p),
+            (None, "save") => crate::packets::save::handle(self, p),
+            (None, "mod") => crate::packets::modify::handle(self, p),
+            (None, "exec") => crate::packets::exec::handle(self, p),
             (None, op) if op.starts_with("exec(") => crate::packets::exec::handle(self, p),
-            (None, "run")       => crate::packets::run::handle(self, p),
-            (None, "yellow")    => crate::packets::confirm::handle(self, p),
-            (None, "confirm")   => crate::packets::confirm::handle(self, p),
+            (None, "run") => crate::packets::run::handle(self, p),
+            (None, "yellow") => crate::packets::confirm::handle(self, p),
+            (None, "confirm") => crate::packets::confirm::handle(self, p),
             (None, op) if op.starts_with("http(") => crate::packets::http::handle(self, p),
             (None, op) if op.starts_with("parse(") => crate::packets::parse::handle(self, p),
 
@@ -159,7 +160,7 @@ impl Runtime {
 
             // namespaced yellow sugar
             (Some("yellow"), "exec") => crate::packets::confirm::handle_exec(self, p),
-            (Some("yellow"), "run")  => crate::packets::confirm::handle_run(self, p),
+            (Some("yellow"), "run") => crate::packets::confirm::handle_run(self, p),
 
             other => bail!("unknown operation: {:?}", other),
         }

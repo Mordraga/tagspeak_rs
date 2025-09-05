@@ -1,6 +1,6 @@
-use anyhow::{Result, bail};
-use crate::kernel::ast::{Node, Packet, Arg};
 use crate::interpreter::Scanner;
+use crate::kernel::ast::{Arg, Node, Packet};
+use anyhow::{Result, bail};
 
 pub fn parse(src: &str) -> Result<Node> {
     let mut sc = Scanner::new(src);
@@ -12,7 +12,9 @@ fn parse_chain(sc: &mut Scanner) -> Result<Node> {
 
     loop {
         sc.skip_comments_and_ws();
-        if sc.eof() { break; }
+        if sc.eof() {
+            break;
+        }
 
         match sc.peek().unwrap() {
             '[' => {
@@ -48,7 +50,9 @@ fn parse_chain(sc: &mut Scanner) -> Result<Node> {
 
         // optional separators; allow multiple and trailing
         sc.skip_comments_and_ws();
-        while sc.peek() == Some('>') { sc.next(); }
+        while sc.peek() == Some('>') {
+            sc.next();
+        }
     }
 
     Ok(Node::Chain(nodes))
@@ -78,15 +82,22 @@ fn parse_packet(sc: &mut Scanner) -> Result<Packet> {
     // ns/op (split on first ':', stop at '@')
     let mut acc = String::new();
     while let Some(c) = peek(i) {
-        if c == ':' || c == '@' { break; }
-        acc.push(c); i += 1;
+        if c == ':' || c == '@' {
+            break;
+        }
+        acc.push(c);
+        i += 1;
     }
     if peek(i) == Some(':') {
         ns = Some(acc.trim().to_string());
-        i += 1; acc.clear();
+        i += 1;
+        acc.clear();
         while let Some(c) = peek(i) {
-            if c == '@' { break; }
-            acc.push(c); i += 1;
+            if c == '@' {
+                break;
+            }
+            acc.push(c);
+            i += 1;
         }
         op = acc.trim().to_string();
     } else {
@@ -96,7 +107,9 @@ fn parse_packet(sc: &mut Scanner) -> Result<Packet> {
     // @arg (optional)
     if peek(i) == Some('@') {
         i += 1;
-        while peek(i) == Some(' ') { i += 1; }
+        while peek(i) == Some(' ') {
+            i += 1;
+        }
         let raw = inner[i..].trim().to_string();
         if raw.is_empty() {
             arg = None;
@@ -122,7 +135,12 @@ fn parse_packet(sc: &mut Scanner) -> Result<Packet> {
         bail!("empty packet op in [{inner}]");
     }
 
-    Ok(Packet { ns, op, arg, body: None })
+    Ok(Packet {
+        ns,
+        op,
+        arg,
+        body: None,
+    })
 }
 
 fn is_ident_like(s: &str) -> bool {
@@ -139,20 +157,35 @@ fn parse_if(sc: &mut Scanner, cond_src: String) -> Result<Node> {
     let cond = parse_cond(&cond_src);
 
     sc.skip_comments_and_ws();
-    if sc.peek() == Some('>') { sc.next(); }
+    if sc.peek() == Some('>') {
+        sc.next();
+    }
     sc.skip_comments_and_ws();
 
     let then_pkt = parse_packet(sc)?;
-    if then_pkt.ns.is_some() || then_pkt.op != "then" { bail!("expected [then]"); }
+    if then_pkt.ns.is_some() || then_pkt.op != "then" {
+        bail!("expected [then]");
+    }
     sc.skip_comments_and_ws();
-    if sc.peek() != Some('{') { bail!("[then] needs block"); }
-    let Node::Block(then_b) = parse_block(sc)? else { unreachable!() };
+    if sc.peek() != Some('{') {
+        bail!("[then] needs block");
+    }
+    let Node::Block(then_b) = parse_block(sc)? else {
+        unreachable!()
+    };
 
     sc.skip_comments_and_ws();
-    while sc.peek() == Some('>') { sc.next(); sc.skip_comments_and_ws(); }
+    while sc.peek() == Some('>') {
+        sc.next();
+        sc.skip_comments_and_ws();
+    }
 
     let else_b = parse_or_else(sc)?;
-    Ok(Node::If { cond, then_b, else_b })
+    Ok(Node::If {
+        cond,
+        then_b,
+        else_b,
+    })
 }
 
 fn parse_or_else(sc: &mut Scanner) -> Result<Vec<Node>> {
@@ -165,25 +198,50 @@ fn parse_or_else(sc: &mut Scanner) -> Result<Vec<Node>> {
             _ => bail!("or needs @(cond)"),
         };
         sc.skip_comments_and_ws();
-        if sc.peek() == Some('>') { sc.next(); sc.skip_comments_and_ws(); }
+        if sc.peek() == Some('>') {
+            sc.next();
+            sc.skip_comments_and_ws();
+        }
         let then_pkt = parse_packet(sc)?;
-        if then_pkt.ns.is_some() || then_pkt.op != "then" { bail!("expected [then]"); }
+        if then_pkt.ns.is_some() || then_pkt.op != "then" {
+            bail!("expected [then]");
+        }
         sc.skip_comments_and_ws();
-        if sc.peek() != Some('{') { bail!("[then] needs block"); }
-        let Node::Block(then_b) = parse_block(sc)? else { unreachable!() };
+        if sc.peek() != Some('{') {
+            bail!("[then] needs block");
+        }
+        let Node::Block(then_b) = parse_block(sc)? else {
+            unreachable!()
+        };
         sc.skip_comments_and_ws();
-        while sc.peek() == Some('>') { sc.next(); sc.skip_comments_and_ws(); }
+        while sc.peek() == Some('>') {
+            sc.next();
+            sc.skip_comments_and_ws();
+        }
         let else_b = parse_or_else(sc)?;
-        Ok(vec![Node::If { cond: parse_cond(&src), then_b, else_b }])
+        Ok(vec![Node::If {
+            cond: parse_cond(&src),
+            then_b,
+            else_b,
+        }])
     } else if starts_with(sc, "[else]") {
         let _pkt = parse_packet(sc)?; // consume [else]
         sc.skip_comments_and_ws();
-        if sc.peek() == Some('>') { sc.next(); sc.skip_comments_and_ws(); }
+        if sc.peek() == Some('>') {
+            sc.next();
+            sc.skip_comments_and_ws();
+        }
         let then_pkt = parse_packet(sc)?;
-        if then_pkt.ns.is_some() || then_pkt.op != "then" { bail!("expected [then]"); }
+        if then_pkt.ns.is_some() || then_pkt.op != "then" {
+            bail!("expected [then]");
+        }
         sc.skip_comments_and_ws();
-        if sc.peek() != Some('{') { bail!("[then] needs block"); }
-        let Node::Block(block) = parse_block(sc)? else { unreachable!() };
+        if sc.peek() != Some('{') {
+            bail!("[then] needs block");
+        }
+        let Node::Block(block) = parse_block(sc)? else {
+            unreachable!()
+        };
         Ok(block)
     } else {
         Ok(Vec::new())
@@ -206,4 +264,32 @@ fn unexpected(sc: &Scanner, where_: &str) -> String {
         sc.peek().unwrap_or('?'),
         snippet
     )
+}
+
+// --- helpers for packet extraction ---
+
+/// Return the substring within the first pair of parentheses in an op like
+/// `search(path)`.
+pub fn extract_paren(op: &str) -> Option<&str> {
+    let start = op.find('(')?;
+    let end = op.rfind(')')?;
+    if end <= start + 1 {
+        return None;
+    }
+    Some(&op[start + 1..end])
+}
+
+/// Parse a source snippet containing exactly one packet and return that packet.
+pub fn parse_single_packet(src: &str) -> Result<Packet> {
+    match parse(src)? {
+        Node::Packet(p) => Ok(p),
+        Node::Chain(mut v) if v.len() == 1 => {
+            if let Node::Packet(p) = v.remove(0) {
+                Ok(p)
+            } else {
+                bail!("expected packet")
+            }
+        }
+        _ => bail!("expected packet"),
+    }
 }
