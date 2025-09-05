@@ -1,0 +1,3 @@
+[note@"Read env var and compute its length"]
+[env@"USER"]>[len]>[print]
+

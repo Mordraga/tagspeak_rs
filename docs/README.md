@@ -3,6 +3,10 @@
   TagSpeak RS
 </h1>
 
+
+#### Developed by Mordraga (Saryn Harris)
+---
+
 TagSpeak is a symbolic, packet-based language designed to be human-readable and machine-parsable.
 This Rust implementation (`tagspeak_rs`) parses and executes `.tgsk` scripts.
 
@@ -36,7 +40,9 @@ This Rust implementation (`tagspeak_rs`) parses and executes `.tgsk` scripts.
   - `[exec(code)@"cmd"]` returns exit code as number
   - `[exec(stderr)@"cmd"]` returns stderr as string
   - `[exec(json)@"cmd"]` returns a JSON string with `{code,stdout,stderr}`
-- red.tgsk → Root file marker/sentinel. Must exist in your project root; all file access is sandboxed to this boundary.
+- red.tgsk → Root file marker/sentinel. Must exist in your project root;
+all file access is sandboxed to this boundary.
+- Among other features. <a href="Tagspeak_101.md">Refer to Tagspeak_101.md for more info </a>
 
 ...
 
@@ -49,15 +55,15 @@ This Rust implementation (`tagspeak_rs`) parses and executes `.tgsk` scripts.
 
 ## Run
 
-```bash
+`
 cargo run -- examples/smoke.tgsk
-```
+`
 
 ### Testing
 
-```bash
+`
 cargo test
-```
+`
 
 ---
 ## Setup
@@ -125,6 +131,58 @@ noninteractive = false
 enabled = false
 allow = ["https://api.example.com", "*.example.org"]
 ```
+
+## Packet Reference (Canonical)
+
+### Core/Data
+
+- `[msg@"string"]` — string literal.
+- `[int@int]` — numeric literal.
+- `[bool@true|false]` — boolean literal.
+- `[note@"message"]` — inline annotation (returns Unit).
+- `[math@expr]` — evaluate math expression.
+- `[print]` — print last (or `[print@value]`), pass-through.
+- `[store@name]` — save last under `name`. Modes: `[store:rigid@name]`, `[store:fluid@name]`, `[store:context(cond)@name]`.
+- `[parse(json|yaml|toml)@string]` — parse string into an in-memory document.
+- `[array]{ ... }` — build a JSON array from enclosed packets. Sugar: `[array@[1,2,3]]`.
+- `[obj]{ [key(k)@v] ... }` — build a JSON object from `[key]` and `[sect]`.
+- `[len]` — length of last value; also `[len@var|"text"]`.
+- `[env@NAME]` — read environment variable value (or Unit if missing).
+- `[cd@/path]` — change runtime cwd within red box; returns new cwd.
+- `[dump]` — pretty-print last value (docs as pretty JSON), pass-through.
+- `[reflect(packets)]` — list canonical packets; `[reflect(packets_full)]` writes `docs/PACKETS.json`.
+
+### Files
+
+- `[load@/path/file.(json|yaml|yml|toml)]` — load file into an editable document.
+- `[mod@handle]{ comp(path)@v | comp!(path)@v | merge(path)@{...} | del(path) | ins(path)@v | push(path)@v }` — edit document.
+- `[get(path)@handle]` — extract value at `path` from document.
+- `[exists(path)@handle]` — test whether `path` exists (bool).
+- `[save@handle]` — persist document back to original file.
+- `[log@/path/file.json]` — dump last value as JSON.
+- `[log(json|yaml|toml)@/path/file]{ [key(name)@v] [sect@section]{...} }` — structured file emit.
+
+### Flow
+
+- `[funct:tag]{...}` — define a reusable block.
+- `[call@tag]` — invoke a function.
+- `[loopN]{...}` — repeat N times. Sugar: `[loop3@tag]`, `[loop:tag@3]`.
+- `[if@(cond)] > [then]{...} > [or@(cond)] > [then]{...} > [else] > [then]{...}` — conditional dataflow.
+- `[or@(cond)]` — additional condition/branch in an if-chain.
+- `[else]` — final fallback branch.
+- `[iter@handle]{...}` — iterate arrays; sets `it` and `idx` during body.
+- Comparators: `[eq@rhs]`, `[ne@rhs]`, `[lt@rhs]`, `[le@rhs]`, `[gt@rhs]`, `[ge@rhs]` — return bool; sugar `== != < <= > >=`.
+
+### Exec/Network
+
+- `[exec@"cmd"]` — run shell command; stdout string. Modes: `[exec(code)]`, `[exec(stderr)]`, `[exec(json)]`.
+- `[run@/path/script.tgsk]` — execute another script inside the same red box; depth limited (`TAGSPEAK_MAX_RUN_DEPTH`).
+- `[http(get|post|put|delete)@url]{ [key(header.Name)@v] [key(json)@{...}] [key(body)@"..."] }` — HTTP client (requires `.tagspeak.toml` network enabled + allowlist).
+- `[confirm@"message"]{...}` — prompt before running a block. Alias: `[yellow@...]`.
+
+Notes:
+- Box Rule: all paths are sandboxed to the nearest `red.tgsk`. Missing root ⇒ `E_BOX_REQUIRED`. Escapes ⇒ `E_BOX_VIOLATION`.
+- Execs and network are opt-in; use yellow prompts or `.tagspeak.toml` to allow.
 
 ## MIT License
 

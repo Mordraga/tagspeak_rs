@@ -1,0 +1,2 @@
+[note@"Reflect packets + descriptions from docs into docs/PACKETS.json"]
+[reflect(packets_full)]>[log(json)@/docs/PACKETS.json]

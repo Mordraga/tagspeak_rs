@@ -2,29 +2,12 @@ use anyhow::Result;
 use crate::kernel::{Packet, Runtime, Value};
 
 pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
-    match p.arg.as_ref() {
-        Some(crate::kernel::ast::Arg::Str(s)) => {
-            if s.contains('"') {
-                if let Some(line) = format_composite(rt, s) {
-                    println!("{}", line);
-                    return Ok(Value::Unit);
-                }
-            }
-            // Simple string literal or composite parse failed
-            println!("{}", s);
-            Ok(Value::Unit)
-        }
-        Some(arg) => {
-            let v = rt.resolve_arg(arg)?;
-            println!("{}", pretty(&v));
-            Ok(Value::Unit)
-        }
-        None => {
-            let v = rt.last.clone();
-            println!("{}", pretty(&v));
-            Ok(Value::Unit)
-        }
-    }
+    let v = match p.arg.as_ref() {
+        Some(arg) => rt.resolve_arg(arg)?,
+        None => rt.last.clone(),
+    };
+    println!("{}", pretty(&v));
+    Ok(Value::Unit)
 }
 
 fn pretty(v: &Value) -> String {

@@ -1,0 +1,6 @@
+ [note@"Change directory, load a file, read a field, and check existence"]
+ [cd@/examples/files/modify_demo]
+ >[load@hello.json]>[store@doc]
+ >[get(message)@doc]>[print]
+ >[exists(doesnt_exist)@doc]>[print]
+

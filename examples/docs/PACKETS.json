@@ -1,0 +1,40 @@
+{
+  "canon": {
+    "core": [
+      "msg",
+      "int",
+      "bool",
+      "note",
+      "math",
+      "print",
+      "store",
+      "parse",
+      "dump"
+    ],
+    "execs": [
+      "exec",
+      "run",
+      "http",
+      "confirm",
+      "yellow"
+    ],
+    "files": [
+      "load",
+      "save",
+      "log",
+      "mod"
+    ],
+    "flow": [
+      "funct",
+      "call",
+      "loopN",
+      "if",
+      "or",
+      "else"
+    ],
+    "helpers": [
+      "key",
+      "sect"
+    ]
+  }
+}

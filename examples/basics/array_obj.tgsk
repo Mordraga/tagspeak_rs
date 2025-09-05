@@ -1,0 +1,8 @@
+[note@"Create array and object in-memory, then access fields"]
+[array]{ [int@1] [msg@"two"] [bool@true] }>[store@arr]
+[len@arr]>[print]
+[get(0)@arr]>[print]
+
+[obj]{ [key(name)@"Saryn"] [key(age)@25] [sect@meta]{ [key(role)@"dev"] } }>[store@person]
+[get(meta.role)@person]>[print]
+
