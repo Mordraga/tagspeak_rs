@@ -1,5 +1,4 @@
-// red.tgsk — Tagspeak root sentinel
-// This marks the filesystem boundary for resolving file paths.
-// Realistically this file can be empty, but a comment is nice.
-
-[note@"ROLE: example sandbox (paths resolve under /examples)"]
+[note@ This can literally be empty]
+[note@ Or have notes in it]
+[note@ I'm not you're keeper. You do you.]
+[note@ This is just to have a sentinel file in the red examples folder so examples is sandboxed properly.]

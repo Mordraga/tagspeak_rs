@@ -1,3 +1,4 @@
+[note@demo a simple function and loop sugar]
 [funct:bump]{
   [math@x+2]>[store@x]
 }

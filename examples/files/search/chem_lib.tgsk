@@ -1,0 +1,5 @@
+[note@While technically not a "library", this file contains some chemical elements as JSON objects for use in other examples.]
+[chem:sodium]{[parse(json)@"{\"symbol\":\"Na\",\"atomic_number\":11}"]}
+[chem:chlorine]{[parse(json)@"{\"symbol\":\"Cl\",\"atomic_number\":17}"]}
+[chem:potassium]{[parse(json)@"{\"symbol\":\"K\",\"atomic_number\":19}"]}
+[chem:hydrogen]{[parse(json)@"{\"symbol\":\"H\",\"atomic_number\":1}"]}

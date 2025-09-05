@@ -1,0 +1,7 @@
+[note@This example shows quick logging to a file in JSON format.]
+[msg@"Hello!"]>[store@hello]>[log@logging_outputs/quicklog.json]>[dump]
+
+[note@ Logging overwrites the file by default. Be careful!]
+[note@ This shows logging overwriting the file. Uncomment the next line to see.]
+
+[msg@"examples.logging.logging_outputs.quicklog.json"]>[store@test]>[log@logging_outputs/quicklog.json]>[dump]

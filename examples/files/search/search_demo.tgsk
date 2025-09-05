@@ -1,0 +1,4 @@
+[note@demo searching a "library" of chemical elements and modifying a JSON document. Specifically, adding chlorine in this case.]
+[parse(json)@"{}"]>[store@doc]
+[search(chem_lib.tgsk)@"[chem:chlorine]"]>[store@Cl]
+[mod@doc]{[ins(sodium)@na]}>[log@/chlorine.json]

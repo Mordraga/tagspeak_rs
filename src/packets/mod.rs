@@ -1,12 +1,13 @@
 // Grouped packet modules by role
 pub mod core {
     pub mod bool;
+    pub mod dump;
     pub mod int;
     pub mod math;
     pub mod msg;
     pub mod note;
+    pub mod parse;
     pub mod print;
-    pub mod dump;
     pub mod store;
     pub mod parse;
     pub mod env;
@@ -22,22 +23,19 @@ pub mod core {
 pub mod files {
     pub mod load;
     pub mod log;
-    pub mod save;
     pub mod modify;
     pub mod query;
 }
 
 pub mod flow {
-    pub mod funct;
     pub mod call;
-    pub mod r#loop;
     pub mod conditionals;
     pub mod iter;
 }
 
 pub mod execs {
+    pub mod confirm;
     pub mod exec;
-    pub mod run;
     pub mod http;
     pub mod confirm;
     pub mod red;

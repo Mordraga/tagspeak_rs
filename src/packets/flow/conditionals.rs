@@ -241,12 +241,24 @@ fn is_ident_like(s: &str) -> bool {
 pub fn eval_cond(rt: &mut Runtime, cond: &BExpr) -> Result<bool> {
     match cond {
         BExpr::Lit(src) => {
-            let node = crate::router::parse(src)?;
-            let mut tmp = Runtime::new()?;
-            tmp.vars = rt.vars.clone();
-            tmp.tags = rt.tags.clone();
-            // [myth] goal: numbers <= 0 and empty strings are false
-            Ok(tmp.eval(&node)?.as_bool().unwrap_or(false))
+            let s = src.trim();
+            if is_ident_like(s) {
+                // Treat bare identifiers as variable truthiness
+                Ok(rt
+                    .get_var(s)
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false))
+            } else if let Ok(n) = s.parse::<f64>() {
+                // Numeric literals: non-zero = true
+                Ok(n != 0.0 && !n.is_nan())
+            } else {
+                let node = crate::router::parse(s)?;
+                let mut tmp = Runtime::new()?;
+                tmp.vars = rt.vars.clone();
+                tmp.tags = rt.tags.clone();
+                // [myth] goal: numbers <= 0 and empty strings are false
+                Ok(tmp.eval(&node)?.as_bool().unwrap_or(false))
+            }
         }
         BExpr::And(a, b) => Ok(eval_cond(rt, a)? && eval_cond(rt, b)?),
         BExpr::Or(a, b) => Ok(eval_cond(rt, a)? || eval_cond(rt, b)?),

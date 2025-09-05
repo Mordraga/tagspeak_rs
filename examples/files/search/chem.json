@@ -1,0 +1,29 @@
+{
+  "chem": {
+    "sodium": {
+      "name": "sodium",
+      "symbol": "Na",
+      "atomic_number": 11
+    },
+    "chlorine": {
+      "name": "chlorine",
+      "symbol": "Cl",
+      "atomic_number": 17
+    },
+    "water": {
+      "name": "water",
+      "formula": "H2O",
+      "molar_mass": 18.015
+    },
+    "carbon_dioxide": {
+      "name": "carbon dioxide",
+      "formula": "CO2",
+      "molar_mass": 44.01
+    },
+    "lithium": {
+      "name": "lithium",
+      "symbol": "Li",
+      "atomic_number": 3
+    }
+  }
+}
