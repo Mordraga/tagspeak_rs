@@ -1,2 +1,0 @@
-[note@"Import a function from another script, then call it"]
-[run@/basics/funct.tgsk]>[call@step]

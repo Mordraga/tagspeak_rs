@@ -1,6 +1,7 @@
-[log(json)@/profile.json]{
+[note@Tagspeak even supports structured logging in JSON format!]
+[log(json)@logging_outputs/struct_json.json]{
   [key(name)@"Saryn"]
-  [key(age)@25]
+  [key(age)@26]
   [key(active)@true]
 }
 

@@ -1,0 +1,7 @@
+[note@ YAML also!]
+[log(yaml)@logging_outputs/struct_yaml.yaml]{
+  [key(id)@AI_Agent]
+  [key(alias)@Selyros]
+  [key(role)@friendly assistant]
+  [key(languages)@English, Spanish, French, Tagspeak]
+}

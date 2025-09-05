@@ -1,2 +1,5 @@
 [note@"HTTP GET JSON (requires network enabled and allowlisted)"]
 [http(get)@"https://api.example.com/data"]>[print]
+
+[note@ This example requires network access to run successfully. Make sure your environment allows outbound HTTP requests.]
+[note@ In this demo it fails because networking is disabled.]

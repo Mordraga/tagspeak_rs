@@ -1,4 +1,5 @@
-[log(toml)@/Cargo.example.toml]{
+[note@And here is an example of structured logging in TOML format]
+[log(toml)@logging_outputs/struct_toml.toml]{
   [sect@package]{
     [key(name)@"tagspeak"]
     [key(version)@"0.1.0"]

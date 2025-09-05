@@ -1,4 +1,0 @@
-# Pull sodium from chem.json and insert into a new document
-[parse(json)@"{}"]>[store@doc]
-[search(chem.json)@"chem.sodium"]>[store@na]
-[mod@doc]{[ins(sodium)@na]}

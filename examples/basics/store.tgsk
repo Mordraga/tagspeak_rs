@@ -1,0 +1,11 @@
+[int@1]>[store@x] [note@ Fluid storage and retrieval demo]
+
+[msg@"Tagspeak was developed by Saryn Harris"]>[store:rigid@dev] [note@ Store a rigid value]
+//[msg@"The current dev of Tagspeak is not Saryn Harris"]>[store:rigid@dev] [note@ Attempt to overwrite the rigid value; this should have no effect]
+
+[msg@"I feel apologetic"]>[store:context(1==1)@tone] [note@ Store a context-dependent value]
+[msg@"I feel neutral"]>[store:context(2==1)@tone] [note@ Store a context-dependent value; this won't overwrite the previous one because the condition is false]
+
+[print@dev]>[print@tone]>[print@x] [note@ Retrieve and print all three values. The context-dependent value will resolve to the "apologetic" one.]
+
+[note@ This whole script when ran will just fail because of the rigid overwrite attempt above. You can comment that line out to see the rest work as intended.]

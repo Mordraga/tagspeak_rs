@@ -1,3 +1,4 @@
+[note@demo a simple function and loop]
 [funct:step]{
     [math@x+1]>[store@x]
 }

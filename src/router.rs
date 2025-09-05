@@ -19,11 +19,17 @@ fn parse_chain(sc: &mut Scanner) -> Result<Node> {
         match sc.peek().unwrap() {
             '[' => {
                 let pkt = parse_packet(sc)?;
-                // [if@(...)] introduces conditional branches
-                if pkt.ns.is_none() && pkt.op == "if" {
-                    let src = match pkt.arg {
-                        Some(Arg::CondSrc(s)) => s,
-                        _ => bail!("if needs @(cond)"),
+                // conditionals: support [if@(cond)] and [if(cond)]
+                if pkt.ns.is_none() && (pkt.op == "if" || pkt.op.starts_with("if(")) {
+                    let src = if pkt.op == "if" {
+                        match pkt.arg {
+                            Some(Arg::CondSrc(s)) => s,
+                            _ => bail!("if needs (cond) or @(cond)"),
+                        }
+                    } else {
+                        extract_paren(&pkt.op)
+                            .ok_or_else(|| anyhow::anyhow!("if needs (cond)"))?
+                            .to_string()
                     };
                     nodes.push(parse_if(sc, src)?);
                 } else {
@@ -191,11 +197,19 @@ fn parse_if(sc: &mut Scanner, cond_src: String) -> Result<Node> {
 fn parse_or_else(sc: &mut Scanner) -> Result<Vec<Node>> {
     use crate::packets::conditionals::parse_cond;
     sc.skip_comments_and_ws();
-    if starts_with(sc, "[or@") {
+    if starts_with(sc, "[or@") || starts_with(sc, "[or(") {
         let pkt = parse_packet(sc)?;
-        let src = match pkt.arg {
-            Some(Arg::CondSrc(s)) => s,
-            _ => bail!("or needs @(cond)"),
+        let src = if pkt.op == "or" {
+            match pkt.arg {
+                Some(Arg::CondSrc(s)) => s,
+                _ => bail!("or needs (cond) or @(cond)"),
+            }
+        } else if pkt.op.starts_with("or(") {
+            extract_paren(&pkt.op)
+                .ok_or_else(|| anyhow::anyhow!("or needs (cond)"))?
+                .to_string()
+        } else {
+            bail!("expected or clause")
         };
         sc.skip_comments_and_ws();
         if sc.peek() == Some('>') {
@@ -255,14 +269,31 @@ fn starts_with(sc: &Scanner, pat: &str) -> bool {
 }
 
 fn unexpected(sc: &Scanner, where_: &str) -> String {
-    let start = sc.pos().saturating_sub(8);
-    let end = (sc.pos() + 16).min(sc.len());
-    let mut snippet = String::from_utf8_lossy(sc.slice(start, end)).to_string();
-    snippet = snippet.replace('\n', "\\n");
+    let pos = sc.pos();
+    // compute line/col
+    let before = sc.slice(0, pos);
+    let mut line: usize = 1;
+    let mut last_nl: usize = 0;
+    for (idx, b) in before.iter().enumerate() {
+        if *b == b'\n' { line += 1; last_nl = idx + 1; }
+    }
+    let col = pos.saturating_sub(last_nl) + 1;
+
+    // extract current line for caret display
+    let mut end = sc.len();
+    let after = sc.slice(pos, sc.len());
+    for (off, b) in after.iter().enumerate() {
+        if *b == b'\n' { end = pos + off; break; }
+    }
+    let line_str = String::from_utf8_lossy(sc.slice(last_nl, end)).to_string();
+    let caret_pad: String = std::iter::repeat(' ').take(col.saturating_sub(1)).collect();
+
     format!(
-        "unexpected character at {where_}: '{}' near \"{}\"",
+        "unexpected character at {where_}: '{}' at {}:{}\n{}\n{}^",
         sc.peek().unwrap_or('?'),
-        snippet
+        line, col,
+        line_str,
+        caret_pad,
     )
 }
 

@@ -1,4 +1,0 @@
-# Pull sodium from chem_lib.tgsk and insert into a new document
-[parse(json)@"{}"]>[store@doc]
-[search(chem_lib.tgsk)@"[chem:sodium]"]>[store@na]
-[mod@doc]{[ins(sodium)@na]}

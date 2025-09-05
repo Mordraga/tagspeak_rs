@@ -1,10 +1,10 @@
-// Modify then revert a key
+[note@demo modifying a loaded JSON document]
 [load@/files/modify_demo/hello.json]>[save@hello]
 [mod@hello]{
     [ins(test)@42]
-}>[save@test]>[print@test] 
+}>[save@test]>[dump] 
     
 [load@/files/modify_demo/hello.json]>[save@test] 
 [mod@hello]{
     [del(test)]
-}>[save@hello]>[print@hello]
+}>[save@test]>[dump]

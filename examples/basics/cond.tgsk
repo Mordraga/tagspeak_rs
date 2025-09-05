@@ -1,4 +1,4 @@
-// [myth] goal: numbers at zero are falsey
+[note@demo that 0 is falsey, 1 is truthy]
 [if@([math@0])]>[then]{[print@"no"]}
 >[or@([math@1])]>[then]{[print@"maybe"]}
->[else]>[then]{[print@"yes"]} // [myth] goal: quip: "third time's the charm"
+>[else]>[then]{[print@"yes"]}
