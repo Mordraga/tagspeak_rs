@@ -101,7 +101,7 @@ Notes:
 ### Exec Packets
 
 - `[exec@"cmd"]` — run a shell command; returns stdout string. Modes: `[exec(code)@"cmd"]` (exit code), `[exec(stderr)@"cmd"]` (stderr), `[exec(json)@"cmd"]` (JSON string `{code,stdout,stderr}`).
-  - Requires red session enabled and a yellow consent block.
+  - Requires a yellow consent block.
 
 - `[run@/path/script.tgsk]` — execute another TagSpeak file inside the same red box; updates cwd relative to that file. Depth limited (default 8, `TAGSPEAK_MAX_RUN_DEPTH`).
 
@@ -111,10 +111,9 @@ Notes:
 
 - `[yellow@"message"]{...}` — alias of `[confirm]`. Sugar: `[yellow:exec@"cmd"]`, `[yellow:run@"/file.tgsk"]` to gate specific ops.
 
-- `[red@"message"]` — session consent toggle. Prompts to type the exact ritual phrase to enable red for this session:
-  `I acknowledge red mode. I accept the risk.`
-  - Non-interactive sessions cannot enable red.
-  - Red does not bypass yellow; per-action `[yellow]` still required for dangerous ops.
+- `[red@"message"]` — session consent toggle (script-level). Presence of `[red]` in a script enables red for that run.
+  - Red gates recursive/meta actions like `[repl]` (red-only).
+  - Red does not bypass yellow; use `[yellow]` for per-action consent on dangerous ops.
 
 - `[repl(model) ]{ ... }` — interactive loop (red-only). Prompts `model>` until `exit/quit`.
   - Requires red enabled (`[red@"..."]` first), and does not allow nesting (one REPL per session at a time).

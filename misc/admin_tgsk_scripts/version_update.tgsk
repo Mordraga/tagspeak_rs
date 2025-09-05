@@ -1,5 +1,4 @@
 [note@"Version logger: capture git + build info, write misc/version.json"]
-
 [yellow:exec@"git rev-parse HEAD"]>[store@sha]
 >[yellow:exec@"git rev-parse --abbrev-ref HEAD"]>[store@branch]
 >[yellow:exec@"git describe --tags --always --dirty"]>[store@desc]
