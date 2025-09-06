@@ -1,0 +1,5 @@
+[network]
+enabled = true
+allow = [
+  "https://httpbin.org/json"
+]

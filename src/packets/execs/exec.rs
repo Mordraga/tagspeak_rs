@@ -29,6 +29,7 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
     if rt.effective_root.is_none() {
         anyhow::bail!("E_NO_RED: [exec] disabled without a red.tgsk root");
     }
+    // Red no longer required for exec; keep per-action yellow consent elsewhere
     let cmdline = match &p.arg {
         Some(Arg::Str(s)) => s.clone(),
         Some(Arg::Ident(id)) => id.clone(),

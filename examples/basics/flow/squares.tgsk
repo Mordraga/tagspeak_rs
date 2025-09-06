@@ -1,0 +1,8 @@
+[note@ Squares of the first 5 integers]
+
+[int@1]>[store@x]
+[funct:squares]{
+    [math@x*x]>[store@sq]
+    [print@sq " is the square of " x]
+    [math@x+1]>[store@x]
+}>[loop:squares@5]

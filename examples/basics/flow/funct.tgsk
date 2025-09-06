@@ -1,0 +1,7 @@
+[note@ Demo a simple function and loop]
+[funct:step]{
+    [math@x+1]>[store@x]
+}
+
+[int@0]>[store@x]
+[loop:step@3]>[print@x]

@@ -1,0 +1,7 @@
+[note@ Demo context storage and retrieval]
+[msg@"apologetic"]>[store:context(x==1)@tone]
+[msg@"neutral"]>[store:context(1==1)@tone]
+
+[int@1]>[store@x]
+[print@tone]
+

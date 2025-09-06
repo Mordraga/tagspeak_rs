@@ -1,0 +1,10 @@
+[note@ Demo of conditional infix syntax]
+[if(1[gt]2)]> [then] {[math@10]> [store@z]}
+
+>[or(1[lt]1)]> [then] {[math@20]> [store@z]}
+
+>[else]> [then] {[math@30]> [store@z]}
+
+[print@z]
+[note@ Expected output: 30]
+[note@ Tested output: 30]

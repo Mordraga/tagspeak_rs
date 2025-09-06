@@ -1,0 +1,40 @@
+[note@"LLM REPL demo: requires red.tgsk in project root"]
+[note@"Network must be enabled and host allowlisted in .tagspeak.toml"]
+
+# Enable red (session) — you must type the exact phrase
+[red@"LLM chat session (type ritual phrase)"]
+
+# Init an in-memory chat object: { messages: [] }
+[obj]{ [key(messages)@"[]"] } > [store@chat]
+
+# Start REPL. Each turn `q` contains user input.
+[repl(ollama_native)]{
+  # 1) Append user message
+  [obj]{ [key(role)@"user"] [key(content)@q] } > [store@umsg]
+  [mod@chat]{ [push(messages)@umsg] }
+
+  # 2) Build request (NOTE: real boolean)
+  [get(messages)@chat] > [store@msgs]
+  [obj]{
+    [key(model)@"gemma3:latest"]
+    [key(messages)@msgs]
+    [key(stream)@[bool@false]]
+  } > [store@body]
+
+  # 3) Call LLM (Ollama native)
+  [yellow@"Call local LLM API?"]{
+    [http(post)@"http://127.0.0.1:11434/api/chat"]{
+      [key(header.Content-Type)@"application/json"]
+      [key(json)@body]
+    }
+  } > [store@resp]
+
+  # 4) Extract response body and parse
+  [get(body)@resp]           > [store@raw]         # <-- important
+  [parse(json)@raw]          > [store@doc]
+
+  # 5) Pull assistant content; fall back to printing raw on miss
+  [get(message.content)@doc] > [print]
+}
+
+

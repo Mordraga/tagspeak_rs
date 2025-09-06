@@ -1,0 +1,5 @@
+[note@ Parse JSON string into a doc, modify, and print]
+[msg@"{\"count\":1,\"items\":[1,2,3]}"]
+>[parse(json)]>[save@doc]
+>[mod@doc]{[comp!(count)@2]}
+>[dump@doc]

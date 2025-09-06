@@ -1,0 +1,2 @@
+[note@quick demo of loading and modifying a JSON document]
+[load@/files/modify_demo/hello.json]>[save@doc]>[print@doc]

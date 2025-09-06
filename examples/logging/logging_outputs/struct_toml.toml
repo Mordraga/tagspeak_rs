@@ -1,0 +1,8 @@
+[dependencies]
+anyhow = 1
+serde = 1
+
+[package]
+name = "tagspeak"
+version = "0.1.0"
+

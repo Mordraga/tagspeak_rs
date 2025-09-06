@@ -64,8 +64,28 @@ impl<'a> Scanner<'a> {
 
     pub fn eof(&self) -> bool { self.i >= self.len }
 
+    // --- location helpers ---
+    pub fn line_col_at(&self, pos: usize) -> (usize, usize) {
+        let pos = pos.min(self.len);
+        let before = &self.src[..pos];
+        let mut line: usize = 1;
+        let mut last_nl: usize = 0;
+        for (idx, b) in before.iter().enumerate() {
+            if *b == b'\n' {
+                line += 1;
+                last_nl = idx + 1;
+            }
+        }
+        let col = pos.saturating_sub(last_nl) + 1;
+        (line, col)
+    }
+    pub fn cur_line_col(&self) -> (usize, usize) { self.line_col_at(self.i) }
+
     pub fn read_quoted(&mut self) -> Result<String> {
-        if self.next() != Some('"') { bail!("expected '\"'"); }
+        if self.next() != Some('"') {
+            let (ln, col) = self.cur_line_col();
+            bail!("expected '\"' at {}:{}", ln, col);
+        }
         let mut out = String::new();
         while let Some(c) = self.next() {
             match c {
@@ -79,12 +99,16 @@ impl<'a> Scanner<'a> {
                 other => out.push(other),
             }
         }
-        bail!("unterminated string")
+        let (ln, col) = self.cur_line_col();
+        bail!("unterminated string starting before {}:{}", ln, col)
     }
 
     pub fn read_until_balanced(&mut self, open: char, close: char) -> Result<String> {
         // assumes current char == open
-        if self.next() != Some(open) { bail!("expected opener {}", open); }
+        if self.next() != Some(open) {
+            let (ln, col) = self.cur_line_col();
+            bail!("expected opener {} at {}:{}", open, ln, col);
+        }
         let mut out = String::new();
         let mut depth = 1usize;
         while let Some(c) = self.next() {
@@ -99,7 +123,8 @@ impl<'a> Scanner<'a> {
             }
             out.push(c);
         }
-        bail!("unbalanced {} ... {}", open, close)
+        let (ln, col) = self.cur_line_col();
+        bail!("unbalanced {} ... {} before {}:{}", open, close, ln, col)
     }
 
     pub fn read_ident_or_number(&mut self) -> String {

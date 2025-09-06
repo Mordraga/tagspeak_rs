@@ -1,0 +1,8 @@
+[note@ Demo of calling functions. Call works across files too, see run_and_call.tgsk for example of that.]
+[funct:inc]{
+  [math@x+2]>[store@x]
+}
+
+[int@1]>[store@x]
+[call@inc]>[call@inc]>[print@x]
+
