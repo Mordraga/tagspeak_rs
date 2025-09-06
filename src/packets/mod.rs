@@ -25,6 +25,7 @@ pub mod files {
     pub mod modify;
     pub mod query;
     pub mod save;
+    pub mod search;
 }
 
 pub mod flow {
@@ -48,6 +49,6 @@ pub mod execs {
 pub use core::{bool, int, math, msg, note, print, dump, store, parse};
 pub use core::{env, cd, len, compare, array, obj, reflect};
 pub use core::input;
-pub use files::{load, log, save, modify, query};
+pub use files::{load, log, save, modify, query, search};
 pub use flow::{funct, call, r#loop, conditionals, iter};
 pub use execs::{exec, run, http, confirm, red, repl};

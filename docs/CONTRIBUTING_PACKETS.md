@@ -46,3 +46,9 @@ Sugar (optional)
 - Do not overwrite `router.rs`; only extend handlers.
 - Prefer minimal, composable behavior; keep grammar small and move behavior into packet code.
 
+### ND-Friendly Project Commitments
+- Plain-language docs and examples first
+- Predictable formatting and small, reviewable PRs
+- Clear issue templates + labels (“good first issue”, “needs reproduction”)
+- No pressure for real-time replies; async is welcome
+- Sensory-friendly communication: headings, bullets, and code blocks over walls of text

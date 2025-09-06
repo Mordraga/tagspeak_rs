@@ -149,6 +149,7 @@ impl Runtime {
             (None, "obj")       => crate::packets::obj::handle(self, p),
             (None, op) if op.starts_with("reflect(") => crate::packets::reflect::handle(self, p),
             (None, "load")      => crate::packets::load::handle(self, p),
+            (None, op) if op.starts_with("search(") => crate::packets::search::handle(self, p),
             (None, op) if op.starts_with("log") => crate::packets::log::handle(self, p),
             (None, "save") => crate::packets::save::handle(self, p),
             (None, "mod") => crate::packets::modify::handle(self, p),

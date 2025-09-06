@@ -255,7 +255,7 @@ I’m happy with where TagSpeak is today, and I’m always open to ideas. If you
 - Tiny correction: it’s actually an **anole** (a lizard cousin of geckos)—we just like the gecko vibe.
 - Reptiles are famously **adaptable**. They thrive on every continent **except Antarctica** and are scarce in true tundra.
 - That’s the TagSpeak energy: small, calm, adaptable.
-- Also: 🦎🦎🦎🦎
+- Also, consider: 🦎🦎🦎🦎
 
 ---
 
