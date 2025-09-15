@@ -1,4 +1,3 @@
-[run@auto_update.tgsk]
 [run@update_packets_json.tgsk]
 [run@version_update.tgsk]
 [msg@"Admin scripts complete! <3"]>[print]
