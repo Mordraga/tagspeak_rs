@@ -1,0 +1,6 @@
+[funct:count5]{
+    [print@count]
+    [math@count+1]>[store@count]
+}
+
+[int@0]>[store@count]>[loop:count5@5]

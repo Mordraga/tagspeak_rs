@@ -23,7 +23,9 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
     let mut buf = String::new();
     for part in expr.split('+') {
         let part = part.trim();
-        if part.is_empty() { continue; }
+        if part.is_empty() {
+            continue;
+        }
         if let Ok(n) = part.parse::<i64>() {
             buf.push_str(&n.to_string());
         } else if let Some(v) = rt.get_var(part) {
@@ -39,4 +41,3 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
     let n: i64 = buf.parse()?;
     Ok(Value::Num(n as f64))
 }
-

@@ -1,0 +1,12 @@
+[rand] > [print] [note@ Random float in (0,1)]
+[rand(1,100)] > [print] [note@ Random int in 1,100]
+
+[array]{
+    [rand(1,10)]
+    [rand(10,20)]
+    [rand(20,30)]
+} [note@ Array of 3 random ints]
+
+[len]>[store@arr] [note@ Length of array]
+
+[rand(1,[len@arr])] > [print] [note@ Random int in 1 to length of array]

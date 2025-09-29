@@ -1,5 +1,5 @@
-use anyhow::Result;
 use crate::kernel::{Packet, Runtime, Value};
+use anyhow::Result;
 
 pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
     let v = match p.arg.as_ref() {
@@ -16,7 +16,7 @@ fn pretty(v: &Value) -> String {
         Value::Num(n) => format!("{}", n),
         Value::Bool(b) => format!("{}", b),
         Value::Doc(_) => String::from("<doc>"),
-        Value::Unit    => String::from("()"),
+        Value::Unit => String::from("()"),
     }
 }
 
@@ -30,8 +30,12 @@ fn format_composite(rt: &Runtime, raw: &str) -> Option<String> {
 
     while i < chars.len() {
         // skip whitespace
-        while i < chars.len() && chars[i].is_whitespace() { i += 1; }
-        if i >= chars.len() { break; }
+        while i < chars.len() && chars[i].is_whitespace() {
+            i += 1;
+        }
+        if i >= chars.len() {
+            break;
+        }
 
         match chars[i] {
             '"' => {
@@ -41,10 +45,15 @@ fn format_composite(rt: &Runtime, raw: &str) -> Option<String> {
                     let c = chars[i];
                     i += 1;
                     if c == '\\' {
-                        if i < chars.len() { buf.push(chars[i]); i += 1; }
+                        if i < chars.len() {
+                            buf.push(chars[i]);
+                            i += 1;
+                        }
                         continue;
                     }
-                    if c == '"' { break; }
+                    if c == '"' {
+                        break;
+                    }
                     buf.push(c);
                 }
                 out.push_str(&buf);
@@ -56,8 +65,12 @@ fn format_composite(rt: &Runtime, raw: &str) -> Option<String> {
                 i += 1;
                 while i < chars.len() {
                     let c2 = chars[i];
-                    if c2.is_ascii_alphanumeric() || c2 == '_' { ident.push(c2); i += 1; }
-                    else { break; }
+                    if c2.is_ascii_alphanumeric() || c2 == '_' {
+                        ident.push(c2);
+                        i += 1;
+                    } else {
+                        break;
+                    }
                 }
                 let val = rt.get_var(&ident).unwrap_or(Value::Unit);
                 out.push_str(&pretty(&val));

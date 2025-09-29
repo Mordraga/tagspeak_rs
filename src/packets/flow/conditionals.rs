@@ -10,7 +10,7 @@ pub fn handle(_rt: &mut Runtime, _p: &crate::kernel::Packet) -> Result<Value> {
 pub fn parse_cond(src: &str) -> BExpr {
     let s = src.trim();
     if s.starts_with('(') && s.ends_with(')') {
-        return parse_cond(&s[1..s.len()-1]);
+        return parse_cond(&s[1..s.len() - 1]);
     }
 
     // try logical OR first (lowest precedence)
@@ -244,10 +244,7 @@ pub fn eval_cond(rt: &mut Runtime, cond: &BExpr) -> Result<bool> {
             let s = src.trim();
             if is_ident_like(s) {
                 // Treat bare identifiers as variable truthiness
-                Ok(rt
-                    .get_var(s)
-                    .and_then(|v| v.as_bool())
-                    .unwrap_or(false))
+                Ok(rt.get_var(s).and_then(|v| v.as_bool()).unwrap_or(false))
             } else if let Ok(n) = s.parse::<f64>() {
                 // Numeric literals: non-zero = true
                 Ok(n != 0.0 && !n.is_nan())

@@ -77,7 +77,9 @@ pub fn load(root: Option<&Path>) -> Config {
                     .and_then(|t| t.get("max_depth"))
                     .and_then(|v| v.as_integer())
                 {
-                    if n > 0 { cfg.run_max_depth = n as usize; }
+                    if n > 0 {
+                        cfg.run_max_depth = n as usize;
+                    }
                 }
                 // run.require_yellow (bool)
                 if let Some(b) = val
@@ -100,24 +102,45 @@ pub fn load(root: Option<&Path>) -> Config {
                     .get("network")
                     .and_then(|t| t.get("enabled"))
                     .and_then(|v| v.as_bool())
-                { cfg.net_enabled = b; }
+                {
+                    cfg.net_enabled = b;
+                }
                 // network.allow ([string])
                 if let Some(list) = val
                     .get("network")
                     .and_then(|t| t.get("allow"))
                     .and_then(|v| v.as_array())
-                { cfg.net_allow = list.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect(); }
+                {
+                    cfg.net_allow = list
+                        .iter()
+                        .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                        .collect();
+                }
             }
         }
     }
 
     // Env overrides
-    if let Some(b) = parse_bool_env("TAGSPEAK_ALLOW_EXEC") { cfg.allow_exec = b; }
-    if let Some(n) = parse_usize_env("TAGSPEAK_MAX_RUN_DEPTH") { if n > 0 { cfg.run_max_depth = n; } }
-    if let Some(b) = parse_bool_env("TAGSPEAK_NONINTERACTIVE") { cfg.prompts_noninteractive = b; }
-    if let Some(list) = parse_list_env("TAGSPEAK_EXEC_ALLOWLIST") { cfg.exec_allowlist = list; }
-    if let Some(b) = parse_bool_env("TAGSPEAK_NET_ENABLED") { cfg.net_enabled = b; }
-    if let Some(list) = parse_list_env("TAGSPEAK_NET_ALLOW") { cfg.net_allow = list; }
+    if let Some(b) = parse_bool_env("TAGSPEAK_ALLOW_EXEC") {
+        cfg.allow_exec = b;
+    }
+    if let Some(n) = parse_usize_env("TAGSPEAK_MAX_RUN_DEPTH") {
+        if n > 0 {
+            cfg.run_max_depth = n;
+        }
+    }
+    if let Some(b) = parse_bool_env("TAGSPEAK_NONINTERACTIVE") {
+        cfg.prompts_noninteractive = b;
+    }
+    if let Some(list) = parse_list_env("TAGSPEAK_EXEC_ALLOWLIST") {
+        cfg.exec_allowlist = list;
+    }
+    if let Some(b) = parse_bool_env("TAGSPEAK_NET_ENABLED") {
+        cfg.net_enabled = b;
+    }
+    if let Some(list) = parse_list_env("TAGSPEAK_NET_ALLOW") {
+        cfg.net_allow = list;
+    }
 
     cfg
 }

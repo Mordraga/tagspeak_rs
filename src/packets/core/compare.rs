@@ -1,8 +1,8 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 
 use crate::kernel::ast::{CmpBase, Comparator};
-use crate::kernel::{Arg, Packet, Runtime, Value};
 use crate::kernel::boolops::cmp_eval;
+use crate::kernel::{Arg, Packet, Runtime, Value};
 
 // Canonical comparator packets:
 // [eq@rhs], [ne@rhs], [lt@rhs], [le@rhs], [gt@rhs], [ge@rhs]
@@ -26,8 +26,11 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
         "ge" => (CmpBase::Gt, true, false),
         _ => bail!("unknown_comparator"),
     };
-    let cmp = Comparator { base, include_eq, negate };
+    let cmp = Comparator {
+        base,
+        include_eq,
+        negate,
+    };
     let out = cmp_eval(&cmp, &lhs, &rhs)?;
     Ok(Value::Bool(out))
 }
-

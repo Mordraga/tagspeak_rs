@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use serde_json::Value as JsonValue;
 
 use crate::kernel::ast::Arg;
@@ -36,15 +36,22 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
 }
 
 fn parse_mode_and_path(op: &str) -> Result<(String, String)> {
-    let start = op.find('(').ok_or_else(|| anyhow::anyhow!("query missing ("))?;
-    let end = op.rfind(')').ok_or_else(|| anyhow::anyhow!("query missing )"))?;
+    let start = op
+        .find('(')
+        .ok_or_else(|| anyhow::anyhow!("query missing ("))?;
+    let end = op
+        .rfind(')')
+        .ok_or_else(|| anyhow::anyhow!("query missing )"))?;
     let name = op[..start].to_string();
     let path = op[start + 1..end].to_string();
     Ok((name, path))
 }
 
 #[derive(Clone)]
-enum Segment { Key(String), Index(usize) }
+enum Segment {
+    Key(String),
+    Index(usize),
+}
 
 fn parse_path(path: &str) -> Result<Vec<Segment>> {
     // Special-case: a bare numeric path like "0" means index 0
@@ -59,18 +66,31 @@ fn parse_path(path: &str) -> Result<Vec<Segment>> {
     while let Some(c) = chars.next() {
         match c {
             '.' => {
-                if !buf.is_empty() { segs.push(Segment::Key(buf.clone())); buf.clear(); }
+                if !buf.is_empty() {
+                    segs.push(Segment::Key(buf.clone()));
+                    buf.clear();
+                }
             }
             '[' => {
-                if !buf.is_empty() { segs.push(Segment::Key(buf.clone())); buf.clear(); }
+                if !buf.is_empty() {
+                    segs.push(Segment::Key(buf.clone()));
+                    buf.clear();
+                }
                 let mut num = String::new();
-                while let Some(ch) = chars.next() { if ch == ']' { break; } num.push(ch); }
+                while let Some(ch) = chars.next() {
+                    if ch == ']' {
+                        break;
+                    }
+                    num.push(ch);
+                }
                 segs.push(Segment::Index(num.parse()?));
             }
             _ => buf.push(c),
         }
     }
-    if !buf.is_empty() { segs.push(Segment::Key(buf)); }
+    if !buf.is_empty() {
+        segs.push(Segment::Key(buf));
+    }
     Ok(segs)
 }
 

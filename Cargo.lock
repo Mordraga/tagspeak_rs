@@ -1935,6 +1935,7 @@ dependencies = [
  "anyhow",
  "clap",
  "dirs",
+ "fastrand",
  "meval",
  "native-windows-derive",
  "native-windows-gui",

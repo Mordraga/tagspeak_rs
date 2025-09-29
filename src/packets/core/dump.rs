@@ -1,5 +1,5 @@
-use anyhow::Result;
 use crate::kernel::{Packet, Runtime, Value};
+use anyhow::Result;
 
 // [dump] -> pretty-print last value
 // [dump@var] -> pretty-print value of variable/arg

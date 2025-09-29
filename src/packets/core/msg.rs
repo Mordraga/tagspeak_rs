@@ -17,7 +17,9 @@ fn eval_concat(rt: &Runtime, expr: &str) -> Result<String> {
     let mut out = String::new();
     for part in expr.split('+') {
         let part = part.trim();
-        if part.is_empty() { continue; }
+        if part.is_empty() {
+            continue;
+        }
         if part.starts_with('"') && part.ends_with('"') {
             let s: String = serde_json::from_str(part)?;
             out.push_str(&s);
@@ -26,7 +28,7 @@ fn eval_concat(rt: &Runtime, expr: &str) -> Result<String> {
                 Value::Str(s) => out.push_str(&s),
                 Value::Num(n) => out.push_str(&format!("{}", n)),
                 Value::Bool(b) => out.push_str(if b { "true" } else { "false" }),
-                Value::Unit => {},
+                Value::Unit => {}
                 Value::Doc(_) => out.push_str("[doc]"),
             }
         } else {
@@ -35,4 +37,3 @@ fn eval_concat(rt: &Runtime, expr: &str) -> Result<String> {
     }
     Ok(out)
 }
-

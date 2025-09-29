@@ -43,7 +43,13 @@ impl Value {
 }
 
 impl Document {
-    pub fn new(json: JsonValue, path: PathBuf, ext: String, mtime: SystemTime, root: PathBuf) -> Self {
+    pub fn new(
+        json: JsonValue,
+        path: PathBuf,
+        ext: String,
+        mtime: SystemTime,
+        root: PathBuf,
+    ) -> Self {
         Self {
             last_json: json.clone(),
             json,

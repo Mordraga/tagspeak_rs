@@ -275,7 +275,10 @@ fn unexpected(sc: &Scanner, where_: &str) -> String {
     let mut line: usize = 1;
     let mut last_nl: usize = 0;
     for (idx, b) in before.iter().enumerate() {
-        if *b == b'\n' { line += 1; last_nl = idx + 1; }
+        if *b == b'\n' {
+            line += 1;
+            last_nl = idx + 1;
+        }
     }
     let col = pos.saturating_sub(last_nl) + 1;
 
@@ -283,7 +286,10 @@ fn unexpected(sc: &Scanner, where_: &str) -> String {
     let mut end = sc.len();
     let after = sc.slice(pos, sc.len());
     for (off, b) in after.iter().enumerate() {
-        if *b == b'\n' { end = pos + off; break; }
+        if *b == b'\n' {
+            end = pos + off;
+            break;
+        }
     }
     let line_str = String::from_utf8_lossy(sc.slice(last_nl, end)).to_string();
     let caret_pad: String = std::iter::repeat(' ').take(col.saturating_sub(1)).collect();
@@ -291,7 +297,8 @@ fn unexpected(sc: &Scanner, where_: &str) -> String {
     format!(
         "unexpected character at {where_}: '{}' at {}:{}\n{}\n{}^",
         sc.peek().unwrap_or('?'),
-        line, col,
+        line,
+        col,
         line_str,
         caret_pad,
     )

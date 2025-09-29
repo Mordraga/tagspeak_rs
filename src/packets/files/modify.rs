@@ -1,7 +1,7 @@
-use anyhow::{bail, Result};
+use crate::kernel::Runtime;
 use crate::kernel::ast::{Arg, Node, Packet};
 use crate::kernel::values::{Document, Value};
-use crate::kernel::Runtime;
+use anyhow::{Result, bail};
 use serde_json::Value as JsonValue;
 
 pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
@@ -9,7 +9,10 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
         Some(Arg::Ident(id)) => id.as_str(),
         _ => bail!("mod needs @<ident>"),
     };
-    let body = p.body.as_ref().ok_or_else(|| anyhow::anyhow!("mod needs body"))?;
+    let body = p
+        .body
+        .as_ref()
+        .ok_or_else(|| anyhow::anyhow!("mod needs body"))?;
     let mut doc = match rt.get_var(handle) {
         Some(Value::Doc(d)) => d,
         _ => bail!("handle_unknown"),
@@ -30,15 +33,30 @@ fn apply_edit(rt: &Runtime, doc: &mut Document, pkt: &Packet) -> Result<()> {
     let segments = parse_path(&path)?;
     match op.as_str() {
         "comp" => {
-            let val = arg_to_json(rt, pkt.arg.as_ref().ok_or_else(|| anyhow::anyhow!("comp needs value"))?)?;
+            let val = arg_to_json(
+                rt,
+                pkt.arg
+                    .as_ref()
+                    .ok_or_else(|| anyhow::anyhow!("comp needs value"))?,
+            )?;
             set_value(&mut doc.json, &segments, val, false, true)?;
         }
         "comp!" => {
-            let val = arg_to_json(rt, pkt.arg.as_ref().ok_or_else(|| anyhow::anyhow!("comp! needs value"))?)?;
+            let val = arg_to_json(
+                rt,
+                pkt.arg
+                    .as_ref()
+                    .ok_or_else(|| anyhow::anyhow!("comp! needs value"))?,
+            )?;
             set_value(&mut doc.json, &segments, val, true, true)?;
         }
         "merge" => {
-            let val = arg_to_json(rt, pkt.arg.as_ref().ok_or_else(|| anyhow::anyhow!("merge needs value"))?)?;
+            let val = arg_to_json(
+                rt,
+                pkt.arg
+                    .as_ref()
+                    .ok_or_else(|| anyhow::anyhow!("merge needs value"))?,
+            )?;
             if !val.is_object() {
                 bail!("merge requires object value");
             }
@@ -49,11 +67,21 @@ fn apply_edit(rt: &Runtime, doc: &mut Document, pkt: &Packet) -> Result<()> {
             delete(&mut doc.json, &segments)?;
         }
         "ins" => {
-            let val = arg_to_json(rt, pkt.arg.as_ref().ok_or_else(|| anyhow::anyhow!("ins needs value"))?)?;
+            let val = arg_to_json(
+                rt,
+                pkt.arg
+                    .as_ref()
+                    .ok_or_else(|| anyhow::anyhow!("ins needs value"))?,
+            )?;
             set_value(&mut doc.json, &segments, val, false, false)?;
         }
         "push" => {
-            let val = arg_to_json(rt, pkt.arg.as_ref().ok_or_else(|| anyhow::anyhow!("push needs value"))?)?;
+            let val = arg_to_json(
+                rt,
+                pkt.arg
+                    .as_ref()
+                    .ok_or_else(|| anyhow::anyhow!("push needs value"))?,
+            )?;
             let target = navigate(&mut doc.json, &segments, true)?;
             if !target.is_array() {
                 bail!("not_array");
@@ -66,8 +94,12 @@ fn apply_edit(rt: &Runtime, doc: &mut Document, pkt: &Packet) -> Result<()> {
 }
 
 fn parse_op(op: &str) -> Result<(String, String)> {
-    let start = op.find('(').ok_or_else(|| anyhow::anyhow!("edit missing ("))?;
-    let end = op.rfind(')').ok_or_else(|| anyhow::anyhow!("edit missing )"))?;
+    let start = op
+        .find('(')
+        .ok_or_else(|| anyhow::anyhow!("edit missing ("))?;
+    let end = op
+        .rfind(')')
+        .ok_or_else(|| anyhow::anyhow!("edit missing )"))?;
     let name = op[..start].to_string();
     let path = op[start + 1..end].to_string();
     Ok((name, path))
@@ -98,7 +130,9 @@ fn parse_path(path: &str) -> Result<Vec<Segment>> {
                 }
                 let mut num = String::new();
                 while let Some(ch) = chars.next() {
-                    if ch == ']' { break; }
+                    if ch == ']' {
+                        break;
+                    }
                     num.push(ch);
                 }
                 segs.push(Segment::Index(num.parse()?));
@@ -112,7 +146,11 @@ fn parse_path(path: &str) -> Result<Vec<Segment>> {
     Ok(segs)
 }
 
-fn navigate<'a>(root: &'a mut JsonValue, segs: &[Segment], create: bool) -> Result<&'a mut JsonValue> {
+fn navigate<'a>(
+    root: &'a mut JsonValue,
+    segs: &[Segment],
+    create: bool,
+) -> Result<&'a mut JsonValue> {
     let mut cur = root;
     for seg in segs {
         match seg {
@@ -124,7 +162,11 @@ fn navigate<'a>(root: &'a mut JsonValue, segs: &[Segment], create: bool) -> Resu
                         bail!("path_missing");
                     }
                 }
-                cur = cur.as_object_mut().unwrap().entry(k.clone()).or_insert(JsonValue::Null);
+                cur = cur
+                    .as_object_mut()
+                    .unwrap()
+                    .entry(k.clone())
+                    .or_insert(JsonValue::Null);
             }
             Segment::Index(i) => {
                 if !cur.is_array() {
@@ -149,8 +191,16 @@ fn navigate<'a>(root: &'a mut JsonValue, segs: &[Segment], create: bool) -> Resu
     Ok(cur)
 }
 
-fn set_value(root: &mut JsonValue, segs: &[Segment], val: JsonValue, create: bool, overwrite: bool) -> Result<()> {
-    if segs.is_empty() { bail!("empty path"); }
+fn set_value(
+    root: &mut JsonValue,
+    segs: &[Segment],
+    val: JsonValue,
+    create: bool,
+    overwrite: bool,
+) -> Result<()> {
+    if segs.is_empty() {
+        bail!("empty path");
+    }
     let (head, last) = segs.split_at(segs.len() - 1);
     let parent = navigate(root, head, create)?;
     match last[0].clone() {
@@ -186,18 +236,24 @@ fn set_value(root: &mut JsonValue, segs: &[Segment], val: JsonValue, create: boo
 }
 
 fn delete(root: &mut JsonValue, segs: &[Segment]) -> Result<()> {
-    if segs.is_empty() { bail!("empty path"); }
+    if segs.is_empty() {
+        bail!("empty path");
+    }
     let (head, last) = segs.split_at(segs.len() - 1);
     let parent = navigate(root, head, false)?;
     match last[0].clone() {
         Segment::Key(k) => {
-            let obj = parent.as_object_mut().ok_or_else(|| anyhow::anyhow!("path_missing"))?;
+            let obj = parent
+                .as_object_mut()
+                .ok_or_else(|| anyhow::anyhow!("path_missing"))?;
             if obj.remove(&k).is_none() {
                 bail!("path_missing");
             }
         }
         Segment::Index(i) => {
-            let arr = parent.as_array_mut().ok_or_else(|| anyhow::anyhow!("path_missing"))?;
+            let arr = parent
+                .as_array_mut()
+                .ok_or_else(|| anyhow::anyhow!("path_missing"))?;
             if i >= arr.len() {
                 bail!("path_missing");
             }
@@ -224,7 +280,9 @@ fn value_to_json(v: Value) -> Result<JsonValue> {
     Ok(match v {
         Value::Unit => JsonValue::Null,
         Value::Bool(b) => JsonValue::Bool(b),
-        Value::Num(n) => JsonValue::Number(serde_json::Number::from_f64(n).ok_or_else(|| anyhow::anyhow!("invalid number"))?),
+        Value::Num(n) => JsonValue::Number(
+            serde_json::Number::from_f64(n).ok_or_else(|| anyhow::anyhow!("invalid number"))?,
+        ),
         Value::Str(s) => serde_json::from_str(&s).unwrap_or(JsonValue::String(s)),
         Value::Doc(d) => d.json,
     })
@@ -232,7 +290,9 @@ fn value_to_json(v: Value) -> Result<JsonValue> {
 
 fn arg_to_json(rt: &Runtime, arg: &Arg) -> Result<JsonValue> {
     Ok(match arg {
-        Arg::Number(n) => JsonValue::Number(serde_json::Number::from_f64(*n).ok_or_else(|| anyhow::anyhow!("invalid number"))?),
+        Arg::Number(n) => JsonValue::Number(
+            serde_json::Number::from_f64(*n).ok_or_else(|| anyhow::anyhow!("invalid number"))?,
+        ),
         Arg::Str(s) => serde_json::from_str(s).unwrap_or(JsonValue::String(s.clone())),
         Arg::Ident(id) => match id.as_str() {
             "true" => JsonValue::Bool(true),

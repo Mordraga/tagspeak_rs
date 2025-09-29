@@ -1,4 +1,4 @@
 [note@ Demo literals: int, bool, msg]
-[int@5] > [store@num] > [print@num]
-[bool@true] > [store@flag] > [print@flag]
+[int@5] > [store@num] > [print]
+[bool@true] > [store@flag] > [print]
 [msg@"hi "+"there"] > [print]

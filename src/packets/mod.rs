@@ -1,22 +1,23 @@
 // Grouped packet modules by role
 pub mod core {
+    pub mod array;
     pub mod bool;
+    pub mod cd;
+    pub mod compare;
     pub mod dump;
+    pub mod env;
+    pub mod input;
     pub mod int;
+    pub mod len;
     pub mod math;
     pub mod msg;
     pub mod note;
+    pub mod obj;
     pub mod parse;
     pub mod print;
-    pub mod store;
-    pub mod env;
-    pub mod cd;
-    pub mod len;
-    pub mod compare;
-    pub mod array;
-    pub mod obj;
+    pub mod rand;
     pub mod reflect;
-    pub mod input;
+    pub mod store;
 }
 
 pub mod files {
@@ -32,8 +33,8 @@ pub mod flow {
     pub mod call;
     pub mod conditionals;
     pub mod funct;
-    pub mod r#loop;
     pub mod iter;
+    pub mod r#loop;
 }
 
 pub mod execs {
@@ -46,9 +47,10 @@ pub mod execs {
 }
 
 // Re-export for backward compatibility with existing paths
-pub use core::{bool, int, math, msg, note, print, dump, store, parse};
-pub use core::{env, cd, len, compare, array, obj, reflect};
-pub use core::input;
-pub use files::{load, log, save, modify, query, search};
-pub use flow::{funct, call, r#loop, conditionals, iter};
-pub use execs::{exec, run, http, confirm, red, repl};
+pub use core::{
+    array, bool, cd, compare, dump, env, input, int, len, math, msg, note, obj, parse, print, rand,
+    reflect, store,
+};
+pub use execs::{confirm, exec, http, red, repl, run};
+pub use files::{load, log, modify, query, save, search};
+pub use flow::{call, conditionals, funct, iter, r#loop};

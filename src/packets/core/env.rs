@@ -18,4 +18,3 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
         Err(_) => Ok(Value::Unit),
     }
 }
-

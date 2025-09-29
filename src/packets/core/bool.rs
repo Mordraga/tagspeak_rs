@@ -2,7 +2,7 @@ use anyhow::{Result, bail};
 
 use crate::kernel::ast::{Arg, BExpr};
 use crate::kernel::{Packet, Runtime, Value};
-use crate::packets::conditionals::{parse_cond, eval_cond};
+use crate::packets::conditionals::{eval_cond, parse_cond};
 
 pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
     let raw = match p.arg.as_ref() {
@@ -34,7 +34,7 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{router, kernel::Runtime};
+    use crate::{kernel::Runtime, router};
 
     #[test]
     fn parses_expressions() -> Result<()> {
@@ -46,4 +46,3 @@ mod tests {
         Ok(())
     }
 }
-

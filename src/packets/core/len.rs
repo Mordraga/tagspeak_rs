@@ -27,4 +27,3 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
     };
     Ok(Value::Num(n))
 }
-

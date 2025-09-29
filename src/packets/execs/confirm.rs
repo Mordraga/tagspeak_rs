@@ -20,11 +20,15 @@ fn is_allowed(key: &str) -> bool {
 
 fn mark_allowed(key: &str) {
     let set = ALLOW.get_or_init(|| Mutex::new(HashSet::new()));
-    if let Ok(mut s) = set.lock() { s.insert(key.to_string()); }
+    if let Ok(mut s) = set.lock() {
+        s.insert(key.to_string());
+    }
 }
 
 pub fn prompt_yes_no(msg: &str, env_allow_key: &str) -> Result<bool> {
-    if is_allowed(env_allow_key) { return Ok(true); }
+    if is_allowed(env_allow_key) {
+        return Ok(true);
+    }
 
     // Non-interactive opt-out
     if std::env::var("TAGSPEAK_NONINTERACTIVE")
@@ -44,7 +48,10 @@ pub fn prompt_yes_no(msg: &str, env_allow_key: &str) -> Result<bool> {
         return Ok(false);
     }
     let ans = line.trim().to_lowercase();
-    if ans == "a" || ans == "always" { mark_allowed(env_allow_key); return Ok(true); }
+    if ans == "a" || ans == "always" {
+        mark_allowed(env_allow_key);
+        return Ok(true);
+    }
     Ok(ans == "y" || ans == "yes")
 }
 

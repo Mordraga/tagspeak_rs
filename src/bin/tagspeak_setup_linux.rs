@@ -14,26 +14,26 @@ fn main() {
         }
         Some("--associate") => {
             let engine = args.next();
-            if let Err(e) = associate(engine.as_deref(), /*dry=*/false) {
+            if let Err(e) = associate(engine.as_deref(), /*dry=*/ false) {
                 eprintln!("Error: {e:#}");
                 std::process::exit(1);
             }
         }
         Some("--associate-dry") | Some("--print") => {
             let engine = args.next();
-            if let Err(e) = associate(engine.as_deref(), /*dry=*/true) {
+            if let Err(e) = associate(engine.as_deref(), /*dry=*/ true) {
                 eprintln!("Error: {e:#}");
                 std::process::exit(1);
             }
         }
         Some("--uninstall") => {
-            if let Err(e) = uninstall(/*dry=*/false) {
+            if let Err(e) = uninstall(/*dry=*/ false) {
                 eprintln!("Error: {e:#}");
                 std::process::exit(1);
             }
         }
         Some("--uninstall-dry") => {
-            if let Err(e) = uninstall(/*dry=*/true) {
+            if let Err(e) = uninstall(/*dry=*/ true) {
                 eprintln!("Error: {e:#}");
                 std::process::exit(1);
             }
@@ -66,12 +66,13 @@ fn print_help() {
 
 #[cfg(target_os = "linux")]
 fn associate(engine_arg: Option<&str>, dry: bool) -> anyhow::Result<()> {
-    use anyhow::{bail, Context};
+    use anyhow::{Context, bail};
     use std::fs;
     use std::path::PathBuf;
     let engine = match engine_arg {
         Some(p) => PathBuf::from(p),
-        None => which::which("tagspeak_rs").context("tagspeak_rs not found on PATH; pass ENGINE path")?,
+        None => which::which("tagspeak_rs")
+            .context("tagspeak_rs not found on PATH; pass ENGINE path")?,
     };
     if !engine.exists() {
         bail!("ENGINE not found: {}", engine.display());
@@ -108,8 +109,16 @@ fn associate(engine_arg: Option<&str>, dry: bool) -> anyhow::Result<()> {
 
     // Update databases and set default
     let mime_root = mime_pkgs.parent().unwrap().to_path_buf();
-    run_cmd("update-desktop-database", &[apps.to_string_lossy().as_ref()], dry);
-    run_cmd("update-mime-database", &[mime_root.to_string_lossy().as_ref()], dry);
+    run_cmd(
+        "update-desktop-database",
+        &[apps.to_string_lossy().as_ref()],
+        dry,
+    );
+    run_cmd(
+        "update-mime-database",
+        &[mime_root.to_string_lossy().as_ref()],
+        dry,
+    );
     run_cmd(
         "xdg-mime",
         &["default", "tagspeak.desktop", "text/x-tagspeak"],
@@ -135,8 +144,16 @@ fn uninstall(dry: bool) -> anyhow::Result<()> {
         let _ = fs::remove_file(&mime_xml);
     }
     let mime_root = mime_pkgs.parent().unwrap().to_path_buf();
-    run_cmd("update-desktop-database", &[apps.to_string_lossy().as_ref()], dry);
-    run_cmd("update-mime-database", &[mime_root.to_string_lossy().as_ref()], dry);
+    run_cmd(
+        "update-desktop-database",
+        &[apps.to_string_lossy().as_ref()],
+        dry,
+    );
+    run_cmd(
+        "update-mime-database",
+        &[mime_root.to_string_lossy().as_ref()],
+        dry,
+    );
     println!("Removed per-user .tgsk association (if present)");
     Ok(())
 }

@@ -4,7 +4,11 @@ pub enum Node {
     Chain(Vec<Node>),
     Block(Vec<Node>),
     Packet(Packet),
-    If { cond: BExpr, then_b: Vec<Node>, else_b: Vec<Node> },
+    If {
+        cond: BExpr,
+        then_b: Vec<Node>,
+        else_b: Vec<Node>,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -25,7 +29,11 @@ pub enum Arg {
 
 #[derive(Debug, Clone)]
 pub enum BExpr {
-    Cmp { lhs: Box<Node>, cmp: Comparator, rhs: Box<Node> },
+    Cmp {
+        lhs: Box<Node>,
+        cmp: Comparator,
+        rhs: Box<Node>,
+    },
     And(Box<BExpr>, Box<BExpr>),
     Or(Box<BExpr>, Box<BExpr>),
     Not(Box<BExpr>),
@@ -33,7 +41,11 @@ pub enum BExpr {
 }
 
 #[derive(Debug, Clone)]
-pub enum CmpBase { Eq, Lt, Gt }
+pub enum CmpBase {
+    Eq,
+    Lt,
+    Gt,
+}
 
 #[derive(Debug, Clone)]
 pub struct Comparator {

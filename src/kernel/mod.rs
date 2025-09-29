@@ -1,8 +1,8 @@
 // src/kernel/mod.rs
 pub mod ast;
 pub mod boolops;
-pub mod fs_guard;
 pub mod config;
+pub mod fs_guard;
 pub mod runtime;
 pub mod values;
 

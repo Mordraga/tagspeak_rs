@@ -1,7 +1,7 @@
-use anyhow::{Result, bail};
-use crate::kernel::{Runtime, Value, Packet};
 use crate::kernel::ast::Arg;
 use crate::kernel::ast::Node;
+use crate::kernel::{Packet, Runtime, Value};
+use anyhow::{Result, bail};
 
 pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
     let name = match p.arg.as_ref() {
@@ -22,7 +22,7 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{router, kernel::Runtime};
+    use crate::{kernel::Runtime, router};
 
     #[test]
     fn defines_and_calls_function() -> Result<()> {

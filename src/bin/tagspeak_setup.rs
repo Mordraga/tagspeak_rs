@@ -157,7 +157,10 @@ impl App {
                 self.build_engine();
                 exe = std::path::PathBuf::from(self.tb_engine.text());
                 if !exe.exists() {
-                    self.set_busy(false, "Build finished but engine not found. Select it manually or try again.");
+                    self.set_busy(
+                        false,
+                        "Build finished but engine not found. Select it manually or try again.",
+                    );
                     return;
                 }
             } else {
@@ -168,7 +171,8 @@ impl App {
                     "Rust (cargo) is not installed. We'll open rustup.rs in your browser. Install Rust, then return here and click Install again.",
                 );
                 let _ = std::process::Command::new("rundll32")
-                    .args(["url.dll,FileProtocolHandler", "https://rustup.rs"]).spawn();
+                    .args(["url.dll,FileProtocolHandler", "https://rustup.rs"])
+                    .spawn();
                 return;
             }
         }
@@ -307,7 +311,9 @@ fn main() {
 
 #[cfg(target_os = "windows")]
 fn has_cargo() -> bool {
-    if which::which("cargo").is_ok() { return true; }
+    if which::which("cargo").is_ok() {
+        return true;
+    }
     let mut p = dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from("C:\\"));
     p.push(r".cargo\bin\cargo.exe");
     p.exists()
@@ -353,7 +359,10 @@ fn do_install(engine_exe: PathBuf) -> Result<()> {
     cmd_key.set_value("", &command)?;
 
     // Also register the application entry so "Open with" can find the exe
-    if let Some(exe_name) = std::path::Path::new(&engine).file_name().and_then(|s| s.to_str()) {
+    if let Some(exe_name) = std::path::Path::new(&engine)
+        .file_name()
+        .and_then(|s| s.to_str())
+    {
         let app_key_path = format!("Applications\\{}\\shell\\open\\command", exe_name);
         let app_cmd = classes.create_subkey(&app_key_path)?.0;
         app_cmd.set_value("", &command)?;
@@ -371,7 +380,11 @@ fn write_user_icon() -> Result<PathBuf> {
     // Prefer Roaming AppData, fall back to Local if needed
     let base = dirs::data_dir()
         .or_else(|| dirs::data_local_dir())
-        .unwrap_or_else(|| dirs::home_dir().unwrap_or_else(|| PathBuf::from("C:/")).join("AppData/Local"));
+        .unwrap_or_else(|| {
+            dirs::home_dir()
+                .unwrap_or_else(|| PathBuf::from("C:/"))
+                .join("AppData/Local")
+        });
     let dir = base.join("TagSpeak");
     fs::create_dir_all(&dir)?;
     let path = dir.join("tagspeak.ico");

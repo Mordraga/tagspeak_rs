@@ -1,6 +1,6 @@
-use anyhow::Result;
-use crate::kernel::{Runtime, Value, Packet};
 use crate::kernel::ast::Arg;
+use crate::kernel::{Packet, Runtime, Value};
+use anyhow::Result;
 
 pub fn handle(_rt: &mut Runtime, p: &Packet) -> Result<Value> {
     // Optional: store last value or emit trace; by default do nothing.

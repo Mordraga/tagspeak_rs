@@ -3,8 +3,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::kernel::ast::Arg;
-use crate::kernel::fs_guard::resolve;
 use crate::kernel::config;
+use crate::kernel::fs_guard::resolve;
 use crate::kernel::{Packet, Runtime, Value};
 
 pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
@@ -13,7 +13,7 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
     }
     let raw = match &p.arg {
         Some(Arg::Str(s)) => s,
-        _ => bail!("run needs @<path>")
+        _ => bail!("run needs @<path>"),
     };
 
     let cfg = config::load(rt.effective_root.as_deref());
@@ -22,7 +22,9 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
     if cfg.require_yellow_run {
         let y = rt.get_num("__yellow_depth").unwrap_or(0.0);
         if y <= 0.0 {
-            anyhow::bail!("E_YELLOW_REQUIRED: wrap [run] in [yellow]{{...}} or use [yellow:run@...] to enable");
+            anyhow::bail!(
+                "E_YELLOW_REQUIRED: wrap [run] in [yellow]{{...}} or use [yellow:run@...] to enable"
+            );
         }
     }
 
@@ -42,7 +44,11 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
         .ok_or_else(|| anyhow::anyhow!("no red.tgsk root"))?;
 
     // root-relative if starts with '/', else relative to current rt.cwd
-    let rel = if raw.starts_with('/') { &raw[1..] } else { raw.as_str() };
+    let rel = if raw.starts_with('/') {
+        &raw[1..]
+    } else {
+        raw.as_str()
+    };
     let candidate = if raw.starts_with('/') {
         Path::new(rel).to_path_buf()
     } else {

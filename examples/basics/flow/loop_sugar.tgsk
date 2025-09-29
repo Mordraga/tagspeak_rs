@@ -1,8 +1,9 @@
 [note@ Demo a simple function and loop sugar]
 [funct:bump]{
   [math@x+2]>[store@x]
+  [print@x]
 }
 
 [int@1]>[store@x]
-[loop:bump@3]>[print@x]
+[loop:bump@3]
 

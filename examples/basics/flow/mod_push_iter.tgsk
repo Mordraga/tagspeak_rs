@@ -1,6 +1,9 @@
 [note@"Append to an array with mod:push and iterate it"]
 [parse(json)@"{\"items\":[1,2,3]}"]>[store@doc] [note@ Set up initial doc]
+
 [mod@doc]{ [push(items)@4] } [note@ Append 4 to items array]
+
 [get(items)@doc]>[store@arr] [note@ Get the array into arr]
+
 [iter@arr]{ [print@it] } [note@ Iterate and print each item]
 

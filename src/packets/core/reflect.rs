@@ -1,11 +1,11 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
-use crate::kernel::{Packet, Runtime, Value};
 use crate::kernel::values::Document;
+use crate::kernel::{Packet, Runtime, Value};
 
 fn extract_group_line(line: &str, group: &str) -> Option<Vec<String>> {
     let pat = format!("pub use {group}::{{");
@@ -16,13 +16,18 @@ fn extract_group_line(line: &str, group: &str) -> Option<Vec<String>> {
     let mut out = Vec::new();
     for t in inner.split(',') {
         let t = t.trim();
-        if t.is_empty() { continue; }
+        if t.is_empty() {
+            continue;
+        }
         out.push(t.to_string());
     }
     Some(out)
 }
 
-fn reflect_packets_from_mod_rs(root: &Path, override_path: Option<&Path>) -> Result<serde_json::Value> {
+fn reflect_packets_from_mod_rs(
+    root: &Path,
+    override_path: Option<&Path>,
+) -> Result<serde_json::Value> {
     let path = if let Some(p) = override_path {
         p.to_path_buf()
     } else {
@@ -37,10 +42,26 @@ fn reflect_packets_from_mod_rs(root: &Path, override_path: Option<&Path>) -> Res
     let mut execs = BTreeSet::new();
 
     for line in content.lines() {
-        if let Some(items) = extract_group_line(line, "core") { for it in items { core.insert(it); } }
-        if let Some(items) = extract_group_line(line, "files") { for it in items { files.insert(it); } }
-        if let Some(items) = extract_group_line(line, "flow") { for it in items { flow.insert(it); } }
-        if let Some(items) = extract_group_line(line, "execs") { for it in items { execs.insert(it); } }
+        if let Some(items) = extract_group_line(line, "core") {
+            for it in items {
+                core.insert(it);
+            }
+        }
+        if let Some(items) = extract_group_line(line, "files") {
+            for it in items {
+                files.insert(it);
+            }
+        }
+        if let Some(items) = extract_group_line(line, "flow") {
+            for it in items {
+                flow.insert(it);
+            }
+        }
+        if let Some(items) = extract_group_line(line, "execs") {
+            for it in items {
+                execs.insert(it);
+            }
+        }
     }
 
     // Normalize tokens → canonical packet names
@@ -50,9 +71,13 @@ fn reflect_packets_from_mod_rs(root: &Path, override_path: Option<&Path>) -> Res
         match name.as_str() {
             // skip internals; we list user-facing comparators instead
             "compare" => {
-                for k in ["eq","ne","lt","le","gt","ge"] { canon_core.insert(k.to_string()); }
+                for k in ["eq", "ne", "lt", "le", "gt", "ge"] {
+                    canon_core.insert(k.to_string());
+                }
             }
-            other => { canon_core.insert(other.to_string()); }
+            other => {
+                canon_core.insert(other.to_string());
+            }
         }
     }
 
@@ -61,10 +86,17 @@ fn reflect_packets_from_mod_rs(root: &Path, override_path: Option<&Path>) -> Res
         let name = t.trim_start_matches("r#").to_string();
         match name.as_str() {
             // expose query ops as get/exists instead of backend name
-            "query" => { canon_files.insert("get".into()); canon_files.insert("exists".into()); }
+            "query" => {
+                canon_files.insert("get".into());
+                canon_files.insert("exists".into());
+            }
             // map internal module name to packet op
-            "modify" => { canon_files.insert("mod".into()); }
-            other => { canon_files.insert(other.to_string()); }
+            "modify" => {
+                canon_files.insert("mod".into());
+            }
+            other => {
+                canon_files.insert(other.to_string());
+            }
         }
     }
 
@@ -72,16 +104,24 @@ fn reflect_packets_from_mod_rs(root: &Path, override_path: Option<&Path>) -> Res
     for t in &flow {
         let name = t.trim_start_matches("r#");
         match name {
-            "loop" => { canon_flow.insert("loopN".into()); }
+            "loop" => {
+                canon_flow.insert("loopN".into());
+            }
             "conditionals" => { /* expose as if/or/else */ }
-            other => { canon_flow.insert(other.to_string()); }
+            other => {
+                canon_flow.insert(other.to_string());
+            }
         }
     }
     // Always include conditionals sugar
-    for k in ["if","or","else"] { canon_flow.insert(k.into()); }
+    for k in ["if", "or", "else"] {
+        canon_flow.insert(k.into());
+    }
 
     let mut canon_execs: BTreeSet<String> = BTreeSet::new();
-    for t in &execs { canon_execs.insert(t.trim_start_matches("r#").to_string()); }
+    for t in &execs {
+        canon_execs.insert(t.trim_start_matches("r#").to_string());
+    }
     // Include sugar alias
     canon_execs.insert("yellow".into());
 
@@ -102,11 +142,15 @@ fn reflect_packets_from_mod_rs(root: &Path, override_path: Option<&Path>) -> Res
 
 fn extract_name_from_sig(sig: &str) -> Option<String> {
     // sig like: [print], [log(json)@file]{...}, [store:rigid@x]
-    if !sig.starts_with('[') { return None; }
+    if !sig.starts_with('[') {
+        return None;
+    }
     let inner = &sig[1..];
     let mut name = String::new();
     for ch in inner.chars() {
-        if ch == '(' || ch == '@' || ch == ':' || ch == ']' { break; }
+        if ch == '(' || ch == '@' || ch == ':' || ch == ']' {
+            break;
+        }
         name.push(ch);
     }
     if name.is_empty() { None } else { Some(name) }
@@ -117,14 +161,28 @@ fn clean_desc(mut s: &str) -> String {
     s = s.trim();
     // strip common separators like "+-—–:>"
     while let Some(c) = s.chars().next() {
-        if c.is_whitespace() || c == '-' || c == '—' || c == '–' || c == ':' || c == '>' || c == '�' || c == '+' {
+        if c.is_whitespace()
+            || c == '-'
+            || c == '—'
+            || c == '–'
+            || c == ':'
+            || c == '>'
+            || c == '�'
+            || c == '+'
+        {
             s = s.get(c.len_utf8()..).unwrap_or("").trim_start();
-        } else { break; }
+        } else {
+            break;
+        }
     }
     s.to_string()
 }
 
-fn parse_packet_docs_from(content: &str, source: &str, out: &mut BTreeMap<String, serde_json::Value>) {
+fn parse_packet_docs_from(
+    content: &str,
+    source: &str,
+    out: &mut BTreeMap<String, serde_json::Value>,
+) {
     let mut section = String::new();
     for line in content.lines() {
         let trimmed = line.trim();
@@ -133,15 +191,17 @@ fn parse_packet_docs_from(content: &str, source: &str, out: &mut BTreeMap<String
             section = trimmed[4..].trim().to_string();
             continue;
         }
-        if !(trimmed.starts_with('*') || trimmed.starts_with('-')) { continue; }
+        if !(trimmed.starts_with('*') || trimmed.starts_with('-')) {
+            continue;
+        }
         // find code span between backticks
         let first_tick = trimmed.find('`');
-        let second_tick = first_tick.and_then(|i| trimmed[i+1..].find('`').map(|j| i + 1 + j));
+        let second_tick = first_tick.and_then(|i| trimmed[i + 1..].find('`').map(|j| i + 1 + j));
         if let (Some(i), Some(j)) = (first_tick, second_tick) {
-            let code = &trimmed[i+1..j];
+            let code = &trimmed[i + 1..j];
             if let Some(name) = extract_name_from_sig(code) {
                 // desc is rest after closing backtick
-                let rest = &trimmed[j+1..];
+                let rest = &trimmed[j + 1..];
                 let desc = clean_desc(rest);
                 let entry = serde_json::json!({
                     "section": section,
@@ -152,11 +212,23 @@ fn parse_packet_docs_from(content: &str, source: &str, out: &mut BTreeMap<String
                 // prefer longer descriptions when merging
                 match out.get(&name) {
                     Some(prev) => {
-                        let prev_len = prev.get("desc").and_then(|v| v.as_str()).map(|s| s.len()).unwrap_or(0);
-                        let cur_len = entry.get("desc").and_then(|v| v.as_str()).map(|s| s.len()).unwrap_or(0);
-                        if cur_len > prev_len { out.insert(name, entry); }
+                        let prev_len = prev
+                            .get("desc")
+                            .and_then(|v| v.as_str())
+                            .map(|s| s.len())
+                            .unwrap_or(0);
+                        let cur_len = entry
+                            .get("desc")
+                            .and_then(|v| v.as_str())
+                            .map(|s| s.len())
+                            .unwrap_or(0);
+                        if cur_len > prev_len {
+                            out.insert(name, entry);
+                        }
                     }
-                    None => { out.insert(name, entry); }
+                    None => {
+                        out.insert(name, entry);
+                    }
                 }
             }
         }
@@ -183,7 +255,11 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
     //   reflect(vars)
     //   reflect(runtime)
     //   reflect(doc)[@handle]
-    let mode = if let Some(rest) = p.op.strip_prefix("reflect(") { rest.trim_end_matches(')') } else { "" };
+    let mode = if let Some(rest) = p.op.strip_prefix("reflect(") {
+        rest.trim_end_matches(')')
+    } else {
+        ""
+    };
 
     let root = rt
         .effective_root
@@ -193,16 +269,23 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
     match mode {
         "packets" => {
             // Optional @path: file to mod.rs or directory containing src/packets/mod.rs
-            let override_path: Option<PathBuf> = if let Some(crate::kernel::ast::Arg::Str(s)) = p.arg.as_ref() {
-                let rel = if s.starts_with('/') { &s[1..] } else { s.as_str() };
-                let candidate = Path::new(rel);
-                let requested = if rel.ends_with("mod.rs") {
-                    candidate.to_path_buf()
+            let override_path: Option<PathBuf> =
+                if let Some(crate::kernel::ast::Arg::Str(s)) = p.arg.as_ref() {
+                    let rel = if s.starts_with('/') {
+                        &s[1..]
+                    } else {
+                        s.as_str()
+                    };
+                    let candidate = Path::new(rel);
+                    let requested = if rel.ends_with("mod.rs") {
+                        candidate.to_path_buf()
+                    } else {
+                        candidate.join("src").join("packets").join("mod.rs")
+                    };
+                    Some(crate::kernel::fs_guard::resolve(root, &requested)?)
                 } else {
-                    candidate.join("src").join("packets").join("mod.rs")
+                    None
                 };
-                Some(crate::kernel::fs_guard::resolve(root, &requested)?)
-            } else { None };
 
             let json = reflect_packets_from_mod_rs(root, override_path.as_deref())?;
             let doc = Document::new(
@@ -223,9 +306,13 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
             // Build a set of known canonical names
             let mut known = BTreeSet::new();
             if let Some(c) = canon.get("canon") {
-                for key in ["core","files","flow","execs","helpers"] {
+                for key in ["core", "files", "flow", "execs", "helpers"] {
                     if let Some(arr) = c.get(key).and_then(|v| v.as_array()) {
-                        for v in arr { if let Some(s) = v.as_str() { known.insert(s.to_string()); } }
+                        for v in arr {
+                            if let Some(s) = v.as_str() {
+                                known.insert(s.to_string());
+                            }
+                        }
                     }
                 }
             }
@@ -290,9 +377,15 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
         "doc" => {
             // If @handle provided, use that; else expect last to be a doc
             let d = if let Some(crate::kernel::ast::Arg::Ident(id)) = p.arg.as_ref() {
-                match rt.get_var(id) { Some(Value::Doc(d)) => d, _ => bail!("handle_unknown") }
+                match rt.get_var(id) {
+                    Some(Value::Doc(d)) => d,
+                    _ => bail!("handle_unknown"),
+                }
             } else {
-                match &rt.last { Value::Doc(d) => d.clone(), _ => bail!("no_doc_last") }
+                match &rt.last {
+                    Value::Doc(d) => d.clone(),
+                    _ => bail!("no_doc_last"),
+                }
             };
             use serde_json::json;
             let rel_path = d.path.strip_prefix(root).unwrap_or(&d.path).to_path_buf();

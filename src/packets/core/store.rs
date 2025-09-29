@@ -1,7 +1,7 @@
-use anyhow::{Result, bail};
-use crate::kernel::{Runtime, Value, Packet};
 use crate::kernel::ast::Arg;
+use crate::kernel::{Packet, Runtime, Value};
 use crate::packets::conditionals::parse_cond;
+use anyhow::{Result, bail};
 
 pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
     let name = match p.arg.as_ref() {
@@ -24,10 +24,13 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
             } else if mode.starts_with("context") {
                 let mut src = mode.trim_start_matches("context").trim();
                 if src.starts_with('(') && src.ends_with(')') {
-                    src = &src[1..src.len()-1];
+                    src = &src[1..src.len() - 1];
                 }
                 let cond = parse_cond(src);
-                rt.ctx_vars.entry(name.to_string()).or_default().push((cond, val.clone()));
+                rt.ctx_vars
+                    .entry(name.to_string())
+                    .or_default()
+                    .push((cond, val.clone()));
             } else {
                 bail!("unknown_store_mode");
             }
@@ -43,7 +46,7 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{router, kernel::Runtime, kernel::values::Value};
+    use crate::{kernel::Runtime, kernel::values::Value, router};
 
     #[test]
     fn rigid_rejects_overwrite() {
@@ -67,19 +70,25 @@ mod tests {
     fn context_matches_conditions() -> Result<()> {
         let mut rt = Runtime::new()?;
         rt.last = Value::Str("apologetic".into());
-        handle(&mut rt, &Packet {
-            ns: Some("store".into()),
-            op: "context(x==1)".into(),
-            arg: Some(Arg::Ident("tone".into())),
-            body: None,
-        })?;
+        handle(
+            &mut rt,
+            &Packet {
+                ns: Some("store".into()),
+                op: "context(x==1)".into(),
+                arg: Some(Arg::Ident("tone".into())),
+                body: None,
+            },
+        )?;
         rt.last = Value::Str("neutral".into());
-        handle(&mut rt, &Packet {
-            ns: Some("store".into()),
-            op: "context(1==1)".into(),
-            arg: Some(Arg::Ident("tone".into())),
-            body: None,
-        })?;
+        handle(
+            &mut rt,
+            &Packet {
+                ns: Some("store".into()),
+                op: "context(1==1)".into(),
+                arg: Some(Arg::Ident("tone".into())),
+                body: None,
+            },
+        )?;
         rt.set_var("x", Value::Num(1.0))?;
         assert_eq!(rt.get_var("tone"), Some(Value::Str("apologetic".into())));
         rt.set_var("x", Value::Num(0.0))?;

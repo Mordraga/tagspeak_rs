@@ -36,4 +36,3 @@ pub fn handle(_rt: &mut Runtime, p: &Packet) -> Result<Value> {
     }
     Ok(Value::Str(line.trim_end_matches(['\r', '\n']).to_string()))
 }
-

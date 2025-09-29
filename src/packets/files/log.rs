@@ -30,7 +30,11 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
         .as_ref()
         .ok_or_else(|| anyhow::anyhow!("no red.tgsk root"))?;
 
-    let rel = if raw.starts_with('/') { &raw[1..] } else { raw.as_str() };
+    let rel = if raw.starts_with('/') {
+        &raw[1..]
+    } else {
+        raw.as_str()
+    };
     let candidate = if raw.starts_with('/') {
         Path::new(rel).to_path_buf()
     } else {
@@ -40,7 +44,10 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
 
     // Structured mode: if body present, interpret inner packets as literals and build a structured document
     if let Some(body) = &p.body {
-        let mode = detect_mode(&p.op, path.extension().and_then(|e| e.to_str()).unwrap_or(""));
+        let mode = detect_mode(
+            &p.op,
+            path.extension().and_then(|e| e.to_str()).unwrap_or(""),
+        );
         let obj = build_object_from_body(rt, body)?;
         match mode {
             Mode::Json => {
@@ -68,8 +75,8 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
     use crate::router;
+    use std::fs;
 
     #[test]
     fn writes_json() -> Result<()> {
@@ -79,7 +86,7 @@ mod tests {
         fs::write(base.join("red.tgsk"), "")?;
         let script = base.join("sub").join("main.tgsk");
         fs::write(&script, "[msg@\"hi\"]>[log@/out.json]")?;
-        let node = router::parse(&fs::read_to_string(&script)? )?;
+        let node = router::parse(&fs::read_to_string(&script)?)?;
         let mut rt = Runtime::from_entry(&script)?;
         rt.eval(&node)?;
         let content = fs::read_to_string(base.join("out.json"))?;
@@ -91,13 +98,17 @@ mod tests {
     #[test]
     fn structured_json_log() -> Result<()> {
         use std::fs;
-        let base = std::env::temp_dir().join(format!("tgsk_log_struct_json_{}", std::process::id()));
+        let base =
+            std::env::temp_dir().join(format!("tgsk_log_struct_json_{}", std::process::id()));
         let _ = fs::remove_dir_all(&base);
         fs::create_dir_all(base.join("sub"))?;
         fs::write(base.join("red.tgsk"), "")?;
         let script = base.join("sub").join("main.tgsk");
-        fs::write(&script, "[log(json)@/profile.json]{[key(name)@\"Saryn\"][key(age)@25][key(active)@true]}")?;
-        let node = crate::router::parse(&fs::read_to_string(&script)? )?;
+        fs::write(
+            &script,
+            "[log(json)@/profile.json]{[key(name)@\"Saryn\"][key(age)@25][key(active)@true]}",
+        )?;
+        let node = crate::router::parse(&fs::read_to_string(&script)?)?;
         let mut rt = crate::kernel::Runtime::from_entry(&script)?;
         rt.eval(&node)?;
         let content = fs::read_to_string(base.join("profile.json"))?;
@@ -112,7 +123,11 @@ mod tests {
 
 // ---- helpers ----
 
-enum Mode { Json, Yaml, Toml }
+enum Mode {
+    Json,
+    Yaml,
+    Toml,
+}
 
 fn detect_mode(op: &str, ext: &str) -> Mode {
     if let Some(rest) = op.strip_prefix("log(") {
@@ -133,12 +148,19 @@ fn detect_mode(op: &str, ext: &str) -> Mode {
 }
 
 fn write_all(path: &Path, s: &str) -> Result<()> {
-    let mut file = OpenOptions::new().create(true).truncate(true).write(true).open(path)?;
+    let mut file = OpenOptions::new()
+        .create(true)
+        .truncate(true)
+        .write(true)
+        .open(path)?;
     writeln!(file, "{}", s)?;
     Ok(())
 }
 
-fn build_object_from_body(rt: &Runtime, body: &Vec<crate::kernel::Node>) -> Result<serde_json::Value> {
+fn build_object_from_body(
+    rt: &Runtime,
+    body: &Vec<crate::kernel::Node>,
+) -> Result<serde_json::Value> {
     use serde_json::Value as J;
     let mut root = serde_json::Map::new();
     for node in body {
@@ -163,7 +185,10 @@ fn build_object_from_body(rt: &Runtime, body: &Vec<crate::kernel::Node>) -> Resu
                 } else {
                     bail!("sect needs @<name> or (name)");
                 };
-                let inner = pkt.body.as_ref().ok_or_else(|| anyhow::anyhow!("sect missing body"))?;
+                let inner = pkt
+                    .body
+                    .as_ref()
+                    .ok_or_else(|| anyhow::anyhow!("sect missing body"))?;
                 let obj = build_object_from_body(rt, inner)?;
                 root.insert(name, obj);
             } else {
@@ -184,7 +209,9 @@ fn parse_key_name(op: &str) -> Option<&str> {
 fn parse_paren_name(op: &str) -> Option<&str> {
     let start = op.find('(')?;
     let end = op.rfind(')')?;
-    if end <= start + 1 { return None; }
+    if end <= start + 1 {
+        return None;
+    }
     op.get(start + 1..end)
 }
 
@@ -192,7 +219,9 @@ fn value_to_json(v: Value) -> Result<serde_json::Value> {
     Ok(match v {
         Value::Unit => serde_json::Value::Null,
         Value::Bool(b) => serde_json::Value::Bool(b),
-        Value::Num(n) => serde_json::Value::Number(serde_json::Number::from_f64(n).ok_or_else(|| anyhow::anyhow!("invalid number"))?),
+        Value::Num(n) => serde_json::Value::Number(
+            serde_json::Number::from_f64(n).ok_or_else(|| anyhow::anyhow!("invalid number"))?,
+        ),
         Value::Str(s) => serde_json::from_str(&s).unwrap_or(serde_json::Value::String(s)),
         Value::Doc(d) => d.json,
     })
@@ -204,9 +233,12 @@ fn arg_to_json(rt: &Runtime, arg: &Arg) -> Result<serde_json::Value> {
             if n.fract() == 0.0 && *n >= (i64::MIN as f64) && *n <= (i64::MAX as f64) {
                 serde_json::Value::Number(serde_json::Number::from((*n as i64)))
             } else {
-                serde_json::Value::Number(serde_json::Number::from_f64(*n).ok_or_else(|| anyhow::anyhow!("invalid number"))?)
+                serde_json::Value::Number(
+                    serde_json::Number::from_f64(*n)
+                        .ok_or_else(|| anyhow::anyhow!("invalid number"))?,
+                )
             }
-        },
+        }
         Arg::Str(s) => serde_json::from_str(s).unwrap_or(serde_json::Value::String(s.clone())),
         Arg::Ident(id) => match id.as_str() {
             "true" => serde_json::Value::Bool(true),

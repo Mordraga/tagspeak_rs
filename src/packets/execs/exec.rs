@@ -1,8 +1,8 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use std::process::Command;
 
-use crate::kernel::{Arg, Packet, Runtime, Value};
 use crate::kernel::config;
+use crate::kernel::{Arg, Packet, Runtime, Value};
 
 enum ExecMode {
     Stdout,
@@ -43,7 +43,9 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
         .map(|v| matches!(v.as_str(), "1" | "true" | "yes" | "y"))
         .unwrap_or(false);
     if depth <= 0.0 && !allowed_env {
-        bail!("E_YELLOW_REQUIRED: wrap [exec] in [yellow]{{...}} or use [yellow:exec@...] (or set TAGSPEAK_ALLOW_EXEC=1)");
+        bail!(
+            "E_YELLOW_REQUIRED: wrap [exec] in [yellow]{{...}} or use [yellow:exec@...] (or set TAGSPEAK_ALLOW_EXEC=1)"
+        );
     }
 
     let mode = detect_mode(&p.op);
@@ -52,7 +54,9 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
     let cfg = config::load(rt.effective_root.as_deref());
     let depth = rt.get_num("__yellow_depth").unwrap_or(0.0);
     let allowed_by_cfg = {
-        if cfg.allow_exec { true } else {
+        if cfg.allow_exec {
+            true
+        } else {
             // best-effort extract first token for allowlist match
             let first = cmdline.split_whitespace().next().unwrap_or("");
             cfg.exec_allowlist.iter().any(|c| c == first)
@@ -64,15 +68,14 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
             .map(|v| matches!(v.as_str(), "1" | "true" | "yes" | "y"))
             .unwrap_or(false);
         if !allowed_env {
-            anyhow::bail!("E_YELLOW_REQUIRED: wrap [exec] in [yellow]{{...}} or use [yellow:exec@...] (or set TAGSPEAK_ALLOW_EXEC=1)");
+            anyhow::bail!(
+                "E_YELLOW_REQUIRED: wrap [exec] in [yellow]{{...}} or use [yellow:exec@...] (or set TAGSPEAK_ALLOW_EXEC=1)"
+            );
         }
     }
 
     // Compute working directory: effective_root + cwd (if available)
-    let current_dir = rt
-        .effective_root
-        .as_ref()
-        .map(|root| root.join(&rt.cwd));
+    let current_dir = rt.effective_root.as_ref().map(|root| root.join(&rt.cwd));
 
     // Spawn via platform shell so we support pipelines and quoting
     let output = {

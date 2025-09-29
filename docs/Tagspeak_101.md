@@ -45,6 +45,7 @@ Data is always carried forward by the `>` connector:
 - `[obj]{ [key(k)@v] ... }` — produce an in-memory JSON object built from `[key]` and `[sect]`.
 
 - `[len]` — length of last value (string length, array length, or object key count). Also `[len@var|"text"]`.
+- `[rand]` - random number generator; `[rand]` yields a float in (0,1), while `[rand(min,max)]` evaluates each bound (numbers, vars, or packets) and returns ints when both bounds are whole.
 
 - `[env@NAME]` — read an environment variable; returns Unit if missing.
 

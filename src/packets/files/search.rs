@@ -1,14 +1,14 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use serde_yaml::Value as YamlValue;
 use toml::Value as TomlValue;
 
+use crate::kernel::Runtime;
 use crate::kernel::ast::{Arg, Node, Packet};
 use crate::kernel::fs_guard::resolve;
 use crate::kernel::values::{Document, Value};
-use crate::kernel::Runtime;
 use crate::router; // for parsing helpers
 
 /// Opens a file, detects its format, and returns the value at the requested path.
@@ -38,7 +38,11 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
         rt.cwd.join(rel)
     };
     let path = resolve(root, &candidate)?;
-    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
+    let ext = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
     let content = fs::read_to_string(&path)?;
 
     match ext.as_str() {
@@ -166,8 +170,7 @@ mod tests {
 
     #[test]
     fn search_tagspeak_packet() {
-        let base = std::env::temp_dir()
-            .join(format!("tgsk_search_test_{}", std::process::id()));
+        let base = std::env::temp_dir().join(format!("tgsk_search_test_{}", std::process::id()));
         let _ = fs::remove_dir_all(&base);
         fs::create_dir_all(base.join("sub")).unwrap();
         fs::write(base.join("red.tgsk"), "").unwrap();
@@ -189,14 +192,22 @@ mod tests {
 
     #[test]
     fn search_json_value() {
-        let base = std::env::temp_dir()
-            .join(format!("tgsk_search_json_test_{}", std::process::id()));
+        let base =
+            std::env::temp_dir().join(format!("tgsk_search_json_test_{}", std::process::id()));
         let _ = fs::remove_dir_all(&base);
         fs::create_dir_all(base.join("sub")).unwrap();
         fs::write(base.join("red.tgsk"), "").unwrap();
-        fs::write(base.join("chem.json"), "{\"chem\":{\"sodium\":{\"atomic_number\":11}}}").unwrap();
+        fs::write(
+            base.join("chem.json"),
+            "{\"chem\":{\"sodium\":{\"atomic_number\":11}}}",
+        )
+        .unwrap();
         let script = base.join("sub/main.tgsk");
-        fs::write(&script, "[search(/chem.json)@\"chem.sodium.atomic_number\"]>[store@na]").unwrap();
+        fs::write(
+            &script,
+            "[search(/chem.json)@\"chem.sodium.atomic_number\"]>[store@na]",
+        )
+        .unwrap();
 
         let ast = crate::router::parse(&fs::read_to_string(&script).unwrap()).unwrap();
         let mut rt = Runtime::from_entry(&script).unwrap();

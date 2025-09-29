@@ -1,19 +1,22 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use std::path::PathBuf;
 use std::time::SystemTime;
 
-use crate::kernel::{Arg, Packet, Runtime, Value};
 use crate::kernel::values::Document;
+use crate::kernel::{Arg, Packet, Runtime, Value};
 
 fn detect_mode(op: &str) -> Option<&str> {
     if let Some(rest) = op.strip_prefix("parse(") {
-        if let Some(end) = rest.find(')') { return Some(&rest[..end]); }
+        if let Some(end) = rest.find(')') {
+            return Some(&rest[..end]);
+        }
     }
     None
 }
 
 pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
-    let mode = detect_mode(&p.op).ok_or_else(|| anyhow::anyhow!("parse needs mode: parse(json|yaml|toml)"))?;
+    let mode = detect_mode(&p.op)
+        .ok_or_else(|| anyhow::anyhow!("parse needs mode: parse(json|yaml|toml)"))?;
     let s = match &p.arg {
         Some(Arg::Str(s)) => s.clone(),
         Some(Arg::Ident(id)) => id.clone(),
@@ -39,7 +42,10 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
     };
 
     // Build a memory-backed Document so users can [mod] and [dump]; [save] is optional if they set a file later
-    let root = rt.effective_root.as_ref().ok_or_else(|| anyhow::anyhow!("E_BOX_REQUIRED: no red.tgsk"))?;
+    let root = rt
+        .effective_root
+        .as_ref()
+        .ok_or_else(|| anyhow::anyhow!("E_BOX_REQUIRED: no red.tgsk"))?;
     let cwd = rt.cwd.clone();
     let path = root.join(&cwd).join("_parsed.json");
     let doc = Document::new(

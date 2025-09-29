@@ -34,7 +34,11 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
 
     let path = resolve(root, &candidate)?;
     let content = fs::read_to_string(&path)?;
-    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
+    let ext = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
 
     // Parse into a canonical JSON value for in-memory editing
     let json_val: serde_json::Value = match ext.as_str() {
@@ -53,13 +57,7 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
 
     let meta = fs::metadata(&path)?;
     let mtime = meta.modified()?;
-    let doc = Document::new(
-        json_val,
-        path.clone(),
-        ext,
-        mtime,
-        root.clone(),
-    );
+    let doc = Document::new(json_val, path.clone(), ext, mtime, root.clone());
     Ok(Value::Doc(doc))
 }
 

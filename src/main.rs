@@ -3,7 +3,7 @@ mod kernel;
 mod packets;
 mod router;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use kernel::Runtime;
 use std::env;
 use std::fs;
@@ -21,7 +21,9 @@ fn main() -> Result<()> {
         Some(path) => run_script(&path),
         None => {
             // no args: guide the user
-            eprintln!("No input file provided. Usage:\n  tagspeak init [dir]\n  tagspeak <file.tgsk>");
+            eprintln!(
+                "No input file provided. Usage:\n  tagspeak init [dir]\n  tagspeak <file.tgsk>"
+            );
             Err(anyhow!("no_input"))
         }
     }

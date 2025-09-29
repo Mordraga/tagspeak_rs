@@ -1,6 +1,6 @@
-use anyhow::{Result, bail};
-use crate::kernel::{Runtime, Value, Packet};
 use crate::kernel::ast::{Arg, Node};
+use crate::kernel::{Packet, Runtime, Value};
+use anyhow::{Result, bail};
 
 pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
     // Supported forms:
@@ -15,8 +15,10 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
         namespaced_tag = Some(p.op.clone());
         match p.arg.as_ref() {
             Some(Arg::Number(n)) => *n as usize,
-            Some(Arg::Ident(id)) => rt.get_var(id).and_then(|v| v.try_num()).unwrap_or(0.0) as usize,
-            Some(Arg::Str(s))    => s.parse::<f64>().unwrap_or(0.0) as usize,
+            Some(Arg::Ident(id)) => {
+                rt.get_var(id).and_then(|v| v.try_num()).unwrap_or(0.0) as usize
+            }
+            Some(Arg::Str(s)) => s.parse::<f64>().unwrap_or(0.0) as usize,
             _ => bail!("loop needs N: [loop:tag@3]"),
         }
     } else if let Some(rest) = p.op.strip_prefix("loop") {
@@ -24,8 +26,10 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
             // [loop@N]{...}
             match p.arg.as_ref() {
                 Some(Arg::Number(n)) => *n as usize,
-                Some(Arg::Ident(id)) => rt.get_var(id).and_then(|v| v.try_num()).unwrap_or(0.0) as usize,
-                Some(Arg::Str(s))    => s.parse::<f64>().unwrap_or(0.0) as usize,
+                Some(Arg::Ident(id)) => {
+                    rt.get_var(id).and_then(|v| v.try_num()).unwrap_or(0.0) as usize
+                }
+                Some(Arg::Str(s)) => s.parse::<f64>().unwrap_or(0.0) as usize,
                 _ => bail!("loop needs N: [loop@3]{{...}} or [loop3@tag]"),
             }
         } else {
@@ -55,8 +59,14 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
             _ => bail!("loopN needs @tag: [loop3@tag] or [loop:tag@N]"),
         }
     };
-    let body = rt.tags.get(&tag)
-        .ok_or_else(|| anyhow::anyhow!(format!("unknown tag '{tag}' — define [funct:{tag}]{{...}} first")))?
+    let body = rt
+        .tags
+        .get(&tag)
+        .ok_or_else(|| {
+            anyhow::anyhow!(format!(
+                "unknown tag '{tag}' — define [funct:{tag}]{{...}} first"
+            ))
+        })?
         .clone();
 
     let mut last = Value::Unit;

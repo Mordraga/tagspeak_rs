@@ -1,7 +1,7 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 
-use crate::kernel::{Node, Packet, Runtime, Value};
 use crate::kernel::values::Document;
+use crate::kernel::{Node, Packet, Runtime, Value};
 
 pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
     let handle = match &p.arg {
@@ -9,13 +9,18 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
         Some(crate::kernel::ast::Arg::Str(s)) => s,
         _ => bail!("iter needs @<handle>"),
     };
-    let body = p.body.as_ref().ok_or_else(|| anyhow::anyhow!("iter needs body"))?;
+    let body = p
+        .body
+        .as_ref()
+        .ok_or_else(|| anyhow::anyhow!("iter needs body"))?;
 
     let doc = match rt.get_var(handle) {
         Some(Value::Doc(d)) => d,
         _ => bail!("handle_unknown"),
     };
-    if !doc.json.is_array() { bail!("not_array"); }
+    if !doc.json.is_array() {
+        bail!("not_array");
+    }
     let arr = doc.json.as_array().unwrap();
 
     let mut last = Value::Unit;
@@ -41,4 +46,3 @@ fn json_to_value(v: &serde_json::Value, meta: &Document) -> Value {
         }
     }
 }
-

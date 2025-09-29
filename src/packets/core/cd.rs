@@ -1,8 +1,8 @@
 use anyhow::Result;
 use std::path::Path;
 
-use crate::kernel::{Arg, Packet, Runtime, Value};
 use crate::kernel::fs_guard::resolve;
+use crate::kernel::{Arg, Packet, Runtime, Value};
 
 // [cd@/path] or [cd@relative/path] -> change runtime cwd within red root
 // Returns the new cwd as a string starting with '/'.
@@ -23,7 +23,11 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
         return Ok(Value::Str(disp));
     }
 
-    let rel = if raw.starts_with('/') { &raw[1..] } else { raw.as_str() };
+    let rel = if raw.starts_with('/') {
+        &raw[1..]
+    } else {
+        raw.as_str()
+    };
     let candidate = if raw.starts_with('/') {
         Path::new(rel).to_path_buf()
     } else {
@@ -38,4 +42,3 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
     let disp = format!("/{}", rt.cwd.display());
     Ok(Value::Str(disp))
 }
-

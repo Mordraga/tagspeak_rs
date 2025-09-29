@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use std::io::{self, Write};
 use std::sync::{Mutex, OnceLock};
 
@@ -9,7 +9,9 @@ fn parse_model(op: &str) -> Option<String> {
         if let Some(end) = rest.find(')') {
             let raw = &rest[..end];
             let trimmed = raw.trim();
-            if !trimmed.is_empty() { return Some(trimmed.to_string()); }
+            if !trimmed.is_empty() {
+                return Some(trimmed.to_string());
+            }
         }
     }
     None
@@ -35,14 +37,18 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
     let slot = ACTIVE.get_or_init(|| Mutex::new(false));
     // Prevent nested or concurrent REPL
     if let Ok(mut flag) = slot.lock() {
-        if *flag { bail!("E_REPL_ACTIVE: a REPL is already running"); }
+        if *flag {
+            bail!("E_REPL_ACTIVE: a REPL is already running");
+        }
         *flag = true;
     }
 
     if noninteractive() {
         // REPL requires interaction; default-deny
         // release flag before return
-        if let Ok(mut flag) = ACTIVE.get().unwrap().lock() { *flag = false; }
+        if let Ok(mut flag) = ACTIVE.get().unwrap().lock() {
+            *flag = false;
+        }
         return Ok(Value::Unit);
     }
 
@@ -50,7 +56,11 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
     let prompt_symbol = format!("{}> ", model);
 
     let mut stdout = io::stdout();
-    writeln!(stdout, "[repl] starting (model: {}) — type 'exit' to quit", model)?;
+    writeln!(
+        stdout,
+        "[repl] starting (model: {}) — type 'exit' to quit",
+        model
+    )?;
     stdout.flush()?;
 
     loop {
@@ -58,10 +68,16 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
         write!(stdout, "{}", prompt_symbol)?;
         stdout.flush()?;
         let mut line = String::new();
-        if io::stdin().read_line(&mut line).is_err() { break; }
+        if io::stdin().read_line(&mut line).is_err() {
+            break;
+        }
         let q = line.trim_end_matches(['\r', '\n']).to_string();
-        if q.eq_ignore_ascii_case("exit") || q.eq_ignore_ascii_case("quit") { break; }
-        if q.is_empty() { continue; }
+        if q.eq_ignore_ascii_case("exit") || q.eq_ignore_ascii_case("quit") {
+            break;
+        }
+        if q.is_empty() {
+            continue;
+        }
 
         // Expose input as variable 'q'
         rt.set_var("q", Value::Str(q.clone()))?;
@@ -75,16 +91,28 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
 
         // Print the output neatly; also set as last
         match &out {
-            Value::Unit => { writeln!(stdout, "(ok)")?; }
-            Value::Str(s) => { writeln!(stdout, "{}", s)?; }
-            Value::Num(n) => { writeln!(stdout, "{}", n)?; }
-            Value::Bool(b) => { writeln!(stdout, "{}", b)?; }
-            Value::Doc(_) => { writeln!(stdout, "<doc>")?; }
+            Value::Unit => {
+                writeln!(stdout, "(ok)")?;
+            }
+            Value::Str(s) => {
+                writeln!(stdout, "{}", s)?;
+            }
+            Value::Num(n) => {
+                writeln!(stdout, "{}", n)?;
+            }
+            Value::Bool(b) => {
+                writeln!(stdout, "{}", b)?;
+            }
+            Value::Doc(_) => {
+                writeln!(stdout, "<doc>")?;
+            }
         }
         stdout.flush()?;
         rt.last = out;
     }
     // release flag when exiting
-    if let Ok(mut flag) = ACTIVE.get().unwrap().lock() { *flag = false; }
+    if let Ok(mut flag) = ACTIVE.get().unwrap().lock() {
+        *flag = false;
+    }
     Ok(Value::Unit)
 }
