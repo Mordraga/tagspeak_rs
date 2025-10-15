@@ -10,6 +10,7 @@ pub struct Scanner<'a> {
     src: &'a [u8],
     pub i: usize,
     len: usize,
+    limit: usize,
 }
 
 impl<'a> Scanner<'a> {
@@ -18,32 +19,57 @@ impl<'a> Scanner<'a> {
         self.i
     }
     pub fn len(&self) -> usize {
-        self.len
+        self.limit
     }
     pub fn slice(&self, start: usize, end: usize) -> &[u8] {
         &self.src[start..end]
     }
 
+    pub fn total_len(&self) -> usize {
+        self.len
+    }
+
     // ---- core ----
     pub fn new(s: &'a str) -> Self {
+        let bytes = s.as_bytes();
+        let len = bytes.len();
         Self {
-            src: s.as_bytes(),
+            src: bytes,
             i: 0,
-            len: s.len(),
+            len,
+            limit: len,
         }
     }
+
+    pub fn subscanner(&self, start: usize, end: usize) -> Self {
+        assert!(start <= end, "invalid scanner range");
+        assert!(end <= self.len, "subscanner exceeds source length");
+        Self {
+            src: self.src,
+            i: start,
+            len: self.len,
+            limit: end,
+        }
+    }
+
+    pub fn limit(&self) -> usize {
+        self.limit
+    }
     pub fn peek(&self) -> Option<char> {
-        (self.i < self.len).then(|| self.src[self.i] as char)
+        (self.i < self.limit).then(|| self.src[self.i] as char)
     }
     pub fn next(&mut self) -> Option<char> {
-        let c = self.peek()?;
+        if self.i >= self.limit {
+            return None;
+        }
+        let c = self.src[self.i] as char;
         self.i += 1;
         Some(c)
     }
 
     fn starts_with(&self, s: &str) -> bool {
         let n = s.len();
-        self.i + n <= self.len && &self.src[self.i..self.i + n] == s.as_bytes()
+        self.i + n <= self.limit && &self.src[self.i..self.i + n] == s.as_bytes()
     }
 
     fn skip_ws(&mut self) {
@@ -84,7 +110,7 @@ impl<'a> Scanner<'a> {
             // /* block comment */
             if self.starts_with("/*") {
                 self.i += 2;
-                while self.i + 1 < self.len {
+                while self.i + 1 < self.limit {
                     if self.starts_with("*/") {
                         self.i += 2;
                         break;
@@ -99,12 +125,12 @@ impl<'a> Scanner<'a> {
     }
 
     pub fn eof(&self) -> bool {
-        self.i >= self.len
+        self.i >= self.limit
     }
 
     // --- location helpers ---
     pub fn line_col_at(&self, pos: usize) -> (usize, usize) {
-        let pos = pos.min(self.len);
+        let pos = pos.min(self.limit);
         let before = &self.src[..pos];
         let mut line: usize = 1;
         let mut last_nl: usize = 0;
@@ -150,7 +176,7 @@ impl<'a> Scanner<'a> {
         bail!("unterminated string starting before {}:{}", ln, col)
     }
 
-    pub fn read_until_balanced(&mut self, open: char, close: char) -> Result<String> {
+    pub fn read_until_balanced(&mut self, open: char, close: char) -> Result<(String, Span)> {
         // assumes current char == open
         if self.next() != Some(open) {
             let (ln, col) = self.cur_line_col();
@@ -158,6 +184,7 @@ impl<'a> Scanner<'a> {
         }
         let mut out = String::new();
         let mut depth = 1usize;
+        let inner_start = self.i;
         while let Some(c) = self.next() {
             if c == '\\' {
                 if let Some(nc) = self.next() {
@@ -172,13 +199,21 @@ impl<'a> Scanner<'a> {
             if c == close {
                 depth -= 1;
                 if depth == 0 {
-                    return Ok(out);
+                    let span = Span {
+                        start: inner_start,
+                        end: self.i - 1,
+                    };
+                    return Ok((out, span));
                 }
             }
             out.push(c);
         }
         let (ln, col) = self.cur_line_col();
         bail!("unbalanced {} ... {} before {}:{}", open, close, ln, col)
+    }
+
+    pub fn char_at(&self, idx: usize) -> Option<char> {
+        (idx < self.limit).then(|| self.src[idx] as char)
     }
 
     pub fn read_ident_or_number(&mut self) -> String {

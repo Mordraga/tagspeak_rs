@@ -35,7 +35,15 @@ impl ParseError {
     }
 
     pub fn from_diagnostics(mut diagnostics: Vec<ParseDiagnostic>) -> Self {
-        diagnostics.sort_by(|a, b| Self::sort_key(a).cmp(&Self::sort_key(b)));
+        diagnostics.sort_by(|a, b| {
+            Self::sort_key(a)
+                .cmp(&Self::sort_key(b))
+                .then_with(|| a.summary.cmp(&b.summary))
+                .then_with(|| a.panel.cmp(&b.panel))
+        });
+        diagnostics.dedup_by(|a, b| {
+            a.line == b.line && a.col == b.col && a.summary == b.summary && a.panel == b.panel
+        });
         Self { diagnostics }
     }
 
@@ -129,8 +137,21 @@ fn parse_chain(sc: &mut Scanner, diagnostics: &mut Vec<ParseDiagnostic>) -> Node
             '>' => {
                 sc.next();
             }
+            '#' => {
+                sc.skip_comments_and_ws();
+                continue;
+            }
+            '/' if starts_with(sc, "//") || starts_with(sc, "/*") => {
+                sc.skip_comments_and_ws();
+                continue;
+            }
             _ => {
                 let err_pos = sc.pos();
+                if let Some(comment_start) = comment_line_start(sc, err_pos) {
+                    sc.i = comment_start;
+                    sc.skip_comments_and_ws();
+                    continue;
+                }
                 diagnostics.push(unexpected(sc, "top-level"));
                 resync_after_error(sc, err_pos);
                 continue;
@@ -152,15 +173,15 @@ fn parse_chain(sc: &mut Scanner, diagnostics: &mut Vec<ParseDiagnostic>) -> Node
 
 fn parse_block(sc: &mut Scanner, diagnostics: &mut Vec<ParseDiagnostic>) -> Option<Node> {
     let start = sc.pos();
-    let inner = match sc.read_until_balanced('{', '}') {
-        Ok(inner) => inner,
+    let (_inner, span) = match sc.read_until_balanced('{', '}') {
+        Ok(res) => res,
         Err(err) => {
             diagnostics.push(compose_block_error(sc, start, &err.to_string()));
             resync_after_error(sc, start);
             return None;
         }
     };
-    let mut sub = Scanner::new(&inner);
+    let mut sub = sc.subscanner(span.start, span.end);
     let sub_node = parse_chain(&mut sub, diagnostics);
     let body = match sub_node {
         Node::Chain(v) => v,
@@ -170,7 +191,7 @@ fn parse_block(sc: &mut Scanner, diagnostics: &mut Vec<ParseDiagnostic>) -> Opti
 }
 
 fn parse_packet(sc: &mut Scanner) -> AnyResult<Packet> {
-    let inner = sc.read_until_balanced('[', ']')?;
+    let (inner, _) = sc.read_until_balanced('[', ']')?;
     let (ns_part, op_part, arg_part) = split_packet_parts(&inner);
 
     let ns = ns_part.and_then(|raw| {
@@ -637,6 +658,38 @@ fn starts_with(sc: &Scanner, pat: &str) -> bool {
     end <= sc.len() && sc.slice(start, end) == pat.as_bytes()
 }
 
+fn comment_line_start(sc: &Scanner, pos: usize) -> Option<usize> {
+    let mut pos = pos.min(sc.len());
+    while pos > 0 {
+        if sc.slice(pos - 1, pos)[0] == b'\n' {
+            break;
+        }
+        pos -= 1;
+    }
+
+    let mut first = pos;
+    while first < sc.len() {
+        match sc.slice(first, first + 1)[0] {
+            b' ' | b'\t' | b'\r' => first += 1,
+            _ => break,
+        }
+    }
+
+    if first >= sc.len() {
+        return None;
+    }
+
+    let remaining = sc.slice(first, sc.len());
+    if remaining.starts_with(b"//")
+        || remaining.starts_with(b"/*")
+        || remaining.first().copied() == Some(b'#')
+    {
+        Some(first)
+    } else {
+        None
+    }
+}
+
 fn unexpected(sc: &Scanner, where_: &str) -> ParseDiagnostic {
     let (line_text, col, line_no) = line_context_with_number(sc, sc.pos());
     let snippet = line_text.trim_end_matches('\r').replace('\t', "    ");
@@ -709,7 +762,11 @@ fn render_pretty_error(
     let (line_text, col, line_no) = if let Some((detail_line, detail_col)) = detail_pos {
         if detail_line >= packet_line_no {
             if let Some((line, _)) = line_by_number(sc, detail_line) {
-                (line, detail_col, detail_line)
+                if detail_line > packet_line_no && line.trim().is_empty() {
+                    (packet_line, packet_col, packet_line_no)
+                } else {
+                    (line, detail_col, detail_line)
+                }
             } else {
                 (packet_line, packet_col, packet_line_no)
             }
@@ -820,17 +877,16 @@ pub fn parse_single_packet(src: &str) -> AnyResult<Packet> {
 }
 
 fn resync_after_error(sc: &mut Scanner, origin: usize) {
-    let mut pos = origin.saturating_add(1);
-    let bytes = sc.slice(0, sc.len());
-    while pos < sc.len() {
-        let b = bytes[pos];
-        if b == b'\n' {
+    let mut pos = origin.saturating_add(1).max(sc.pos());
+    let limit = sc.limit();
+    while pos < limit {
+        if sc.char_at(pos) == Some('\n') {
             sc.i = pos + 1;
             return;
         }
         pos += 1;
     }
-    sc.i = sc.len();
+    sc.i = limit;
 }
 
 #[cfg(test)]
