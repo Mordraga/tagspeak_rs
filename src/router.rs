@@ -1,32 +1,80 @@
 use crate::error_style::{friendly_hint, render_error_box, unexpected_hint};
 use crate::interpreter::Scanner;
 use crate::kernel::ast::{Arg, Node, Packet};
-use anyhow::{Result, anyhow, bail};
+use anyhow::{Result as AnyResult, bail};
+use std::fmt;
 
-pub fn parse(src: &str) -> Result<Node> {
+pub fn parse(src: &str) -> Result<Node, ParseError> {
     let mut sc = Scanner::new(src);
     let mut diagnostics = Vec::new();
     let node = parse_chain(&mut sc, &mut diagnostics);
     if diagnostics.is_empty() {
         Ok(node)
     } else {
-        diagnostics.sort_by_key(|d| d.line);
-        let joined = diagnostics
-            .into_iter()
-            .map(|d| d.message)
-            .collect::<Vec<_>>()
-            .join("\n\n");
-        Err(anyhow!(joined))
+        Err(ParseError::from_diagnostics(diagnostics))
     }
 }
 
-#[derive(Debug)]
-struct Diagnostic {
-    line: usize,
-    message: String,
+#[derive(Debug, Clone)]
+pub struct ParseDiagnostic {
+    pub line: usize,
+    pub col: usize,
+    pub summary: String,
+    pub panel: String,
 }
 
-fn parse_chain(sc: &mut Scanner, diagnostics: &mut Vec<Diagnostic>) -> Node {
+#[derive(Debug)]
+pub struct ParseError {
+    diagnostics: Vec<ParseDiagnostic>,
+}
+
+#[allow(dead_code)]
+impl ParseError {
+    fn sort_key(diag: &ParseDiagnostic) -> (usize, usize) {
+        (diag.line, diag.col)
+    }
+
+    pub fn from_diagnostics(mut diagnostics: Vec<ParseDiagnostic>) -> Self {
+        diagnostics.sort_by(|a, b| {
+            Self::sort_key(a)
+                .cmp(&Self::sort_key(b))
+                .then_with(|| a.summary.cmp(&b.summary))
+                .then_with(|| a.panel.cmp(&b.panel))
+        });
+        diagnostics.dedup_by(|a, b| {
+            a.line == b.line && a.col == b.col && a.summary == b.summary && a.panel == b.panel
+        });
+        Self { diagnostics }
+    }
+
+    pub fn diagnostics(&self) -> &[ParseDiagnostic] {
+        &self.diagnostics
+    }
+
+    pub fn into_diagnostics(self) -> Vec<ParseDiagnostic> {
+        self.diagnostics
+    }
+}
+
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut first = true;
+        for diag in &self.diagnostics {
+            if !first {
+                writeln!(f)?;
+                writeln!(f)?;
+            }
+            first = false;
+            writeln!(f, "{}", diag.summary)?;
+            writeln!(f, "{}", diag.panel)?;
+        }
+        Ok(())
+    }
+}
+
+impl std::error::Error for ParseError {}
+
+fn parse_chain(sc: &mut Scanner, diagnostics: &mut Vec<ParseDiagnostic>) -> Node {
     let mut nodes = Vec::new();
 
     loop {
@@ -89,11 +137,22 @@ fn parse_chain(sc: &mut Scanner, diagnostics: &mut Vec<Diagnostic>) -> Node {
             '>' => {
                 sc.next();
             }
+            '#' => {
+                sc.skip_comments_and_ws();
+                continue;
+            }
+            '/' if starts_with(sc, "//") || starts_with(sc, "/*") => {
+                sc.skip_comments_and_ws();
+                continue;
+            }
             _ => {
                 let err_pos = sc.pos();
-                let message = unexpected(sc, "top-level");
-                let (_, _, line_no) = line_context_with_number(sc, err_pos);
-                diagnostics.push(Diagnostic { line: line_no, message });
+                if let Some(comment_start) = comment_line_start(sc, err_pos) {
+                    sc.i = comment_start;
+                    sc.skip_comments_and_ws();
+                    continue;
+                }
+                diagnostics.push(unexpected(sc, "top-level"));
                 resync_after_error(sc, err_pos);
                 continue;
             }
@@ -112,17 +171,17 @@ fn parse_chain(sc: &mut Scanner, diagnostics: &mut Vec<Diagnostic>) -> Node {
     Node::Chain(nodes)
 }
 
-fn parse_block(sc: &mut Scanner, diagnostics: &mut Vec<Diagnostic>) -> Option<Node> {
+fn parse_block(sc: &mut Scanner, diagnostics: &mut Vec<ParseDiagnostic>) -> Option<Node> {
     let start = sc.pos();
-    let inner = match sc.read_until_balanced('{', '}') {
-        Ok(inner) => inner,
+    let (_inner, span) = match sc.read_until_balanced('{', '}') {
+        Ok(res) => res,
         Err(err) => {
             diagnostics.push(compose_block_error(sc, start, &err.to_string()));
             resync_after_error(sc, start);
             return None;
         }
     };
-    let mut sub = Scanner::new(&inner);
+    let mut sub = sc.subscanner(span.start, span.end);
     let sub_node = parse_chain(&mut sub, diagnostics);
     let body = match sub_node {
         Node::Chain(v) => v,
@@ -131,8 +190,8 @@ fn parse_block(sc: &mut Scanner, diagnostics: &mut Vec<Diagnostic>) -> Option<No
     Some(Node::Block(body))
 }
 
-fn parse_packet(sc: &mut Scanner) -> Result<Packet> {
-    let inner = sc.read_until_balanced('[', ']')?;
+fn parse_packet(sc: &mut Scanner) -> AnyResult<Packet> {
+    let (inner, _) = sc.read_until_balanced('[', ']')?;
     let (ns_part, op_part, arg_part) = split_packet_parts(&inner);
 
     let ns = ns_part.and_then(|raw| {
@@ -290,7 +349,7 @@ fn is_ident_like(s: &str) -> bool {
 fn parse_if(
     sc: &mut Scanner,
     cond_src: String,
-    diagnostics: &mut Vec<Diagnostic>,
+    diagnostics: &mut Vec<ParseDiagnostic>,
 ) -> Option<Node> {
     use crate::packets::conditionals::parse_cond;
     let cond = parse_cond(&cond_src);
@@ -362,7 +421,7 @@ fn parse_if(
     })
 }
 
-fn parse_or_else(sc: &mut Scanner, diagnostics: &mut Vec<Diagnostic>) -> Option<Vec<Node>> {
+fn parse_or_else(sc: &mut Scanner, diagnostics: &mut Vec<ParseDiagnostic>) -> Option<Vec<Node>> {
     use crate::packets::conditionals::parse_cond;
     sc.skip_comments_and_ws();
     if starts_with(sc, "[or@") || starts_with(sc, "[or(") {
@@ -375,14 +434,13 @@ fn parse_or_else(sc: &mut Scanner, diagnostics: &mut Vec<Diagnostic>) -> Option<
                 return None;
             }
         };
-        let src =
-            match extract_conditional_arg(sc, &pkt, or_start, diagnostics, "or") {
-                Some(s) => s,
-                None => {
-                    resync_after_error(sc, or_start);
-                    return None;
-                }
-            };
+        let src = match extract_conditional_arg(sc, &pkt, or_start, diagnostics, "or") {
+            Some(s) => s,
+            None => {
+                resync_after_error(sc, or_start);
+                return None;
+            }
+        };
         sc.skip_comments_and_ws();
         if sc.peek() == Some('>') {
             sc.next();
@@ -511,19 +569,21 @@ fn plain_error_box(
     detail: &str,
     hint: &str,
     summary: &str,
-) -> Diagnostic {
+) -> ParseDiagnostic {
     let (line_text, col, line_no) = line_context_with_number(sc, pos);
     let snippet = line_text.trim_end_matches('\r').replace('\t', "    ");
-    let box_msg = render_error_box(line_no, col, &snippet, hint, detail);
-    Diagnostic {
+    let panel = render_error_box(line_no, col, &snippet, hint, detail);
+    ParseDiagnostic {
         line: line_no,
-        message: format!("{summary} on line {line_no}\n{box_msg}"),
+        col,
+        summary: format!("{summary} on line {line_no}"),
+        panel,
     }
 }
 
-fn compose_packet_error(sc: &Scanner, start: usize, detail: &str) -> Diagnostic {
+fn compose_packet_error(sc: &Scanner, start: usize, detail: &str) -> ParseDiagnostic {
     let detail_pos = extract_line_col(detail);
-    let (line_no, pretty) = render_pretty_error(sc, start, detail, detail_pos, None);
+    let (line_no, col, panel) = render_pretty_error(sc, start, detail, detail_pos, None);
     let prefix = if detail.contains("empty packet op") {
         format!("Empty packet op on line {}", line_no)
     } else if let Some(label) = packet_label_hint(sc, start) {
@@ -531,19 +591,23 @@ fn compose_packet_error(sc: &Scanner, start: usize, detail: &str) -> Diagnostic 
     } else {
         format!("Malformed packet starting on line {}", line_no)
     };
-    Diagnostic {
+    ParseDiagnostic {
         line: line_no,
-        message: format!("{prefix}\n{pretty}"),
+        col,
+        summary: prefix,
+        panel,
     }
 }
 
-fn compose_block_error(sc: &Scanner, start: usize, detail: &str) -> Diagnostic {
+fn compose_block_error(sc: &Scanner, start: usize, detail: &str) -> ParseDiagnostic {
     let detail_pos = extract_line_col(detail);
-    let (line_no, pretty) = render_pretty_error(sc, start, detail, detail_pos, None);
+    let (line_no, col, panel) = render_pretty_error(sc, start, detail, detail_pos, None);
     let summary = format!("Block parse error on line {}", line_no);
-    Diagnostic {
+    ParseDiagnostic {
         line: line_no,
-        message: format!("{summary}\n{pretty}"),
+        col,
+        summary,
+        panel,
     }
 }
 
@@ -551,7 +615,7 @@ fn extract_conditional_arg(
     sc: &Scanner,
     pkt: &Packet,
     packet_start: usize,
-    diagnostics: &mut Vec<Diagnostic>,
+    diagnostics: &mut Vec<ParseDiagnostic>,
     keyword: &str,
 ) -> Option<String> {
     if pkt.op == keyword {
@@ -594,7 +658,39 @@ fn starts_with(sc: &Scanner, pat: &str) -> bool {
     end <= sc.len() && sc.slice(start, end) == pat.as_bytes()
 }
 
-fn unexpected(sc: &Scanner, where_: &str) -> String {
+fn comment_line_start(sc: &Scanner, pos: usize) -> Option<usize> {
+    let mut pos = pos.min(sc.len());
+    while pos > 0 {
+        if sc.slice(pos - 1, pos)[0] == b'\n' {
+            break;
+        }
+        pos -= 1;
+    }
+
+    let mut first = pos;
+    while first < sc.len() {
+        match sc.slice(first, first + 1)[0] {
+            b' ' | b'\t' | b'\r' => first += 1,
+            _ => break,
+        }
+    }
+
+    if first >= sc.len() {
+        return None;
+    }
+
+    let remaining = sc.slice(first, sc.len());
+    if remaining.starts_with(b"//")
+        || remaining.starts_with(b"/*")
+        || remaining.first().copied() == Some(b'#')
+    {
+        Some(first)
+    } else {
+        None
+    }
+}
+
+fn unexpected(sc: &Scanner, where_: &str) -> ParseDiagnostic {
     let (line_text, col, line_no) = line_context_with_number(sc, sc.pos());
     let snippet = line_text.trim_end_matches('\r').replace('\t', "    ");
     let offending = sc.peek().unwrap_or('?');
@@ -603,7 +699,13 @@ fn unexpected(sc: &Scanner, where_: &str) -> String {
         offending
     );
     let hint = unexpected_hint(offending, where_);
-    render_error_box(line_no, col, &snippet, &hint, &detail)
+    let panel = render_error_box(line_no, col, &snippet, &hint, &detail);
+    ParseDiagnostic {
+        line: line_no,
+        col,
+        summary: format!("Unexpected character near {where_} on line {line_no}"),
+        panel,
+    }
 }
 
 // --- helpers for packet extraction ---
@@ -655,12 +757,16 @@ fn render_pretty_error(
     detail: &str,
     detail_pos: Option<(usize, usize)>,
     hint_override: Option<&str>,
-) -> (usize, String) {
+) -> (usize, usize, String) {
     let (packet_line, packet_col, packet_line_no) = line_context_with_number(sc, start);
     let (line_text, col, line_no) = if let Some((detail_line, detail_col)) = detail_pos {
         if detail_line >= packet_line_no {
             if let Some((line, _)) = line_by_number(sc, detail_line) {
-                (line, detail_col, detail_line)
+                if detail_line > packet_line_no && line.trim().is_empty() {
+                    (packet_line, packet_col, packet_line_no)
+                } else {
+                    (line, detail_col, detail_line)
+                }
             } else {
                 (packet_line, packet_col, packet_line_no)
             }
@@ -677,7 +783,7 @@ fn render_pretty_error(
         .unwrap_or_else(|| friendly_hint(detail));
     let detail_line = format!("engine says: {detail}");
     let box_msg = render_error_box(line_no, col, &snippet, &hint_owned, &detail_line);
-    (line_no, box_msg)
+    (line_no, col, box_msg)
 }
 
 fn line_by_number(sc: &Scanner, target: usize) -> Option<(String, usize)> {
@@ -756,8 +862,8 @@ pub fn extract_paren(op: &str) -> Option<&str> {
 }
 
 /// Parse a source snippet containing exactly one packet and return that packet.
-pub fn parse_single_packet(src: &str) -> Result<Packet> {
-    match parse(src)? {
+pub fn parse_single_packet(src: &str) -> AnyResult<Packet> {
+    match parse(src).map_err(anyhow::Error::new)? {
         Node::Packet(p) => Ok(p),
         Node::Chain(mut v) if v.len() == 1 => {
             if let Node::Packet(p) = v.remove(0) {
@@ -771,17 +877,16 @@ pub fn parse_single_packet(src: &str) -> Result<Packet> {
 }
 
 fn resync_after_error(sc: &mut Scanner, origin: usize) {
-    let mut pos = origin.saturating_add(1);
-    let bytes = sc.slice(0, sc.len());
-    while pos < sc.len() {
-        let b = bytes[pos];
-        if b == b'\n' {
+    let mut pos = origin.saturating_add(1).max(sc.pos());
+    let limit = sc.limit();
+    while pos < limit {
+        if sc.char_at(pos) == Some('\n') {
             sc.i = pos + 1;
             return;
         }
         pos += 1;
     }
-    sc.i = sc.len();
+    sc.i = limit;
 }
 
 #[cfg(test)]

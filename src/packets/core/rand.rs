@@ -58,7 +58,7 @@ fn eval_expr(rt: &mut Runtime, expr: &str) -> Result<f64> {
     }
 
     if trimmed.starts_with('[') {
-        let node = crate::router::parse(trimmed)?;
+        let node = crate::router::parse(trimmed).map_err(anyhow::Error::new)?;
         let prev_last = rt.last.clone();
         let result = rt.eval(&node);
         let out = match result {
@@ -113,7 +113,7 @@ mod tests {
     #[test]
     fn default_rand_range() -> Result<()> {
         let mut rt = Runtime::new()?;
-        let node = crate::router::parse("[rand]")?;
+        let node = crate::router::parse("[rand]").map_err(anyhow::Error::new)?;
         let out = rt.eval(&node)?;
         match out {
             Value::Num(n) => {
@@ -127,7 +127,7 @@ mod tests {
     #[test]
     fn bounded_rand_inclusive_ints() -> Result<()> {
         let mut rt = Runtime::new()?;
-        let node = crate::router::parse("[rand(1,3)]")?;
+        let node = crate::router::parse("[rand(1,3)]").map_err(anyhow::Error::new)?;
         let out = rt.eval(&node)?;
         match out {
             Value::Num(n) => {
@@ -142,7 +142,7 @@ mod tests {
     fn rand_with_packet_bounds() -> Result<()> {
         let mut rt = Runtime::new()?;
         let script = "[msg@\"alpha\"]>[rand([len],10)]";
-        let node = crate::router::parse(script)?;
+        let node = crate::router::parse(script).map_err(anyhow::Error::new)?;
         let out = rt.eval(&node)?;
         match out {
             Value::Num(n) => {

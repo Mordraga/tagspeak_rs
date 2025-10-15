@@ -59,7 +59,7 @@ mod tests {
     #[test]
     fn fluid_allows_overwrite() -> Result<()> {
         let script = "[msg@\"a\"]>[store@x]>[msg@\"b\"]>[store:fluid@x]";
-        let node = router::parse(script)?;
+        let node = router::parse(script).map_err(anyhow::Error::new)?;
         let mut rt = Runtime::new()?;
         rt.eval(&node)?;
         assert_eq!(rt.get_var("x"), Some(Value::Str("b".into())));

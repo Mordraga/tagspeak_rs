@@ -99,7 +99,7 @@ fn build(rt: &Runtime, raw_path: String) -> Result<Value> {
     }
 
     let src = fs::read_to_string(&resolved)?;
-    crate::router::parse(&src)?;
+    crate::router::parse(&src).map_err(anyhow::Error::new)?;
 
     let rel = root_relative(rt, &resolved);
     Ok(Value::Str(format!("build_ok {}", rel)))

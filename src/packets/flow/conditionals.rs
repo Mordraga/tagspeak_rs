@@ -249,7 +249,7 @@ pub fn eval_cond(rt: &mut Runtime, cond: &BExpr) -> Result<bool> {
                 // Numeric literals: non-zero = true
                 Ok(n != 0.0 && !n.is_nan())
             } else {
-                let node = crate::router::parse(s)?;
+                let node = crate::router::parse(s).map_err(anyhow::Error::new)?;
                 let mut tmp = Runtime::new()?;
                 tmp.vars = rt.vars.clone();
                 tmp.tags = rt.tags.clone();
@@ -282,7 +282,7 @@ mod tests {
                       [or@([math@1])]>[then]{[math@2]>[store@x]}>\
                       [else]>[then]{[math@3]>[store@x]}";
         let mut rt = Runtime::new()?;
-        let node = router::parse(script)?;
+        let node = router::parse(script).map_err(anyhow::Error::new)?;
         rt.eval(&node)?;
         assert_eq!(rt.get_num("x"), Some(2.0));
         Ok(())
@@ -294,7 +294,7 @@ mod tests {
                       [or@(1[lt]1)]>[then]{[math@20]>[store@x]}>\
                       [else]>[then]{[math@30]>[store@x]}";
         let mut rt = Runtime::new()?;
-        let node = router::parse(script)?;
+        let node = router::parse(script).map_err(anyhow::Error::new)?;
         rt.eval(&node)?;
         assert_eq!(rt.get_num("x"), Some(30.0));
         Ok(())
