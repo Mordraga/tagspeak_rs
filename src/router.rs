@@ -109,14 +109,16 @@ fn parse_chain(sc: &mut Scanner, diagnostics: &mut Vec<ParseDiagnostic>) -> Node
                     let mut pkt = pkt;
                     sc.skip_comments_and_ws();
                     if sc.peek() == Some(']') {
+                        let err_pos = sc.pos();
                         diagnostics.push(plain_error_box(
                             sc,
-                            sc.pos(),
+                            err_pos,
                             "extra closing ']' detected",
                             "Looks like you have a typo here. It's ok. Happens to me also. <3",
                             "Extra closing bracket",
                         ));
                         sc.next();
+                        resync_after_error(sc, err_pos);
                         continue;
                     }
                     if sc.peek() == Some('{') {
@@ -880,9 +882,34 @@ fn resync_after_error(sc: &mut Scanner, origin: usize) {
     let mut pos = origin.saturating_add(1).max(sc.pos());
     let limit = sc.limit();
     while pos < limit {
-        if sc.char_at(pos) == Some('\n') {
-            sc.i = pos + 1;
-            return;
+        match sc.char_at(pos) {
+            Some('\n') => {
+                sc.i = pos + 1;
+                return;
+            }
+            Some('\r') => {
+                sc.i = pos + 1;
+                return;
+            }
+            Some('[') | Some('{') | Some('>') => {
+                sc.i = pos;
+                return;
+            }
+            Some('#') => {
+                sc.i = pos;
+                return;
+            }
+            Some('/') => {
+                if pos + 1 < limit {
+                    if let Some(next) = sc.char_at(pos + 1) {
+                        if next == '/' || next == '*' {
+                            sc.i = pos;
+                            return;
+                        }
+                    }
+                }
+            }
+            _ => {}
         }
         pos += 1;
     }
@@ -905,6 +932,25 @@ mod tests {
         assert!(
             msg.contains("if needs (cond) or @(cond)"),
             "missing conditional diag:\n{msg}"
+        );
+    }
+
+    #[test]
+    fn parse_suppresses_repeated_garbage() {
+        let src = "[math@1+1]]]\n";
+        let err = parse(src).expect_err("expected parse failure with diagnostics");
+        let diag_vec = err.diagnostics().to_vec();
+        assert_eq!(
+            diag_vec.len(),
+            1,
+            "expected a single diagnostic, got {}: {:?}",
+            diag_vec.len(),
+            diag_vec
+        );
+        let rendered = err.to_string();
+        assert!(
+            rendered.contains("extra closing ']' detected"),
+            "missing extra closing panel:\n{rendered}"
         );
     }
 }
