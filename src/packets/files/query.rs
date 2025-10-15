@@ -198,7 +198,7 @@ mod tests {
         rt.set_var("arr", Value::Doc(doc))?;
         rt.set_var("randIndex", Value::Num(1.0))?;
 
-        let node = crate::router::parse("[get(randIndex)@arr]")?;
+        let node = crate::router::parse("[get(randIndex)@arr]").map_err(anyhow::Error::new)?;
         let out = rt.eval(&node)?;
         match out {
             Value::Num(n) => assert_eq!(n, 10.0),
@@ -214,7 +214,7 @@ mod tests {
         rt.set_var("obj", Value::Doc(doc))?;
         rt.set_var("field", Value::Str("beta".into()))?;
 
-        let node = crate::router::parse("[get(field)@obj]")?;
+        let node = crate::router::parse("[get(field)@obj]").map_err(anyhow::Error::new)?;
         let out = rt.eval(&node)?;
         match out {
             Value::Num(n) => assert_eq!(n, 99.0),
