@@ -23,7 +23,7 @@
 
   # 3) Call LLM (Ollama native)
   [yellow@"Call local LLM API?"]{
-    [http(post)@"http://127.0.0.1:11434/api/chat"]{
+    [http(post)@"http://localhost:11434/api/chat"]{
       [key(header.Content-Type)@"application/json"]
       [key(json)@body]
     }

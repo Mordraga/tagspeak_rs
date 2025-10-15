@@ -75,71 +75,45 @@ fn parse_block(sc: &mut Scanner) -> Result<Node> {
 
 fn parse_packet(sc: &mut Scanner) -> Result<Packet> {
     let inner = sc.read_until_balanced('[', ']')?;
-    // inner like: ns:op@arg | op@arg | op | ns:op
-    let mut ns: Option<String> = None;
-    let mut op = String::new();
-    let mut arg: Option<Arg> = None;
+    let (ns_part, op_part, arg_part) = split_packet_parts(&inner);
 
-    let mut i = 0usize;
-    let b = inner.as_bytes();
-    let len = b.len();
-    let peek = |i: usize| -> Option<char> { (i < len).then(|| b[i] as char) };
-
-    // ns/op (split on first ':', stop at '@')
-    let mut acc = String::new();
-    while let Some(c) = peek(i) {
-        if c == ':' || c == '@' {
-            break;
-        }
-        acc.push(c);
-        i += 1;
-    }
-    if peek(i) == Some(':') {
-        ns = Some(acc.trim().to_string());
-        i += 1;
-        acc.clear();
-        while let Some(c) = peek(i) {
-            if c == '@' {
-                break;
-            }
-            acc.push(c);
-            i += 1;
-        }
-        op = acc.trim().to_string();
-    } else {
-        op = acc.trim().to_string();
-    }
-
-    // @arg (optional)
-    if peek(i) == Some('@') {
-        i += 1;
-        while peek(i) == Some(' ') {
-            i += 1;
-        }
-        let raw = inner[i..].trim().to_string();
-        if raw.is_empty() {
-            arg = None;
-        } else if raw.starts_with('"') && raw.contains('+') {
-            arg = Some(Arg::Str(raw));
-        } else if raw.starts_with('"') {
-            let mut sc = Scanner::new(&raw);
-            let s = sc.read_quoted()?;
-            arg = Some(Arg::Str(s));
-        } else if raw.starts_with('(') {
-            arg = Some(Arg::CondSrc(raw));
-        } else if let Ok(n) = raw.parse::<f64>() {
-            arg = Some(Arg::Number(n));
-        } else if is_ident_like(&raw) {
-            arg = Some(Arg::Ident(raw));
+    let ns = ns_part.and_then(|raw| {
+        let trimmed = raw.trim();
+        if trimmed.is_empty() {
+            None
         } else {
-            arg = Some(Arg::Str(raw));
+            Some(trimmed.to_string())
         }
-        i = len;
-    }
+    });
 
-    if op.is_empty() {
-        bail!("empty packet op in [{inner}]");
+    let op_trimmed = op_part.trim();
+    if op_trimmed.is_empty() {
+        bail!("empty packet op in [{}]", inner);
     }
+    let op = op_trimmed.to_string();
+
+    let arg = if let Some(raw) = arg_part {
+        let raw_trimmed = raw.trim();
+        if raw_trimmed.is_empty() {
+            None
+        } else if raw_trimmed.starts_with('"') && raw_trimmed.contains('+') {
+            Some(Arg::Str(raw_trimmed.to_string()))
+        } else if raw_trimmed.starts_with('"') {
+            let mut sc = Scanner::new(raw_trimmed);
+            let s = sc.read_quoted()?;
+            Some(Arg::Str(s))
+        } else if raw_trimmed.starts_with('(') {
+            Some(Arg::CondSrc(raw_trimmed.to_string()))
+        } else if let Ok(n) = raw_trimmed.parse::<f64>() {
+            Some(Arg::Number(n))
+        } else if is_ident_like(raw_trimmed) {
+            Some(Arg::Ident(raw_trimmed.to_string()))
+        } else {
+            Some(Arg::Str(raw_trimmed.to_string()))
+        }
+    } else {
+        None
+    };
 
     Ok(Packet {
         ns,
@@ -147,6 +121,103 @@ fn parse_packet(sc: &mut Scanner) -> Result<Packet> {
         arg,
         body: None,
     })
+}
+
+fn split_packet_parts(inner: &str) -> (Option<&str>, &str, Option<&str>) {
+    let trimmed = inner.trim();
+    if trimmed.is_empty() {
+        return (None, "", None);
+    }
+
+    let mut ns = None;
+    let mut op_section = trimmed;
+    let mut arg = None;
+
+    if let Some(idx) = find_top_level_delim(trimmed, '@') {
+        op_section = trimmed[..idx].trim();
+        let arg_slice = trimmed[idx + 1..].trim();
+        if !arg_slice.is_empty() {
+            arg = Some(arg_slice);
+        }
+    }
+
+    if let Some(idx) = find_top_level_delim(op_section, ':') {
+        let ns_slice = op_section[..idx].trim();
+        if !ns_slice.is_empty() {
+            ns = Some(ns_slice);
+        }
+        op_section = op_section[idx + 1..].trim();
+    }
+
+    (ns, op_section, arg)
+}
+
+fn find_top_level_delim(src: &str, needle: char) -> Option<usize> {
+    let mut depth_paren = 0usize;
+    let mut depth_brack = 0usize;
+    let mut depth_brace = 0usize;
+    let mut in_string = false;
+    let mut escape = false;
+
+    for (idx, ch) in src.char_indices() {
+        if in_string {
+            if escape {
+                escape = false;
+                continue;
+            }
+            if ch == '\\' {
+                escape = true;
+                continue;
+            }
+            if ch == '"' {
+                in_string = false;
+            }
+            continue;
+        }
+
+        match ch {
+            '"' => {
+                in_string = true;
+                continue;
+            }
+            '(' => {
+                depth_paren += 1;
+                continue;
+            }
+            ')' => {
+                if depth_paren > 0 {
+                    depth_paren -= 1;
+                }
+                continue;
+            }
+            '[' => {
+                depth_brack += 1;
+                continue;
+            }
+            ']' => {
+                if depth_brack > 0 {
+                    depth_brack -= 1;
+                }
+                continue;
+            }
+            '{' => {
+                depth_brace += 1;
+                continue;
+            }
+            '}' => {
+                if depth_brace > 0 {
+                    depth_brace -= 1;
+                }
+                continue;
+            }
+            _ => {}
+        }
+
+        if depth_paren == 0 && depth_brack == 0 && depth_brace == 0 && ch == needle {
+            return Some(idx);
+        }
+    }
+    None
 }
 
 fn is_ident_like(s: &str) -> bool {

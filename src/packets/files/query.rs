@@ -24,13 +24,13 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
     let segs = parse_path(&path)?;
     match mode.as_str() {
         "get" => {
-            if let Some(v) = navigate_read(&doc.json, &segs) {
+            if let Some(v) = navigate_read(rt, &doc.json, &segs) {
                 Ok(json_to_value(v, &doc))
             } else {
                 Ok(Value::Unit)
             }
         }
-        "exists" => Ok(Value::Bool(navigate_read(&doc.json, &segs).is_some())),
+        "exists" => Ok(Value::Bool(navigate_read(rt, &doc.json, &segs).is_some())),
         _ => bail!("unknown_query_mode"),
     }
 }
@@ -94,13 +94,47 @@ fn parse_path(path: &str) -> Result<Vec<Segment>> {
     Ok(segs)
 }
 
-fn navigate_read<'a>(root: &'a JsonValue, segs: &[Segment]) -> Option<&'a JsonValue> {
+fn navigate_read<'a>(rt: &Runtime, root: &'a JsonValue, segs: &[Segment]) -> Option<&'a JsonValue> {
     let mut cur = root;
     for seg in segs {
         match seg {
             Segment::Key(k) => {
-                let obj = cur.as_object()?;
-                cur = obj.get(k)?;
+                if let Some(obj) = cur.as_object() {
+                    if let Some(next) = obj.get(k) {
+                        cur = next;
+                        continue;
+                    }
+                    if let Some(var) = rt.get_var(k) {
+                        if let Some(key) = value_to_key(&var) {
+                            if let Some(next) = obj.get(&key) {
+                                cur = next;
+                                continue;
+                            }
+                        }
+                        if let Some(idx) = value_to_index(&var) {
+                            let key_name = idx.to_string();
+                            if let Some(next) = obj.get(&key_name) {
+                                cur = next;
+                                continue;
+                            }
+                        }
+                    }
+                    return None;
+                } else if let Some(arr) = cur.as_array() {
+                    if let Ok(idx) = k.parse::<usize>() {
+                        cur = arr.get(idx)?;
+                        continue;
+                    }
+                    if let Some(var) = rt.get_var(k) {
+                        if let Some(idx) = value_to_index(&var) {
+                            cur = arr.get(idx)?;
+                            continue;
+                        }
+                    }
+                    return None;
+                } else {
+                    return None;
+                }
             }
             Segment::Index(i) => {
                 let arr = cur.as_array()?;
@@ -122,5 +156,70 @@ fn json_to_value(v: &JsonValue, meta: &Document) -> Value {
             d.json = v.clone();
             Value::Doc(d)
         }
+    }
+}
+fn value_to_index(v: &Value) -> Option<usize> {
+    match v {
+        Value::Num(n) if n.is_finite() && n.fract() == 0.0 && *n >= 0.0 => Some(*n as usize),
+        Value::Str(s) => s.trim().parse::<usize>().ok(),
+        Value::Bool(b) => Some(if *b { 1 } else { 0 }),
+        _ => None,
+    }
+}
+
+fn value_to_key(v: &Value) -> Option<String> {
+    match v {
+        Value::Str(s) => Some(s.clone()),
+        _ => value_to_index(v).map(|n| n.to_string()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use anyhow::{Result, bail};
+    use std::path::PathBuf;
+    use std::time::SystemTime;
+
+    fn mk_doc(json: serde_json::Value) -> Document {
+        Document::new(
+            json,
+            PathBuf::from("doc.json"),
+            "json".into(),
+            SystemTime::now(),
+            PathBuf::new(),
+        )
+    }
+
+    #[test]
+    fn get_with_variable_index() -> Result<()> {
+        let mut rt = Runtime::new()?;
+        let doc = mk_doc(serde_json::json!([5, 10, 15]));
+        rt.set_var("arr", Value::Doc(doc))?;
+        rt.set_var("randIndex", Value::Num(1.0))?;
+
+        let node = crate::router::parse("[get(randIndex)@arr]")?;
+        let out = rt.eval(&node)?;
+        match out {
+            Value::Num(n) => assert_eq!(n, 10.0),
+            _ => bail!("expected number"),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn get_with_variable_key() -> Result<()> {
+        let mut rt = Runtime::new()?;
+        let doc = mk_doc(serde_json::json!({"alpha": 42, "beta": 99}));
+        rt.set_var("obj", Value::Doc(doc))?;
+        rt.set_var("field", Value::Str("beta".into()))?;
+
+        let node = crate::router::parse("[get(field)@obj]")?;
+        let out = rt.eval(&node)?;
+        match out {
+            Value::Num(n) => assert_eq!(n, 99.0),
+            _ => bail!("expected number"),
+        }
+        Ok(())
     }
 }
