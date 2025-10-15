@@ -1,32 +1,14 @@
-use crate::error_style::{friendly_hint, render_error_box, unexpected_hint};
+﻿use crate::error_style::{friendly_hint, render_error_box, unexpected_hint};
 use crate::interpreter::Scanner;
 use crate::kernel::ast::{Arg, Node, Packet};
-use anyhow::{Result, anyhow, bail};
+use anyhow::{Result, bail};
 
 pub fn parse(src: &str) -> Result<Node> {
     let mut sc = Scanner::new(src);
-    let mut diagnostics = Vec::new();
-    let node = parse_chain(&mut sc, &mut diagnostics);
-    if diagnostics.is_empty() {
-        Ok(node)
-    } else {
-        diagnostics.sort_by_key(|d| d.line);
-        let joined = diagnostics
-            .into_iter()
-            .map(|d| d.message)
-            .collect::<Vec<_>>()
-            .join("\n\n");
-        Err(anyhow!(joined))
-    }
+    parse_chain(&mut sc)
 }
 
-#[derive(Debug)]
-struct Diagnostic {
-    line: usize,
-    message: String,
-}
-
-fn parse_chain(sc: &mut Scanner, diagnostics: &mut Vec<Diagnostic>) -> Node {
+fn parse_chain(sc: &mut Scanner) -> Result<Node> {
     let mut nodes = Vec::new();
 
     loop {
@@ -35,100 +17,101 @@ fn parse_chain(sc: &mut Scanner, diagnostics: &mut Vec<Diagnostic>) -> Node {
             break;
         }
 
-        let loop_start = sc.pos();
         match sc.peek().unwrap() {
             '[' => {
                 let packet_start = sc.pos();
                 let pkt = match parse_packet(sc) {
                     Ok(pkt) => pkt,
                     Err(err) => {
-                        diagnostics.push(compose_packet_error(sc, packet_start, &err.to_string()));
-                        resync_after_error(sc, packet_start);
-                        continue;
+                        let (line, col) = sc.line_col_at(packet_start);
+                        let detail = err.to_string();
+                        let detail_pos = extract_line_col(&detail);
+                        let pretty = packet_pretty_error(sc, packet_start, &detail, detail_pos);
+                        let prefix = if detail.contains("empty packet op") {
+                            format!("Empty packet op on line {}", line)
+                        } else if let Some(label) = packet_label_hint(sc, packet_start) {
+                            format!("Malformed {} packet on line {}", label, line)
+                        } else {
+                            format!("Malformed packet starting on line {}", line)
+                        };
+                        let message = if let Some(pretty) = pretty {
+                            format!("{}\n{}", prefix, pretty)
+                        } else {
+                            let mut composed = format!("{}: {}", prefix, detail);
+                            if let Some((_, det_col)) = detail_pos {
+                                composed.push_str(&format!(" (col {})", det_col));
+                            } else if col > 0 {
+                                composed.push_str(&format!(" (col {})", col));
+                            }
+                            composed
+                        };
+                        bail!("{}", message);
                     }
                 };
-
+                // conditionals: support [if@(cond)] and [if(cond)]
                 if pkt.ns.is_none() && (pkt.op == "if" || pkt.op.starts_with("if(")) {
-                    let cond_src =
-                        match extract_conditional_arg(sc, &pkt, packet_start, diagnostics, "if") {
-                            Some(src) => src,
-                            None => continue,
-                        };
-                    if let Some(node) = parse_if(sc, cond_src, diagnostics) {
-                        nodes.push(node);
-                    }
+                    let src = if pkt.op == "if" {
+                        match pkt.arg {
+                            Some(Arg::CondSrc(s)) => s,
+                            _ => bail!("if needs (cond) or @(cond)"),
+                        }
+                    } else {
+                        extract_paren(&pkt.op)
+                            .ok_or_else(|| anyhow::anyhow!("if needs (cond)"))?
+                            .to_string()
+                    };
+                    nodes.push(parse_if(sc, src)?);
                 } else {
                     let mut pkt = pkt;
                     sc.skip_comments_and_ws();
                     if sc.peek() == Some(']') {
-                        diagnostics.push(plain_error_box(
-                            sc,
-                            sc.pos(),
-                            "extra closing ']' detected",
+                        let (line_text, col, line_no) = line_context_with_number(sc, sc.pos());
+                        let snippet = line_text.trim_end_matches('\r').replace('\t', "    ");
+                        let detail = format!("extra closing ']' detected at {line_no}:{col}");
+                        let message = render_error_box(
+                            line_no,
+                            col,
+                            &snippet,
                             "Looks like you have a typo here. It's ok. Happens to me also. <3",
-                            "Extra closing bracket",
-                        ));
-                        sc.next();
-                        continue;
+                            &detail,
+                        );
+                        bail!("{}", message);
                     }
                     if sc.peek() == Some('{') {
-                        match parse_block(sc, diagnostics) {
-                            Some(Node::Block(body)) => pkt.body = Some(body),
-                            Some(_) => unreachable!(),
-                            None => continue,
+                        if let Node::Block(body) = parse_block(sc)? {
+                            pkt.body = Some(body);
                         }
                     }
                     nodes.push(Node::Packet(pkt));
                 }
             }
             '{' => {
-                if let Some(block) = parse_block(sc, diagnostics) {
-                    nodes.push(block);
-                }
+                nodes.push(parse_block(sc)?);
             }
             '>' => {
+                // tolerate stray or repeated separators
                 sc.next();
             }
-            _ => {
-                let err_pos = sc.pos();
-                let message = unexpected(sc, "top-level");
-                let (_, _, line_no) = line_context_with_number(sc, err_pos);
-                diagnostics.push(Diagnostic { line: line_no, message });
-                resync_after_error(sc, err_pos);
-                continue;
-            }
+            _ => bail!(unexpected(sc, "top-level")),
         }
 
+        // optional separators; allow multiple and trailing
         sc.skip_comments_and_ws();
         while sc.peek() == Some('>') {
             sc.next();
         }
-
-        if sc.pos() <= loop_start {
-            sc.next();
-        }
     }
 
-    Node::Chain(nodes)
+    Ok(Node::Chain(nodes))
 }
 
-fn parse_block(sc: &mut Scanner, diagnostics: &mut Vec<Diagnostic>) -> Option<Node> {
-    let start = sc.pos();
-    let inner = match sc.read_until_balanced('{', '}') {
-        Ok(inner) => inner,
-        Err(err) => {
-            diagnostics.push(compose_block_error(sc, start, &err.to_string()));
-            resync_after_error(sc, start);
-            return None;
-        }
-    };
+fn parse_block(sc: &mut Scanner) -> Result<Node> {
+    let inner = sc.read_until_balanced('{', '}')?;
     let mut sub = Scanner::new(&inner);
-    let sub_node = parse_chain(&mut sub, diagnostics);
-    let body = match sub_node {
-        Node::Chain(v) => v,
-        other => vec![other],
-    };
-    Some(Node::Block(body))
+    match parse_chain(&mut sub)? {
+        Node::Chain(v) => Ok(Node::Block(v)),
+        other => Ok(Node::Block(vec![other])),
+    }
 }
 
 fn parse_packet(sc: &mut Scanner) -> Result<Packet> {
@@ -287,11 +270,7 @@ fn is_ident_like(s: &str) -> bool {
     it.all(|c| c.is_ascii_alphanumeric() || c == '_')
 }
 
-fn parse_if(
-    sc: &mut Scanner,
-    cond_src: String,
-    diagnostics: &mut Vec<Diagnostic>,
-) -> Option<Node> {
+fn parse_if(sc: &mut Scanner, cond_src: String) -> Result<Node> {
     use crate::packets::conditionals::parse_cond;
     let cond = parse_cond(&cond_src);
 
@@ -301,47 +280,16 @@ fn parse_if(
     }
     sc.skip_comments_and_ws();
 
-    let then_start = sc.pos();
-    let then_pkt = match parse_packet(sc) {
-        Ok(pkt) => pkt,
-        Err(err) => {
-            diagnostics.push(compose_packet_error(sc, then_start, &err.to_string()));
-            resync_after_error(sc, then_start);
-            return None;
-        }
-    };
+    let then_pkt = parse_packet(sc)?;
     if then_pkt.ns.is_some() || then_pkt.op != "then" {
-        diagnostics.push(plain_error_box(
-            sc,
-            then_start,
-            "expected [then]",
-            "Use [then]{...} after conditional branches.",
-            "Conditional needs [then]",
-        ));
-        resync_after_error(sc, then_start);
-        return None;
+        bail!("expected [then]");
     }
-
     sc.skip_comments_and_ws();
     if sc.peek() != Some('{') {
-        diagnostics.push(plain_error_box(
-            sc,
-            sc.pos(),
-            "[then] needs block",
-            "Add a block `{ ... }` immediately after [then].",
-            "Missing [then] block",
-        ));
-        resync_after_error(sc, sc.pos());
-        return None;
+        bail!("[then] needs block");
     }
-
-    let then_b = match parse_block(sc, diagnostics) {
-        Some(Node::Block(body)) => body,
-        Some(_) => unreachable!(),
-        None => {
-            resync_after_error(sc, then_start);
-            return None;
-        }
+    let Node::Block(then_b) = parse_block(sc)? else {
+        unreachable!()
     };
 
     sc.skip_comments_and_ws();
@@ -350,241 +298,79 @@ fn parse_if(
         sc.skip_comments_and_ws();
     }
 
-    let else_b = match parse_or_else(sc, diagnostics) {
-        Some(nodes) => nodes,
-        None => return None,
-    };
-
-    Some(Node::If {
+    let else_b = parse_or_else(sc)?;
+    Ok(Node::If {
         cond,
         then_b,
         else_b,
     })
 }
 
-fn parse_or_else(sc: &mut Scanner, diagnostics: &mut Vec<Diagnostic>) -> Option<Vec<Node>> {
+fn parse_or_else(sc: &mut Scanner) -> Result<Vec<Node>> {
     use crate::packets::conditionals::parse_cond;
     sc.skip_comments_and_ws();
     if starts_with(sc, "[or@") || starts_with(sc, "[or(") {
-        let or_start = sc.pos();
-        let pkt = match parse_packet(sc) {
-            Ok(pkt) => pkt,
-            Err(err) => {
-                diagnostics.push(compose_packet_error(sc, or_start, &err.to_string()));
-                resync_after_error(sc, or_start);
-                return None;
+        let pkt = parse_packet(sc)?;
+        let src = if pkt.op == "or" {
+            match pkt.arg {
+                Some(Arg::CondSrc(s)) => s,
+                _ => bail!("or needs (cond) or @(cond)"),
             }
+        } else if pkt.op.starts_with("or(") {
+            extract_paren(&pkt.op)
+                .ok_or_else(|| anyhow::anyhow!("or needs (cond)"))?
+                .to_string()
+        } else {
+            bail!("expected or clause")
         };
-        let src =
-            match extract_conditional_arg(sc, &pkt, or_start, diagnostics, "or") {
-                Some(s) => s,
-                None => {
-                    resync_after_error(sc, or_start);
-                    return None;
-                }
-            };
         sc.skip_comments_and_ws();
         if sc.peek() == Some('>') {
             sc.next();
             sc.skip_comments_and_ws();
         }
-        let then_start = sc.pos();
-        let then_pkt = match parse_packet(sc) {
-            Ok(pkt) => pkt,
-            Err(err) => {
-                diagnostics.push(compose_packet_error(sc, then_start, &err.to_string()));
-                resync_after_error(sc, then_start);
-                return None;
-            }
-        };
+        let then_pkt = parse_packet(sc)?;
         if then_pkt.ns.is_some() || then_pkt.op != "then" {
-            diagnostics.push(plain_error_box(
-                sc,
-                then_start,
-                "expected [then]",
-                "Use [then]{...} after conditional branches.",
-                "Conditional needs [then]",
-            ));
-            resync_after_error(sc, then_start);
-            return None;
+            bail!("expected [then]");
         }
         sc.skip_comments_and_ws();
         if sc.peek() != Some('{') {
-            diagnostics.push(plain_error_box(
-                sc,
-                sc.pos(),
-                "[then] needs block",
-                "Add a block `{ ... }` immediately after [then].",
-                "Missing [then] block",
-            ));
-            resync_after_error(sc, sc.pos());
-            return None;
+            bail!("[then] needs block");
         }
-        let then_b = match parse_block(sc, diagnostics) {
-            Some(Node::Block(body)) => body,
-            Some(_) => unreachable!(),
-            None => {
-                resync_after_error(sc, then_start);
-                return None;
-            }
+        let Node::Block(then_b) = parse_block(sc)? else {
+            unreachable!()
         };
         sc.skip_comments_and_ws();
         while sc.peek() == Some('>') {
             sc.next();
             sc.skip_comments_and_ws();
         }
-        let else_b = match parse_or_else(sc, diagnostics) {
-            Some(nodes) => nodes,
-            None => return None,
-        };
-        let mut nodes = Vec::new();
-        nodes.push(Node::If {
+        let else_b = parse_or_else(sc)?;
+        Ok(vec![Node::If {
             cond: parse_cond(&src),
             then_b,
             else_b,
-        });
-        Some(nodes)
+        }])
     } else if starts_with(sc, "[else]") {
-        let else_start = sc.pos();
-        let _pkt = match parse_packet(sc) {
-            Ok(pkt) => pkt,
-            Err(err) => {
-                diagnostics.push(compose_packet_error(sc, else_start, &err.to_string()));
-                resync_after_error(sc, else_start);
-                return None;
-            }
-        };
+        let _pkt = parse_packet(sc)?; // consume [else]
         sc.skip_comments_and_ws();
         if sc.peek() == Some('>') {
             sc.next();
             sc.skip_comments_and_ws();
         }
-        let then_start = sc.pos();
-        let then_pkt = match parse_packet(sc) {
-            Ok(pkt) => pkt,
-            Err(err) => {
-                diagnostics.push(compose_packet_error(sc, then_start, &err.to_string()));
-                resync_after_error(sc, then_start);
-                return None;
-            }
-        };
+        let then_pkt = parse_packet(sc)?;
         if then_pkt.ns.is_some() || then_pkt.op != "then" {
-            diagnostics.push(plain_error_box(
-                sc,
-                then_start,
-                "expected [then]",
-                "Use [then]{...} inside else branches.",
-                "Conditional needs [then]",
-            ));
-            resync_after_error(sc, then_start);
-            return None;
+            bail!("expected [then]");
         }
         sc.skip_comments_and_ws();
         if sc.peek() != Some('{') {
-            diagnostics.push(plain_error_box(
-                sc,
-                sc.pos(),
-                "[then] needs block",
-                "Add a block `{ ... }` immediately after [then].",
-                "Missing [then] block",
-            ));
-            resync_after_error(sc, sc.pos());
-            return None;
+            bail!("[then] needs block");
         }
-        let block = match parse_block(sc, diagnostics) {
-            Some(Node::Block(body)) => body,
-            Some(_) => unreachable!(),
-            None => {
-                resync_after_error(sc, then_start);
-                return None;
-            }
+        let Node::Block(block) = parse_block(sc)? else {
+            unreachable!()
         };
-        Some(block)
+        Ok(block)
     } else {
-        Some(Vec::new())
-    }
-}
-
-fn plain_error_box(
-    sc: &Scanner,
-    pos: usize,
-    detail: &str,
-    hint: &str,
-    summary: &str,
-) -> Diagnostic {
-    let (line_text, col, line_no) = line_context_with_number(sc, pos);
-    let snippet = line_text.trim_end_matches('\r').replace('\t', "    ");
-    let box_msg = render_error_box(line_no, col, &snippet, hint, detail);
-    Diagnostic {
-        line: line_no,
-        message: format!("{summary} on line {line_no}\n{box_msg}"),
-    }
-}
-
-fn compose_packet_error(sc: &Scanner, start: usize, detail: &str) -> Diagnostic {
-    let detail_pos = extract_line_col(detail);
-    let (line_no, pretty) = render_pretty_error(sc, start, detail, detail_pos, None);
-    let prefix = if detail.contains("empty packet op") {
-        format!("Empty packet op on line {}", line_no)
-    } else if let Some(label) = packet_label_hint(sc, start) {
-        format!("Malformed {} packet on line {}", label, line_no)
-    } else {
-        format!("Malformed packet starting on line {}", line_no)
-    };
-    Diagnostic {
-        line: line_no,
-        message: format!("{prefix}\n{pretty}"),
-    }
-}
-
-fn compose_block_error(sc: &Scanner, start: usize, detail: &str) -> Diagnostic {
-    let detail_pos = extract_line_col(detail);
-    let (line_no, pretty) = render_pretty_error(sc, start, detail, detail_pos, None);
-    let summary = format!("Block parse error on line {}", line_no);
-    Diagnostic {
-        line: line_no,
-        message: format!("{summary}\n{pretty}"),
-    }
-}
-
-fn extract_conditional_arg(
-    sc: &Scanner,
-    pkt: &Packet,
-    packet_start: usize,
-    diagnostics: &mut Vec<Diagnostic>,
-    keyword: &str,
-) -> Option<String> {
-    if pkt.op == keyword {
-        match &pkt.arg {
-            Some(Arg::CondSrc(s)) => Some(s.clone()),
-            _ => {
-                diagnostics.push(compose_packet_error(
-                    sc,
-                    packet_start,
-                    &format!("{keyword} needs (cond) or @(cond)"),
-                ));
-                None
-            }
-        }
-    } else if pkt.op.starts_with(&format!("{keyword}(")) {
-        match extract_paren(&pkt.op) {
-            Some(src) => Some(src.to_string()),
-            None => {
-                diagnostics.push(compose_packet_error(
-                    sc,
-                    packet_start,
-                    &format!("{keyword} needs (cond)"),
-                ));
-                None
-            }
-        }
-    } else {
-        diagnostics.push(compose_packet_error(
-            sc,
-            packet_start,
-            &format!("expected {keyword} clause"),
-        ));
-        None
+        Ok(Vec::new())
     }
 }
 
@@ -649,13 +435,12 @@ fn capitalize_first(s: &str) -> String {
     }
 }
 
-fn render_pretty_error(
+fn packet_pretty_error(
     sc: &Scanner,
     start: usize,
     detail: &str,
     detail_pos: Option<(usize, usize)>,
-    hint_override: Option<&str>,
-) -> (usize, String) {
+) -> Option<String> {
     let (packet_line, packet_col, packet_line_no) = line_context_with_number(sc, start);
     let (line_text, col, line_no) = if let Some((detail_line, detail_col)) = detail_pos {
         if detail_line >= packet_line_no {
@@ -672,12 +457,15 @@ fn render_pretty_error(
     };
 
     let snippet = line_text.trim_end_matches('\r').replace('\t', "    ");
-    let hint_owned = hint_override
-        .map(|h| h.to_string())
-        .unwrap_or_else(|| friendly_hint(detail));
+    let hint = friendly_hint(detail);
     let detail_line = format!("engine says: {detail}");
-    let box_msg = render_error_box(line_no, col, &snippet, &hint_owned, &detail_line);
-    (line_no, box_msg)
+    Some(render_error_box(
+        line_no,
+        col,
+        &snippet,
+        &hint,
+        &detail_line,
+    ))
 }
 
 fn line_by_number(sc: &Scanner, target: usize) -> Option<(String, usize)> {
@@ -770,36 +558,3 @@ pub fn parse_single_packet(src: &str) -> Result<Packet> {
     }
 }
 
-fn resync_after_error(sc: &mut Scanner, origin: usize) {
-    let mut pos = origin.saturating_add(1);
-    let bytes = sc.slice(0, sc.len());
-    while pos < sc.len() {
-        let b = bytes[pos];
-        if b == b'\n' {
-            sc.i = pos + 1;
-            return;
-        }
-        pos += 1;
-    }
-    sc.i = sc.len();
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn parse_collects_multiple_errors() {
-        let src = "[math@1+1]]\n[if]{[then]{[print]}}\n";
-        let err = parse(src).expect_err("expected parse failure with diagnostics");
-        let msg = err.to_string();
-        assert!(
-            msg.contains("extra closing ']' detected"),
-            "missing bracket diag:\n{msg}"
-        );
-        assert!(
-            msg.contains("if needs (cond) or @(cond)"),
-            "missing conditional diag:\n{msg}"
-        );
-    }
-}

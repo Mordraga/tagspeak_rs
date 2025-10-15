@@ -44,6 +44,7 @@ pub mod execs {
     pub mod red;
     pub mod repl;
     pub mod run;
+    pub mod tagspeak;
 }
 
 // Re-export for backward compatibility with existing paths
@@ -51,6 +52,6 @@ pub use core::{
     array, bool, cd, compare, dump, env, input, int, len, math, msg, note, obj, parse, print, rand,
     reflect, store,
 };
-pub use execs::{confirm, exec, http, red, repl, run};
+pub use execs::{confirm, exec, http, red, repl, run, tagspeak};
 pub use files::{load, log, modify, query, save, search};
 pub use flow::{call, conditionals, funct, iter, r#loop};

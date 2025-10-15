@@ -126,6 +126,7 @@ impl Runtime {
         match (p.ns.as_deref(), p.op.as_str()) {
             // namespaced
             (Some("funct"), _) => crate::packets::funct::handle(self, p),
+            (Some("tagspeak"), _) => crate::packets::tagspeak::handle(self, p),
 
             // allow namespaced loop syntax: [loop:tag@N]
             (Some("loop"), _) => crate::packets::r#loop::handle(self, p),
@@ -158,6 +159,9 @@ impl Runtime {
             (None, "exec") => crate::packets::exec::handle(self, p),
             (None, op) if op.starts_with("exec(") => crate::packets::exec::handle(self, p),
             (None, "run") => crate::packets::run::handle(self, p),
+            (None, op) if op == "tagspeak" || op.starts_with("tagspeak ") => {
+                crate::packets::tagspeak::handle(self, p)
+            }
             (None, "yellow") => crate::packets::confirm::handle(self, p),
             (None, "confirm") => crate::packets::confirm::handle(self, p),
             (None, "red") => crate::packets::red::handle(self, p),

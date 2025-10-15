@@ -1,0 +1,4 @@
+[note@"Validate and run the literals demo"]
+[tagspeak build@/basics/data/literals.tgsk]>[print]
+[tagspeak run@/basics/data/literals.tgsk]
+

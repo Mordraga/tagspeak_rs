@@ -104,7 +104,10 @@ Notes:
 - `[exec@"cmd"]` — run a shell command; returns stdout string. Modes: `[exec(code)@"cmd"]` (exit code), `[exec(stderr)@"cmd"]` (stderr), `[exec(json)@"cmd"]` (JSON string `{code,stdout,stderr}`).
   - Requires a yellow consent block.
 
-- `[run@/path/script.tgsk]` — execute another TagSpeak file inside the same red box; updates cwd relative to that file. Depth limited (default 8, `TAGSPEAK_MAX_RUN_DEPTH`).
+- `[run@/path/script.tgsk]` – execute another TagSpeak file inside the same red box; updates cwd relative to that file. Depth limited (default 8, `TAGSPEAK_MAX_RUN_DEPTH`).
+- `[tagspeak:run@/path/script.tgsk]` – CLI-flavored wrapper around `[run]`. Sugar: `[tagspeak run@/path/script.tgsk]`. Honors the same yellow + depth guards as `[run]`.
+- `[tagspeak:build@/path/script.tgsk]` – parse-check a script without executing; returns `/relative/path` when the syntax is valid.
+  Paths starting with `/` are anchored to the current red root (no leading project directory required).
 
 - `[http(get|post|put|delete)@url]{ [key(header.Name)@val] [key(json)@{...}] [key(body)@"..."] }` — outbound HTTP; disabled by default. Enable with `.tagspeak.toml` `[network]` and allowlist hosts.
 
@@ -206,6 +209,25 @@ version = "0.1.0"
 anyhow = "1"
 serde = "1"
 ```
+
+## CLI Commands
+
+- `tagspeak run <file.tgsk>` – execute a script from the shell (same as double-clicking or calling the binary directly).
+- `tagspeak build <file.tgsk>` – syntax-check a script without running it; prints `build_ok /relative/path` on success.
+
+### CLI Sugar Wrapper
+
+```tgsk
+[tagspeak run@/basics/data/literals.tgsk]
+```
+
+Runs another script using CLI-style sugar. For a syntax check without execution:
+
+```tgsk
+[tagspeak build@/basics/data/literals.tgsk]
+```
+
+Returns `/basics/data/literals.tgsk` on success.
 
 ---
 
