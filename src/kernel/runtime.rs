@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 
 use crate::kernel::ast::{Arg, BExpr, Node, Packet};
 use crate::kernel::fs_guard::find_root;
+use crate::kernel::packet_catalog::suggest_packet;
 use crate::kernel::values::Value;
 
 pub struct Runtime {
@@ -144,6 +145,8 @@ impl Runtime {
             (None, "int") => crate::packets::int::handle(self, p),
             (None, "bool") => crate::packets::bool::handle(self, p),
             (None, "env") => crate::packets::env::handle(self, p),
+            (None, "help") => crate::packets::help::handle(self, p),
+            (None, "lint") => crate::packets::lint::handle(self, p),
             (None, "cd") => crate::packets::cd::handle(self, p),
             (None, "len") => crate::packets::len::handle(self, p),
             (None, "rand") => crate::packets::rand::handle(self, p),
@@ -156,6 +159,7 @@ impl Runtime {
             (None, op) if op.starts_with("log") => crate::packets::log::handle(self, p),
             (None, "save") => crate::packets::save::handle(self, p),
             (None, "mod") => crate::packets::modify::handle(self, p),
+            (None, op) if op.starts_with("mod(") => crate::packets::modify::handle(self, p),
             (None, "exec") => crate::packets::exec::handle(self, p),
             (None, op) if op.starts_with("exec(") => crate::packets::exec::handle(self, p),
             (None, "run") => crate::packets::run::handle(self, p),
@@ -188,7 +192,14 @@ impl Runtime {
             (Some("yellow"), "exec") => crate::packets::confirm::handle_exec(self, p),
             (Some("yellow"), "run") => crate::packets::confirm::handle_run(self, p),
 
-            other => bail!("unknown operation: {:?}", other),
+            other => {
+                let suggestion = suggest_packet(other.0, other.1);
+                if let Some(s) = suggestion {
+                    bail!("unknown operation: {:?} (did you mean '{s}'?)", other);
+                } else {
+                    bail!("unknown operation: {:?}", other);
+                }
+            }
         }
     }
 

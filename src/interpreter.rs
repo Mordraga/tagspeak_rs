@@ -67,6 +67,23 @@ impl<'a> Scanner<'a> {
         Some(c)
     }
 
+    fn newline_len_at(&self, idx: usize) -> usize {
+        if idx >= self.limit {
+            return 0;
+        }
+        match self.src[idx] {
+            b'\n' => 1,
+            b'\r' => {
+                if idx + 1 < self.limit && self.src[idx + 1] == b'\n' {
+                    2
+                } else {
+                    1
+                }
+            }
+            _ => 0,
+        }
+    }
+
     fn starts_with(&self, s: &str) -> bool {
         let n = s.len();
         self.i + n <= self.limit && &self.src[self.i..self.i + n] == s.as_bytes()
@@ -92,6 +109,12 @@ impl<'a> Scanner<'a> {
                     if c == '\n' {
                         break;
                     }
+                    if c == '\r' {
+                        if self.peek() == Some('\n') {
+                            self.i += 1;
+                        }
+                        break;
+                    }
                 }
                 continue;
             }
@@ -101,6 +124,12 @@ impl<'a> Scanner<'a> {
                 self.i += 2;
                 while let Some(c) = self.next() {
                     if c == '\n' {
+                        break;
+                    }
+                    if c == '\r' {
+                        if self.peek() == Some('\n') {
+                            self.i += 1;
+                        }
                         break;
                     }
                 }
@@ -131,16 +160,24 @@ impl<'a> Scanner<'a> {
     // --- location helpers ---
     pub fn line_col_at(&self, pos: usize) -> (usize, usize) {
         let pos = pos.min(self.limit);
-        let before = &self.src[..pos];
         let mut line: usize = 1;
-        let mut last_nl: usize = 0;
-        for (idx, b) in before.iter().enumerate() {
-            if *b == b'\n' {
+        let mut last_break_end: usize = 0;
+        let mut idx = 0usize;
+        while idx < pos {
+            let newline_len = self.newline_len_at(idx);
+            if newline_len > 0 {
+                let break_end = idx + newline_len;
+                if break_end > pos {
+                    break;
+                }
                 line += 1;
-                last_nl = idx + 1;
+                last_break_end = break_end;
+                idx = break_end;
+            } else {
+                idx += 1;
             }
         }
-        let col = pos.saturating_sub(last_nl) + 1;
+        let col = pos.saturating_sub(last_break_end) + 1;
         (line, col)
     }
     pub fn cur_line_col(&self) -> (usize, usize) {

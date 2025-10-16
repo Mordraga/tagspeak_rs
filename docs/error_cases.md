@@ -1,109 +1,65 @@
-## TagSpeak Error Styling Cheat‑Sheet
+# TagSpeak Error Panel Reference
 
-Use these scenarios to sanity‑check the current parser/UI error handling. All examples assume you run `tagspeak_rs path/to/script.tgsk` and expect the colourful panel to appear (plus the prefix line noted below).
+This file records a sampling of diagnostics and the copy we render inside the TagSpeak error panel. It doubles as a quick smoke-check whenever the error style is tweaked.
 
-### 1. Unexpected Character (missing opening bracket)
+## Unexpected Character (Missing Opening Bracket)
 
 ```tgsk
 print@"hello"]
 ```
 
-- **Prefix line:** `Malformed packet starting on line …`
-- **Panel detail:** `unexpected character at top-level: 'p'`
-- **Hint:** “Packets begin with '[' — let's tuck one in right before this darling.”
+- Prefix line: `Unexpected character near top-level on line …`
+- Panel detail: `unexpected character at top-level: 'p'`
+- Hint: `Syntax - Something’s a little out of place. Deep breath. Let’s sort out the syntax together.`
 
-### 2. Empty Packet Op (`[]`)
-
-```tgsk
-[print@"hi"]>[]   # dangling [] chain
-```
-
-- **Prefix line:** `Empty packet op on line …`
-- **Panel detail:** `engine says: empty packet op in []`
-- **Hint:** “Did you forget to add in an argument? Arguing with [] is half the fun. :D”
-
-### 3. Unterminated String
+## Empty Packet Op (`[]`)
 
 ```tgsk
-[print@"hello]        # missing closing quote
+[print@"hi"]>[]
 ```
 
-- **Prefix line:** `Malformed …`
-- **Panel detail:** `engine says: unterminated string starting before …`
-- **Hint:** “Seal that quote with '"' before it floats away. <3”
+- Prefix line: `Empty packet op on line …`
+- Panel detail: `engine says: empty packet op in []`
+- Hint: `Packet - Looks like you've got an empty []. Add an op like [print@...] or remove it if it's not needed.`
 
-### 4. Unbalanced Brackets
+## Unterminated String
 
 ```tgsk
-[print@"hi"          # no closing ]
+[print@"hello]
 ```
 
-- **Prefix line:** `Malformed …`
-- **Panel detail:** `engine says: unbalanced [ ... ] before …`
-- **Hint:** “A matching ']' would make this perfect. <3”
+- Prefix line: `Malformed …`
+- Panel detail: `engine says: unterminated string …`
+- Hint: `Delimiter - Opened a quote but didn’t close it. Pop in the missing '"' to finish the thought.`
 
-### 5. Extra Closing `]`
+## Unbalanced Brackets
+
+```tgsk
+[print@"hi"
+```
+
+- Prefix line: `Malformed …`
+- Panel detail: `engine says: unbalanced [ ... ] …`
+- Hint: `Delimiter - Started a packet and forgot the ']'. Let’s add the closing bracket to complete the pair.`
+
+## Extra Closing `]`
 
 ```tgsk
 [print@"hi"]]
 ```
 
-- **Prefix line:** `Malformed Print packet on line …`
-- **Panel detail:** `extra closing ']' detected at …`
-- **Hint:** “Looks like you have a typo here. It's ok. Happens to me also. <3”
+- Prefix line: `Malformed …`
+- Panel detail: `engine says: extra closing ']' detected`
+- Hint: `Delimiter - Found an extra ']'. Remove it or pair it with an opener to balance things out.`
 
-### 6. `if` without condition
+## `if` Without Condition
 
 ```tgsk
 [if]{ [then]{ [print@"oops"] } }
 ```
 
-- **Prefix line:** `Malformed packet starting on line …`
-- **Panel detail:** `if needs (cond) or @(cond)`
-- **Hint:** falls back to the generic “Something feels off—let's peek at those brackets together.”
+- Prefix line: `Malformed packet starting on line …`
+- Panel detail: `if needs (cond) or @(cond)`
+- Hint: `Packet - That condition's missing a (cond). Try @(x > 0) or another valid expression.`
 
-### 7. Missing `[then]` in conditional chain
-
-```tgsk
-[if(x==y)]{ [print@"hi"] }
-```
-
-- **Prefix line:** `Malformed packet starting on line …`
-- **Panel detail:** `expected [then]`
-- **Hint:** generic fallback.
-
-### 8. Unexpected Top‑level `]`
-
-```tgsk
-] [print@"hi"]
-```
-
-- **Prefix line:** `Malformed …`
-- **Panel detail:** `unexpected character at top-level: ']'`
-- **Hint:** `unexpected_hint(']', …)` (“Found a ']' without its partner…”)
-
-### 9. Unterminated block `{ …`
-
-```tgsk
-[log@out.json]{
-  [key(name)@"Charlie"
-```
-
-- **Prefix line:** `Malformed …`
-- **Panel detail:** `unbalanced { ... } before …`
-- **Hint:** generic fallback.
-
-### 10. Generic Parser Panic
-
-If a new parser error string doesn’t match any specialised hint, it still routes through the panel:
-
-```tgsk
-[foo(bar)]         # unknown packet op
-```
-
-- **Prefix line:** `Malformed packet starting on line …`
-- **Panel detail:** the raw `engine says: …` text from the parser.
-- **Hint:** generic fallback (“Something feels off…”).
-
-> Tip: every panel line is colourised with ANSI escape codes. If your terminal displays raw `\x1b[...]` sequences, enable virtual terminal processing (Windows) or run within a colour-capable terminal emulator.
-\n### Quick Driver Script\n\nRun \examples/basics/error_test.tgsk\ and uncomment the scenario you want to trigger. The interpreter stops at the first active error and prints the panel above.
+> Tip: run `tagspeak run examples/basics/error_test.tgsk` and uncomment any scenario to view the live panel output.

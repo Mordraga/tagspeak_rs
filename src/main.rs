@@ -6,6 +6,8 @@ mod router;
 
 use anyhow::{Result, anyhow};
 use kernel::Runtime;
+use kernel::ast::{Arg, Packet as AstPacket};
+use kernel::values::Value;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -39,11 +41,21 @@ fn run_cli() -> Result<()> {
                 .ok_or_else(|| anyhow!("`tagspeak build` expects a <file.tgsk> argument"))?;
             build_script(&path)
         }
+        Some(cmd) if cmd == "help" => {
+            let topic = args.next();
+            run_help(topic.as_deref())
+        }
+        Some(cmd) if cmd == "lint" => {
+            let path = args
+                .next()
+                .ok_or_else(|| anyhow!("`tagspeak lint` expects a <file.tgsk> argument"))?;
+            lint_script(&path)
+        }
         Some(path) => run_script(&path),
         None => {
             // no args: guide the user
             eprintln!(
-                "No input file provided. Usage:\n  tagspeak init [dir]\n  tagspeak run <file.tgsk>\n  tagspeak build <file.tgsk>\n  tagspeak <file.tgsk>"
+                "No input file provided. Usage:\n  tagspeak init [dir]\n  tagspeak run <file.tgsk>\n  tagspeak build <file.tgsk>\n  tagspeak help [packet]\n  tagspeak lint <file.tgsk>\n  tagspeak <file.tgsk>"
             );
             Err(anyhow!("no_input"))
         }
@@ -119,5 +131,56 @@ fn root_relative_path(root: &Path, file: &Path) -> String {
         out
     } else {
         file.display().to_string()
+    }
+}
+
+fn run_help(topic: Option<&str>) -> Result<()> {
+    let mut rt = Runtime::new()?;
+    let arg = topic
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(|s| Arg::Str(s.to_string()));
+    let packet = AstPacket {
+        ns: None,
+        op: "help".to_string(),
+        arg,
+        body: None,
+    };
+    match packets::core::help::handle(&mut rt, &packet)? {
+        Value::Str(s) => {
+            println!("{s}");
+            Ok(())
+        }
+        other => Err(anyhow!(
+            "help packet returned unexpected value: {:?}",
+            other
+        )),
+    }
+}
+
+fn lint_script(path: &str) -> Result<()> {
+    let abs = fs::canonicalize(path)?;
+    if abs.extension().and_then(|ext| ext.to_str()).unwrap_or("") != "tgsk" {
+        return Err(anyhow!("lint expects a .tgsk file"));
+    }
+    let src = fs::read_to_string(&abs)?;
+    let mut rt = Runtime::from_entry(&abs)?;
+    println!("Linting {}", abs.display());
+    rt.last = Value::Str(src);
+    let packet = AstPacket {
+        ns: None,
+        op: "lint".to_string(),
+        arg: None,
+        body: None,
+    };
+    match packets::core::lint::handle(&mut rt, &packet)? {
+        Value::Str(s) => {
+            println!("{s}");
+            Ok(())
+        }
+        other => Err(anyhow!(
+            "lint packet returned unexpected value: {:?}",
+            other
+        )),
     }
 }

@@ -18,6 +18,7 @@ fn main() {
 #[cfg(target_os = "windows")]
 mod wizard {
     use anyhow::{Context, Result, anyhow};
+    use std::collections::HashSet;
     use std::fs;
     use std::io::{self, Write};
     use std::path::{Path, PathBuf};
@@ -69,6 +70,8 @@ mod wizard {
             true,
         )? {
             engine = copy_engine_to_install_dir(&engine)?;
+        } else {
+            println!("Keeping the engine where it is ({}).", engine.display());
         }
 
         println!("\n--- Step 3: Installation options ---\n");
@@ -92,14 +95,26 @@ mod wizard {
             .with_context(|| format!("Failed to resolve {}", engine.display()))?;
 
         if register_assoc {
-            register_file_assoc(&engine)?;
+            if let Err(err) = register_file_assoc(&engine) {
+                return Err(decorate_permission_error(
+                    err,
+                    "Registering .tgsk file associations",
+                ));
+            }
         }
         if install_cli {
-            install_cli_alias(&engine)?;
+            if let Err(err) = install_cli_alias(&engine) {
+                return Err(decorate_permission_error(
+                    err,
+                    "Installing the TagSpeak CLI helper",
+                ));
+            }
         }
 
-        write_engine_hint(&engine)?;
-        println!("\nTagSpeak is ready to go. 🎉\n");
+        if let Err(err) = write_engine_hint(&engine) {
+            return Err(decorate_permission_error(err, "Saving the engine location"));
+        }
+        println!("\nTagSpeak is ready to go. Enjoy!\n");
         Ok(())
     }
 
@@ -151,7 +166,6 @@ then run this option again.\n"
         loop {
             let mut options = discover_engine_candidates();
             options.sort();
-            options.dedup();
 
             if options.is_empty() {
                 println!("Couldn't automatically find tagspeak_rs.exe.");
@@ -169,7 +183,13 @@ then run this option again.\n"
                 if (1..=options.len()).contains(&num) {
                     let candidate = &options[num - 1];
                     if candidate.exists() {
-                        return Ok(candidate.clone());
+                        if let Some(resolved) = resolve_engine_candidate(candidate) {
+                            return Ok(resolved);
+                        }
+                        println!(
+                            "That selection is a folder without a tagspeak_rs.exe. Let's try again.\n"
+                        );
+                        continue;
                     }
                     println!("That path no longer exists. Let's try again.\n");
                     continue;
@@ -179,11 +199,28 @@ then run this option again.\n"
             match choice.to_uppercase().as_str() {
                 "C" => {
                     let custom = prompt("Enter the full path to tagspeak_rs.exe: ")?;
-                    let path = PathBuf::from(trim_quotes(&custom));
-                    if path.exists() {
-                        return Ok(path);
+                    let trimmed = trim_quotes(&custom);
+                    if trimmed.is_empty() {
+                        println!("Please provide a path.\n");
+                        continue;
                     }
-                    println!("Couldn't find anything at that path. Try again.\n");
+                    let path = PathBuf::from(&trimmed);
+                    if !path.exists() {
+                        println!("That path doesn't exist. Try again.\n");
+                        continue;
+                    }
+                    if let Some(resolved) = resolve_engine_candidate(&path) {
+                        return Ok(resolved);
+                    }
+                    if path.is_dir() {
+                        println!(
+                            "That folder doesn't contain tagspeak_rs.exe. Build the engine first or point directly at the executable.\n"
+                        );
+                    } else {
+                        println!(
+                            "That file isn't the TagSpeak engine (tagspeak_rs.exe). Try again.\n"
+                        );
+                    }
                 }
                 "B" => {
                     build_engine_flow()?;
@@ -218,24 +255,69 @@ then run this option again.\n"
     }
 
     fn discover_engine_candidates() -> Vec<PathBuf> {
-        let mut candidates = Vec::new();
-        if let Some(saved) = read_engine_hint() {
-            candidates.push(saved);
-        }
-        if let Ok(exe) = std::env::current_exe() {
-            let mut path = exe;
-            for _ in 0..2 {
-                if let Some(parent) = path.parent() {
-                    path = parent.to_path_buf();
+        let mut seen = HashSet::new();
+        let mut out = Vec::new();
+
+        let mut push_candidate = |path: PathBuf| {
+            if let Some(valid) = resolve_engine_candidate(&path) {
+                let key = normalize_path(&valid);
+                if seen.insert(key) {
+                    out.push(valid);
                 }
             }
-            path.push("tagspeak_rs\\target\\release\\tagspeak_rs.exe");
-            candidates.push(path);
+        };
+
+        if let Some(saved) = read_engine_hint() {
+            push_candidate(saved);
+        }
+        if let Ok(exe) = std::env::current_exe() {
+            if let Some(dir) = exe.parent() {
+                push_candidate(dir.join("tagspeak_rs.exe"));
+                if let Some(parent) = dir.parent() {
+                    push_candidate(parent.join("tagspeak_rs.exe"));
+                }
+            }
         }
         if let Ok(found) = which::which("tagspeak_rs") {
-            candidates.push(found);
+            push_candidate(found);
         }
-        candidates
+        if let Ok(cwd) = std::env::current_dir() {
+            push_candidate(cwd.join("target\\release\\tagspeak_rs.exe"));
+            push_candidate(cwd.join("target\\debug\\tagspeak_rs.exe"));
+        }
+
+        out
+    }
+
+    fn resolve_engine_candidate<P: AsRef<Path>>(candidate: P) -> Option<PathBuf> {
+        let path = candidate.as_ref();
+        if path.is_file() {
+            if path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .map(|name| name.eq_ignore_ascii_case("tagspeak_rs.exe"))
+                .unwrap_or(false)
+            {
+                return fs::canonicalize(path).ok();
+            }
+            return None;
+        }
+
+        if path.is_dir() {
+            let search_targets = [
+                Path::new("tagspeak_rs.exe"),
+                Path::new("target\\release\\tagspeak_rs.exe"),
+                Path::new("target\\debug\\tagspeak_rs.exe"),
+            ];
+            for rel in search_targets {
+                let candidate = path.join(rel);
+                if candidate.is_file() {
+                    return fs::canonicalize(candidate).ok();
+                }
+            }
+        }
+
+        None
     }
 
     fn has_cargo() -> bool {
@@ -270,12 +352,16 @@ then run this option again.\n"
         };
 
         fs::create_dir_all(&dest_dir)
-            .with_context(|| format!("Failed to create {}", dest_dir.display()))?;
+            .with_context(|| format!("Failed to create install directory {}", dest_dir.display()))
+            .map_err(|err| decorate_permission_error(err, "Creating the install folder"))?;
         let target = dest_dir.join("tagspeak_rs.exe");
         fs::copy(engine, &target)
-            .with_context(|| format!("Failed to copy engine to {}", target.display()))?;
-        println!("Copied engine to {}", target.display());
-        Ok(target)
+            .with_context(|| format!("Failed to copy engine to {}", target.display()))
+            .map_err(|err| decorate_permission_error(err, "Copying the engine binary"))?;
+        let canonical = fs::canonicalize(&target)
+            .with_context(|| format!("Failed to resolve {}", target.display()))?;
+        println!("Copied engine to {}", canonical.display());
+        Ok(canonical)
     }
 
     fn default_install_dir() -> PathBuf {
@@ -462,6 +548,26 @@ then run this option again.\n"
             .replace('/', "\\")
             .trim_end_matches('\\')
             .to_lowercase()
+    }
+
+    fn decorate_permission_error(err: anyhow::Error, action: &str) -> anyhow::Error {
+        if is_permission_denied(&err) {
+            err.context(format!(
+                "{action} requires elevated permissions or a writable folder. \
+Try rerunning the wizard as Administrator or choose a directory within your user profile."
+            ))
+        } else {
+            err
+        }
+    }
+
+    fn is_permission_denied(err: &anyhow::Error) -> bool {
+        err.chain().any(|cause| {
+            cause
+                .downcast_ref::<io::Error>()
+                .map(|io_err| io_err.kind() == io::ErrorKind::PermissionDenied)
+                .unwrap_or(false)
+        })
     }
 
     fn refresh_icons() {

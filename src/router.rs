@@ -1,6 +1,7 @@
 use crate::error_style::{friendly_hint, render_error_box, unexpected_hint};
 use crate::interpreter::Scanner;
 use crate::kernel::ast::{Arg, Node, Packet};
+use crate::kernel::packet_catalog::{is_known_packet, suggest_packet};
 use anyhow::{Result as AnyResult, bail};
 use std::fmt;
 
@@ -95,6 +96,12 @@ fn parse_chain(sc: &mut Scanner, diagnostics: &mut Vec<ParseDiagnostic>) -> Node
                         continue;
                     }
                 };
+
+                if !is_known_packet(pkt.ns.as_deref(), &pkt.op) {
+                    diagnostics.push(unknown_packet(sc, packet_start, &pkt));
+                    resync_after_error(sc, packet_start);
+                    continue;
+                }
 
                 if pkt.ns.is_none() && (pkt.op == "if" || pkt.op.starts_with("if(")) {
                     let cond_src =
@@ -583,6 +590,42 @@ fn plain_error_box(
     }
 }
 
+fn unknown_packet(sc: &Scanner, start: usize, pkt: &Packet) -> ParseDiagnostic {
+    let suggestion = suggest_packet(pkt.ns.as_deref(), &pkt.op);
+    let detail = match (pkt.ns.as_deref(), suggestion) {
+        (Some(ns), Some(s)) => {
+            format!(
+                "unknown packet op '{ns}:{op}' (did you mean '{s}'?)",
+                op = pkt.op
+            )
+        }
+        (Some(ns), None) => format!("unknown packet op '{ns}:{op}'", op = pkt.op),
+        (None, Some(s)) => {
+            format!(
+                "unknown packet op '{op}' (did you mean '{s}'?)",
+                op = pkt.op
+            )
+        }
+        (None, None) => format!("unknown packet op '{op}'", op = pkt.op),
+    };
+
+    let hint_string = if let Some(s) = suggestion {
+        format!("Packet - Try replacing this with '[{s}@...]' or correct the spelling.")
+    } else {
+        "Packet - Packet labels are case-sensitive. Define it with [funct@name]{...} or double-check the name."
+            .to_string()
+    };
+
+    let (line_no, col, panel) =
+        render_pretty_error(sc, start, &detail, None, Some(hint_string.as_str()));
+    ParseDiagnostic {
+        line: line_no,
+        col,
+        summary: format!("Unknown packet on line {}", line_no),
+        panel,
+    }
+}
+
 fn compose_packet_error(sc: &Scanner, start: usize, detail: &str) -> ParseDiagnostic {
     let detail_pos = extract_line_col(detail);
     let (line_no, col, panel) = render_pretty_error(sc, start, detail, detail_pos, None);
@@ -661,27 +704,35 @@ fn starts_with(sc: &Scanner, pat: &str) -> bool {
 }
 
 fn comment_line_start(sc: &Scanner, pos: usize) -> Option<usize> {
-    let mut pos = pos.min(sc.len());
+    let len = sc.len();
+    if len == 0 {
+        return None;
+    }
+
+    let bytes = sc.slice(0, len);
+    let mut pos = pos.min(len);
     while pos > 0 {
-        if sc.slice(pos - 1, pos)[0] == b'\n' {
+        let prev_idx = pos - 1;
+        let prev = bytes[prev_idx];
+        if prev == b'\n' || prev == b'\r' {
             break;
         }
         pos -= 1;
     }
 
     let mut first = pos;
-    while first < sc.len() {
-        match sc.slice(first, first + 1)[0] {
-            b' ' | b'\t' | b'\r' => first += 1,
+    while first < len {
+        match bytes[first] {
+            b' ' | b'\t' | b'\r' | b'\n' => first += 1,
             _ => break,
         }
     }
 
-    if first >= sc.len() {
+    if first >= len {
         return None;
     }
 
-    let remaining = sc.slice(first, sc.len());
+    let remaining = &bytes[first..len];
     if remaining.starts_with(b"//")
         || remaining.starts_with(b"/*")
         || remaining.first().copied() == Some(b'#')
@@ -789,27 +840,51 @@ fn render_pretty_error(
 }
 
 fn line_by_number(sc: &Scanner, target: usize) -> Option<(String, usize)> {
+    let len = sc.len();
+    let bytes = sc.slice(0, len);
     let mut line_no = 1usize;
     let mut current_start = 0usize;
-    let bytes = sc.slice(0, sc.len());
+    let mut idx = 0usize;
 
-    for (idx, b) in bytes.iter().enumerate() {
-        if *b == b'\n' {
+    while idx < len {
+        let nl_len = newline_span(bytes, idx, len);
+        if nl_len > 0 {
             if line_no == target {
-                let line = String::from_utf8_lossy(sc.slice(current_start, idx)).to_string();
+                let line = String::from_utf8_lossy(&bytes[current_start..idx]).to_string();
                 return Some((line, current_start));
             }
             line_no += 1;
-            current_start = idx + 1;
+            let break_end = idx + nl_len;
+            current_start = break_end;
+            idx = break_end;
+        } else {
+            idx += 1;
         }
     }
 
     if line_no == target {
-        let line = String::from_utf8_lossy(sc.slice(current_start, sc.len())).to_string();
+        let line = String::from_utf8_lossy(&bytes[current_start..len]).to_string();
         return Some((line, current_start));
     }
 
     None
+}
+
+fn newline_span(bytes: &[u8], idx: usize, limit: usize) -> usize {
+    if idx >= limit {
+        return 0;
+    }
+    match bytes[idx] {
+        b'\n' => 1,
+        b'\r' => {
+            if idx + 1 < limit && bytes[idx + 1] == b'\n' {
+                2
+            } else {
+                1
+            }
+        }
+        _ => 0,
+    }
 }
 
 fn extract_line_col(detail: &str) -> Option<(usize, usize)> {
@@ -830,25 +905,41 @@ fn extract_line_col(detail: &str) -> Option<(usize, usize)> {
 }
 
 fn line_context_with_number(sc: &Scanner, pos: usize) -> (String, usize, usize) {
+    let len = sc.len();
+    let bytes = sc.slice(0, len);
+    let capped_pos = pos.min(len);
+
     let mut line_start = 0usize;
     let mut line_no = 1usize;
-    for (idx, b) in sc.slice(0, pos).iter().enumerate() {
-        if *b == b'\n' {
+    let mut idx = 0usize;
+    while idx < capped_pos {
+        let nl_len = newline_span(bytes, idx, len);
+        if nl_len > 0 {
+            let break_end = idx + nl_len;
+            if break_end > capped_pos {
+                break;
+            }
             line_no += 1;
-            line_start = idx + 1;
+            line_start = break_end;
+            idx = break_end;
+        } else {
+            idx += 1;
         }
     }
 
-    let mut line_end = sc.len();
-    for (idx, b) in sc.slice(pos, sc.len()).iter().enumerate() {
-        if *b == b'\n' {
-            line_end = pos + idx;
+    let mut line_end = len;
+    idx = capped_pos;
+    while idx < len {
+        let nl_len = newline_span(bytes, idx, len);
+        if nl_len > 0 {
+            line_end = idx;
             break;
         }
+        idx += 1;
     }
 
-    let line = String::from_utf8_lossy(sc.slice(line_start, line_end)).to_string();
-    let col = pos.saturating_sub(line_start) + 1;
+    let line = String::from_utf8_lossy(&bytes[line_start..line_end]).to_string();
+    let col = capped_pos.saturating_sub(line_start) + 1;
     (line, col, line_no)
 }
 
@@ -879,8 +970,12 @@ pub fn parse_single_packet(src: &str) -> AnyResult<Packet> {
 }
 
 fn resync_after_error(sc: &mut Scanner, origin: usize) {
-    let mut pos = origin.saturating_add(1).max(sc.pos());
     let limit = sc.limit();
+    let mut pos = if sc.pos() >= limit {
+        origin.saturating_add(1).min(limit)
+    } else {
+        origin.saturating_add(1).max(sc.pos())
+    };
     while pos < limit {
         match sc.char_at(pos) {
             Some('\n') => {
@@ -952,5 +1047,52 @@ mod tests {
             rendered.contains("extra closing ']' detected"),
             "missing extra closing panel:\n{rendered}"
         );
+    }
+
+    #[test]
+    fn parse_suggests_packet_typo() {
+        let src = "[stor@value]";
+        let err = parse(src).expect_err("expected parse failure with diagnostics");
+        let rendered = err.to_string();
+        assert!(
+            rendered.contains("did you mean 'store'"),
+            "missing suggestion in error output:\n{rendered}"
+        );
+    }
+
+    #[test]
+    fn parse_handles_cr_only_newlines() {
+        let src = concat!(
+            "[note@Missing opening bracket]\r",
+            "print@\"Missing opening bracket\"]\r",
+            "\r",
+            "// extra context\r"
+        );
+        let err = parse(src).expect_err("expected parse failure with diagnostics");
+        let diagnostics = err.diagnostics();
+        assert_eq!(
+            diagnostics.len(),
+            1,
+            "expected a single diagnostic for missing opener, got {:?}",
+            diagnostics
+        );
+        assert!(
+            diagnostics[0].summary.contains("Unexpected character"),
+            "diagnostic summary missing unexpected character context: {}",
+            diagnostics[0].summary
+        );
+    }
+
+    #[test]
+    fn parse_skips_crlf_line_comments() {
+        let src = "// heading comment\r\n[print@\"hi\"]\r\n";
+        let node = parse(src).expect("expected parse success with CRLF comment");
+        match node {
+            Node::Packet(_) => {}
+            Node::Chain(nodes) => {
+                assert_eq!(nodes.len(), 1, "expected single packet node, got {nodes:?}");
+            }
+            other => panic!("unexpected node shape: {other:?}"),
+        }
     }
 }

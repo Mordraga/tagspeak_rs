@@ -3,6 +3,7 @@ pub mod ast;
 pub mod boolops;
 pub mod config;
 pub mod fs_guard;
+pub mod packet_catalog;
 pub mod runtime;
 pub mod values;
 

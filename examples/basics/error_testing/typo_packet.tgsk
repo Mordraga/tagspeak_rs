@@ -1,0 +1,4 @@
+[int@0] [note@Initialized integer variable x to 0]
+[store@x] [note@Incorrect packet op 'stor' instead of 'store']
+[store@x] [note@Correct packet op 'store']
+[prin@x] [note@Should print the value of x, which is 0, but runtime should error out.]

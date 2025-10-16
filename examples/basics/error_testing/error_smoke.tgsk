@@ -1,0 +1,59 @@
+[note@"This script showcases common TagSpeak errors. Uncomment one block at a time to explore."]
+
+// 1. Missing opening bracket
+print@"Missing opening bracket"] [note@Error 1]
+
+// 2. Missing closing bracket
+[print@"error 2"
+
+// 3. Extra closing bracket
+[print@"One too many"]] [note@Error 3]
+
+// 4. Empty packet op
+[print@"Trigger empty op"]> []
+
+// 5. Mismatched braces
+[print@"Brace mismatch"}
+
+// 6. Unterminated packet with stray '['
+[print@"Testing ["]
+
+// 7. Missing packet argument
+[print@] [note@Error 7]
+
+// 8. Unterminated packet without quotes
+[print@12345Error8
+
+// 9. Unclosed nested packet
+[store@value9]{foo: [bar@baz} [note@Error 9]
+
+// 10. Unexpected symbol at top-level
+@print["10"]
+
+// 11. Orphaned closing bracket
+]11
+
+// 12. Orphaned closing brace
+}12
+
+// 13. Stray character at top level
+13
+
+// 14. Unknown packet (typo)
+[stor@value15]
+
+// 15. Unknown namespaced packet
+[chem:sodium]{[int@15]}
+
+// 16. Unknown mod edit op
+[mod@doc]{[set(a.b)@16]}
+
+// 17. Invalid log key packet spelling
+[log(json)@/profile.json]{[kay(name)@"17"]}
+
+// 18. Invalid log key packet syntax
+[log(json)@/profile.json]{[key@name: "18"]}
+
+//19. Multiple @ symbols in packet
+[pri@nt@value]
+
