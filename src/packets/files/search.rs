@@ -48,7 +48,7 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
     match ext.as_str() {
         // TagSpeak file: search for a packet snippet
         "tgsk" | "" => {
-            let ast = router::parse(&content)?;
+            let ast = router::parse(&content).map_err(anyhow::Error::new)?;
             let label_src = match &p.arg {
                 Some(Arg::Str(s)) => s,
                 _ => bail!("search needs @\"[packet]\""),

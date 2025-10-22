@@ -39,7 +39,7 @@ mod tests {
     #[test]
     fn parses_expressions() -> Result<()> {
         let script = "[bool@(1==1 && 2==2)]>[store@x]";
-        let node = router::parse(script)?;
+        let node = router::parse(script).map_err(anyhow::Error::new)?;
         let mut rt = Runtime::new()?;
         rt.eval(&node)?;
         assert_eq!(rt.get_var("x"), Some(Value::Bool(true)));

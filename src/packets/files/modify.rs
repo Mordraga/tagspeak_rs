@@ -1,26 +1,37 @@
 use crate::kernel::Runtime;
 use crate::kernel::ast::{Arg, Node, Packet};
 use crate::kernel::values::{Document, Value};
-use anyhow::{Result, bail};
+use anyhow::{Result, anyhow, bail};
 use serde_json::Value as JsonValue;
 
 pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
+    let options = parse_mod_options(&p.op)?;
     let handle = match &p.arg {
         Some(Arg::Ident(id)) => id.as_str(),
         _ => bail!("mod needs @<ident>"),
     };
-    let body = p
-        .body
-        .as_ref()
-        .ok_or_else(|| anyhow::anyhow!("mod needs body"))?;
+    let body = p.body.as_ref().ok_or_else(|| anyhow!("mod needs body"))?;
     let mut doc = match rt.get_var(handle) {
         Some(Value::Doc(d)) => d,
         _ => bail!("handle_unknown"),
     };
+    let before = options.debug.then(|| doc.clone());
 
     for node in body {
         if let Node::Packet(pkt) = node {
-            apply_edit(rt, &mut doc, pkt)?;
+            apply_edit(rt, &mut doc, pkt, &options)?;
+        }
+    }
+
+    if let Some(prev) = before {
+        if prev.json != doc.json {
+            if let (Ok(before_s), Ok(after_s)) = (
+                serde_json::to_string_pretty(&prev.json),
+                serde_json::to_string_pretty(&doc.json),
+            ) {
+                println!("[mod(debug)] before:\n{before_s}");
+                println!("[mod(debug)] after:\n{after_s}");
+            }
         }
     }
 
@@ -28,10 +39,10 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
     Ok(Value::Doc(doc))
 }
 
-fn apply_edit(rt: &Runtime, doc: &mut Document, pkt: &Packet) -> Result<()> {
-    let (op, path) = parse_op(&pkt.op)?;
-    let segments = parse_path(&path)?;
-    match op.as_str() {
+fn apply_edit(rt: &Runtime, doc: &mut Document, pkt: &Packet, options: &ModOptions) -> Result<()> {
+    let cmd = parse_op(&pkt.op)?;
+    let segments = parse_path(&cmd.path)?;
+    match cmd.name.as_str() {
         "comp" => {
             let val = arg_to_json(
                 rt,
@@ -39,7 +50,8 @@ fn apply_edit(rt: &Runtime, doc: &mut Document, pkt: &Packet) -> Result<()> {
                     .as_ref()
                     .ok_or_else(|| anyhow::anyhow!("comp needs value"))?,
             )?;
-            set_value(&mut doc.json, &segments, val, false, true)?;
+            let create = options.force_overwrite;
+            set_value(&mut doc.json, &segments, val, create, true)?;
         }
         "comp!" => {
             let val = arg_to_json(
@@ -88,12 +100,47 @@ fn apply_edit(rt: &Runtime, doc: &mut Document, pkt: &Packet) -> Result<()> {
             }
             target.as_array_mut().unwrap().push(val);
         }
+        "set" => {
+            let val = arg_to_json(
+                rt,
+                pkt.arg
+                    .as_ref()
+                    .ok_or_else(|| anyhow::anyhow!("set needs value"))?,
+            )?;
+            let overwrite = match cmd.modifier.as_deref() {
+                Some("missing") => false,
+                Some("overwrite") => true,
+                None => true,
+                Some(other) => bail!("unknown set modifier '{other}'"),
+            };
+            let overwrite = overwrite || options.force_overwrite;
+            if !overwrite && path_exists_read(&doc.json, &segments) {
+                return Ok(());
+            }
+            set_value(&mut doc.json, &segments, val, true, overwrite)?;
+        }
+        "remove" | "delete" => {
+            delete(&mut doc.json, &segments)?;
+        }
+        "append" => {
+            let val = arg_to_json(
+                rt,
+                pkt.arg
+                    .as_ref()
+                    .ok_or_else(|| anyhow::anyhow!("append needs value"))?,
+            )?;
+            let target = navigate(&mut doc.json, &segments, true)?;
+            if !target.is_array() {
+                bail!("not_array");
+            }
+            target.as_array_mut().unwrap().push(val);
+        }
         other => bail!("unknown edit op: {other}"),
     }
     Ok(())
 }
 
-fn parse_op(op: &str) -> Result<(String, String)> {
+fn parse_op(op: &str) -> Result<EditCommand> {
     let start = op
         .find('(')
         .ok_or_else(|| anyhow::anyhow!("edit missing ("))?;
@@ -101,8 +148,25 @@ fn parse_op(op: &str) -> Result<(String, String)> {
         .rfind(')')
         .ok_or_else(|| anyhow::anyhow!("edit missing )"))?;
     let name = op[..start].to_string();
-    let path = op[start + 1..end].to_string();
-    Ok((name, path))
+    let inner = op[start + 1..end].trim();
+    if inner.is_empty() {
+        bail!("edit missing path");
+    }
+    let mut parts = inner.splitn(2, ',');
+    let path = parts
+        .next()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| anyhow!("edit missing path"))?;
+    let modifier = parts
+        .next()
+        .map(|s| s.trim().to_ascii_lowercase())
+        .filter(|s| !s.is_empty());
+    Ok(EditCommand {
+        name,
+        path,
+        modifier,
+    })
 }
 
 #[derive(Clone)]
@@ -206,7 +270,11 @@ fn set_value(
     match last[0].clone() {
         Segment::Key(k) => {
             if !parent.is_object() {
-                bail!("path_missing");
+                if create {
+                    *parent = JsonValue::Object(Default::default());
+                } else {
+                    bail!("path_missing");
+                }
             }
             let obj = parent.as_object_mut().unwrap();
             if !overwrite && obj.contains_key(&k) {
@@ -216,7 +284,11 @@ fn set_value(
         }
         Segment::Index(i) => {
             if !parent.is_array() {
-                bail!("path_missing");
+                if create {
+                    *parent = JsonValue::Array(Vec::new());
+                } else {
+                    bail!("path_missing");
+                }
             }
             let arr = parent.as_array_mut().unwrap();
             if i >= arr.len() {
@@ -263,6 +335,37 @@ fn delete(root: &mut JsonValue, segs: &[Segment]) -> Result<()> {
     Ok(())
 }
 
+fn path_exists_read(root: &JsonValue, segs: &[Segment]) -> bool {
+    let mut cur = root;
+    for seg in segs {
+        match seg {
+            Segment::Key(k) => {
+                if let Some(obj) = cur.as_object() {
+                    if let Some(next) = obj.get(k) {
+                        cur = next;
+                    } else {
+                        return false;
+                    }
+                } else {
+                    return false;
+                }
+            }
+            Segment::Index(i) => {
+                if let Some(arr) = cur.as_array() {
+                    if let Some(next) = arr.get(*i) {
+                        cur = next;
+                    } else {
+                        return false;
+                    }
+                } else {
+                    return false;
+                }
+            }
+        }
+    }
+    true
+}
+
 fn deep_merge(dest: &mut JsonValue, src: &JsonValue) {
     match (dest, src) {
         (JsonValue::Object(a), JsonValue::Object(b)) => {
@@ -290,9 +393,16 @@ fn value_to_json(v: Value) -> Result<JsonValue> {
 
 fn arg_to_json(rt: &Runtime, arg: &Arg) -> Result<JsonValue> {
     Ok(match arg {
-        Arg::Number(n) => JsonValue::Number(
-            serde_json::Number::from_f64(*n).ok_or_else(|| anyhow::anyhow!("invalid number"))?,
-        ),
+        Arg::Number(n) => {
+            if n.fract() == 0.0 && *n >= i64::MIN as f64 && *n <= i64::MAX as f64 {
+                JsonValue::Number((*n as i64).into())
+            } else {
+                JsonValue::Number(
+                    serde_json::Number::from_f64(*n)
+                        .ok_or_else(|| anyhow::anyhow!("invalid number"))?,
+                )
+            }
+        }
         Arg::Str(s) => serde_json::from_str(s).unwrap_or(JsonValue::String(s.clone())),
         Arg::Ident(id) => match id.as_str() {
             "true" => JsonValue::Bool(true),
@@ -308,4 +418,112 @@ fn arg_to_json(rt: &Runtime, arg: &Arg) -> Result<JsonValue> {
         },
         _ => JsonValue::Null,
     })
+}
+
+#[derive(Default)]
+struct ModOptions {
+    force_overwrite: bool,
+    debug: bool,
+}
+
+fn parse_mod_options(op: &str) -> Result<ModOptions> {
+    let trimmed = op.trim();
+    if !trimmed.eq_ignore_ascii_case("mod") && !trimmed.to_ascii_lowercase().starts_with("mod(") {
+        bail!("unsupported mod form '{op}'");
+    }
+    let mut options = ModOptions::default();
+    if let Some(inner) = trimmed.strip_prefix("mod(") {
+        if !inner.ends_with(')') {
+            bail!("malformed mod options");
+        }
+        let inner = &inner[..inner.len() - 1];
+        if inner.trim().is_empty() {
+            return Ok(options);
+        }
+        for token in inner.split(',') {
+            let flag = token.trim().to_ascii_lowercase();
+            match flag.as_str() {
+                "overwrite" => options.force_overwrite = true,
+                "debug" => options.debug = true,
+                other => bail!("unknown mod option '{other}'"),
+            }
+        }
+    }
+    Ok(options)
+}
+
+struct EditCommand {
+    name: String,
+    path: String,
+    modifier: Option<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::router;
+    use serde_json::json;
+    use std::path::PathBuf;
+    use std::time::SystemTime;
+
+    fn doc_from_json(value: serde_json::Value) -> Document {
+        Document::new(
+            value,
+            PathBuf::from("doc.json"),
+            "json".to_string(),
+            SystemTime::now(),
+            PathBuf::from("."),
+        )
+    }
+
+    fn run_mod(script: &str, initial: serde_json::Value) -> serde_json::Value {
+        let mut rt = Runtime::new().unwrap();
+        let doc = doc_from_json(initial);
+        rt.set_var("doc", Value::Doc(doc)).unwrap();
+        let ast = router::parse(script).unwrap();
+        rt.eval(&ast).unwrap();
+        match rt.get_var("doc").unwrap() {
+            Value::Doc(doc) => doc.json,
+            other => panic!("unexpected value {other:?}"),
+        }
+    }
+
+    #[test]
+    fn set_overwrites_by_default() {
+        let after = run_mod(
+            "[mod@doc]{[set(user.name)@\"Jen\"]}",
+            json!({"user": {"name": "Hal"}}),
+        );
+        assert_eq!(after["user"]["name"], "Jen");
+    }
+
+    #[test]
+    fn set_respects_missing_modifier() {
+        let after = run_mod(
+            "[mod@doc]{[set(user.name, missing)@\"Jen\"]}",
+            json!({"user": {"name": "Hal"}}),
+        );
+        assert_eq!(after["user"]["name"], "Hal");
+    }
+
+    #[test]
+    fn remove_aliases_del() {
+        let after = run_mod(
+            "[mod@doc]{[remove(user.name)]}",
+            json!({"user": {"name": "Hal","age":19}}),
+        );
+        assert!(!after["user"].as_object().unwrap().contains_key("name"));
+    }
+
+    #[test]
+    fn append_aliases_push() {
+        let after = run_mod("[mod@doc]{[append(items)@4]}", json!({"items": [1,2,3]}));
+        assert_eq!(after["items"], json!([1, 2, 3, 4]));
+    }
+
+    #[test]
+    fn mod_overwrite_upgrades_comp() {
+        let after = run_mod("[mod(overwrite)@doc]{[comp(user.score)@42]}", json!({}));
+        assert_eq!(after["user"]["score"], 42);
+    }
 }

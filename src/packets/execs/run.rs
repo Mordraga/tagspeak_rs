@@ -62,7 +62,7 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
     }
 
     let src = fs::read_to_string(&path)?;
-    let ast = crate::router::parse(&src)?;
+    let ast = crate::router::parse(&src).map_err(anyhow::Error::new)?;
 
     // Temporarily switch working dir to the directory of the target script
     let prev_cwd = rt.cwd.clone();

@@ -1,0 +1,5 @@
+[note@"Uncomment to see lint warnings"]
+
+[msg@"Lint demo"]>[print]
+[lint@/basics/error_test.tgsk]>[print]
+[help@print]>[print]

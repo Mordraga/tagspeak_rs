@@ -1,0 +1,560 @@
+﻿use crate::error_style::{friendly_hint, render_error_box, unexpected_hint};
+use crate::interpreter::Scanner;
+use crate::kernel::ast::{Arg, Node, Packet};
+use anyhow::{Result, bail};
+
+pub fn parse(src: &str) -> Result<Node> {
+    let mut sc = Scanner::new(src);
+    parse_chain(&mut sc)
+}
+
+fn parse_chain(sc: &mut Scanner) -> Result<Node> {
+    let mut nodes = Vec::new();
+
+    loop {
+        sc.skip_comments_and_ws();
+        if sc.eof() {
+            break;
+        }
+
+        match sc.peek().unwrap() {
+            '[' => {
+                let packet_start = sc.pos();
+                let pkt = match parse_packet(sc) {
+                    Ok(pkt) => pkt,
+                    Err(err) => {
+                        let (line, col) = sc.line_col_at(packet_start);
+                        let detail = err.to_string();
+                        let detail_pos = extract_line_col(&detail);
+                        let pretty = packet_pretty_error(sc, packet_start, &detail, detail_pos);
+                        let prefix = if detail.contains("empty packet op") {
+                            format!("Empty packet op on line {}", line)
+                        } else if let Some(label) = packet_label_hint(sc, packet_start) {
+                            format!("Malformed {} packet on line {}", label, line)
+                        } else {
+                            format!("Malformed packet starting on line {}", line)
+                        };
+                        let message = if let Some(pretty) = pretty {
+                            format!("{}\n{}", prefix, pretty)
+                        } else {
+                            let mut composed = format!("{}: {}", prefix, detail);
+                            if let Some((_, det_col)) = detail_pos {
+                                composed.push_str(&format!(" (col {})", det_col));
+                            } else if col > 0 {
+                                composed.push_str(&format!(" (col {})", col));
+                            }
+                            composed
+                        };
+                        bail!("{}", message);
+                    }
+                };
+                // conditionals: support [if@(cond)] and [if(cond)]
+                if pkt.ns.is_none() && (pkt.op == "if" || pkt.op.starts_with("if(")) {
+                    let src = if pkt.op == "if" {
+                        match pkt.arg {
+                            Some(Arg::CondSrc(s)) => s,
+                            _ => bail!("if needs (cond) or @(cond)"),
+                        }
+                    } else {
+                        extract_paren(&pkt.op)
+                            .ok_or_else(|| anyhow::anyhow!("if needs (cond)"))?
+                            .to_string()
+                    };
+                    nodes.push(parse_if(sc, src)?);
+                } else {
+                    let mut pkt = pkt;
+                    sc.skip_comments_and_ws();
+                    if sc.peek() == Some(']') {
+                        let (line_text, col, line_no) = line_context_with_number(sc, sc.pos());
+                        let snippet = line_text.trim_end_matches('\r').replace('\t', "    ");
+                        let detail = format!("extra closing ']' detected at {line_no}:{col}");
+                        let message = render_error_box(
+                            line_no,
+                            col,
+                            &snippet,
+                            "Looks like you have a typo here. It's ok. Happens to me also. <3",
+                            &detail,
+                        );
+                        bail!("{}", message);
+                    }
+                    if sc.peek() == Some('{') {
+                        if let Node::Block(body) = parse_block(sc)? {
+                            pkt.body = Some(body);
+                        }
+                    }
+                    nodes.push(Node::Packet(pkt));
+                }
+            }
+            '{' => {
+                nodes.push(parse_block(sc)?);
+            }
+            '>' => {
+                // tolerate stray or repeated separators
+                sc.next();
+            }
+            _ => bail!(unexpected(sc, "top-level")),
+        }
+
+        // optional separators; allow multiple and trailing
+        sc.skip_comments_and_ws();
+        while sc.peek() == Some('>') {
+            sc.next();
+        }
+    }
+
+    Ok(Node::Chain(nodes))
+}
+
+fn parse_block(sc: &mut Scanner) -> Result<Node> {
+    let inner = sc.read_until_balanced('{', '}')?;
+    let mut sub = Scanner::new(&inner);
+    match parse_chain(&mut sub)? {
+        Node::Chain(v) => Ok(Node::Block(v)),
+        other => Ok(Node::Block(vec![other])),
+    }
+}
+
+fn parse_packet(sc: &mut Scanner) -> Result<Packet> {
+    let inner = sc.read_until_balanced('[', ']')?;
+    let (ns_part, op_part, arg_part) = split_packet_parts(&inner);
+
+    let ns = ns_part.and_then(|raw| {
+        let trimmed = raw.trim();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed.to_string())
+        }
+    });
+
+    let op_trimmed = op_part.trim();
+    if op_trimmed.is_empty() {
+        bail!("empty packet op in [{}]", inner);
+    }
+    let op = op_trimmed.to_string();
+
+    let arg = if let Some(raw) = arg_part {
+        let raw_trimmed = raw.trim();
+        if raw_trimmed.is_empty() {
+            None
+        } else if raw_trimmed.starts_with('"') && raw_trimmed.contains('+') {
+            Some(Arg::Str(raw_trimmed.to_string()))
+        } else if raw_trimmed.starts_with('"') {
+            let mut sc = Scanner::new(raw_trimmed);
+            let s = sc.read_quoted()?;
+            Some(Arg::Str(s))
+        } else if raw_trimmed.starts_with('(') {
+            Some(Arg::CondSrc(raw_trimmed.to_string()))
+        } else if let Ok(n) = raw_trimmed.parse::<f64>() {
+            Some(Arg::Number(n))
+        } else if is_ident_like(raw_trimmed) {
+            Some(Arg::Ident(raw_trimmed.to_string()))
+        } else {
+            Some(Arg::Str(raw_trimmed.to_string()))
+        }
+    } else {
+        None
+    };
+
+    Ok(Packet {
+        ns,
+        op,
+        arg,
+        body: None,
+    })
+}
+
+fn split_packet_parts(inner: &str) -> (Option<&str>, &str, Option<&str>) {
+    let trimmed = inner.trim();
+    if trimmed.is_empty() {
+        return (None, "", None);
+    }
+
+    let mut ns = None;
+    let mut op_section = trimmed;
+    let mut arg = None;
+
+    if let Some(idx) = find_top_level_delim(trimmed, '@') {
+        op_section = trimmed[..idx].trim();
+        let arg_slice = trimmed[idx + 1..].trim();
+        if !arg_slice.is_empty() {
+            arg = Some(arg_slice);
+        }
+    }
+
+    if let Some(idx) = find_top_level_delim(op_section, ':') {
+        let ns_slice = op_section[..idx].trim();
+        if !ns_slice.is_empty() {
+            ns = Some(ns_slice);
+        }
+        op_section = op_section[idx + 1..].trim();
+    }
+
+    (ns, op_section, arg)
+}
+
+fn find_top_level_delim(src: &str, needle: char) -> Option<usize> {
+    let mut depth_paren = 0usize;
+    let mut depth_brack = 0usize;
+    let mut depth_brace = 0usize;
+    let mut in_string = false;
+    let mut escape = false;
+
+    for (idx, ch) in src.char_indices() {
+        if in_string {
+            if escape {
+                escape = false;
+                continue;
+            }
+            if ch == '\\' {
+                escape = true;
+                continue;
+            }
+            if ch == '"' {
+                in_string = false;
+            }
+            continue;
+        }
+
+        match ch {
+            '"' => {
+                in_string = true;
+                continue;
+            }
+            '(' => {
+                depth_paren += 1;
+                continue;
+            }
+            ')' => {
+                if depth_paren > 0 {
+                    depth_paren -= 1;
+                }
+                continue;
+            }
+            '[' => {
+                depth_brack += 1;
+                continue;
+            }
+            ']' => {
+                if depth_brack > 0 {
+                    depth_brack -= 1;
+                }
+                continue;
+            }
+            '{' => {
+                depth_brace += 1;
+                continue;
+            }
+            '}' => {
+                if depth_brace > 0 {
+                    depth_brace -= 1;
+                }
+                continue;
+            }
+            _ => {}
+        }
+
+        if depth_paren == 0 && depth_brack == 0 && depth_brace == 0 && ch == needle {
+            return Some(idx);
+        }
+    }
+    None
+}
+
+fn is_ident_like(s: &str) -> bool {
+    let mut it = s.chars();
+    match it.next() {
+        Some(c) if c.is_ascii_alphabetic() || c == '_' => {}
+        _ => return false,
+    }
+    it.all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
+
+fn parse_if(sc: &mut Scanner, cond_src: String) -> Result<Node> {
+    use crate::packets::conditionals::parse_cond;
+    let cond = parse_cond(&cond_src);
+
+    sc.skip_comments_and_ws();
+    if sc.peek() == Some('>') {
+        sc.next();
+    }
+    sc.skip_comments_and_ws();
+
+    let then_pkt = parse_packet(sc)?;
+    if then_pkt.ns.is_some() || then_pkt.op != "then" {
+        bail!("expected [then]");
+    }
+    sc.skip_comments_and_ws();
+    if sc.peek() != Some('{') {
+        bail!("[then] needs block");
+    }
+    let Node::Block(then_b) = parse_block(sc)? else {
+        unreachable!()
+    };
+
+    sc.skip_comments_and_ws();
+    while sc.peek() == Some('>') {
+        sc.next();
+        sc.skip_comments_and_ws();
+    }
+
+    let else_b = parse_or_else(sc)?;
+    Ok(Node::If {
+        cond,
+        then_b,
+        else_b,
+    })
+}
+
+fn parse_or_else(sc: &mut Scanner) -> Result<Vec<Node>> {
+    use crate::packets::conditionals::parse_cond;
+    sc.skip_comments_and_ws();
+    if starts_with(sc, "[or@") || starts_with(sc, "[or(") {
+        let pkt = parse_packet(sc)?;
+        let src = if pkt.op == "or" {
+            match pkt.arg {
+                Some(Arg::CondSrc(s)) => s,
+                _ => bail!("or needs (cond) or @(cond)"),
+            }
+        } else if pkt.op.starts_with("or(") {
+            extract_paren(&pkt.op)
+                .ok_or_else(|| anyhow::anyhow!("or needs (cond)"))?
+                .to_string()
+        } else {
+            bail!("expected or clause")
+        };
+        sc.skip_comments_and_ws();
+        if sc.peek() == Some('>') {
+            sc.next();
+            sc.skip_comments_and_ws();
+        }
+        let then_pkt = parse_packet(sc)?;
+        if then_pkt.ns.is_some() || then_pkt.op != "then" {
+            bail!("expected [then]");
+        }
+        sc.skip_comments_and_ws();
+        if sc.peek() != Some('{') {
+            bail!("[then] needs block");
+        }
+        let Node::Block(then_b) = parse_block(sc)? else {
+            unreachable!()
+        };
+        sc.skip_comments_and_ws();
+        while sc.peek() == Some('>') {
+            sc.next();
+            sc.skip_comments_and_ws();
+        }
+        let else_b = parse_or_else(sc)?;
+        Ok(vec![Node::If {
+            cond: parse_cond(&src),
+            then_b,
+            else_b,
+        }])
+    } else if starts_with(sc, "[else]") {
+        let _pkt = parse_packet(sc)?; // consume [else]
+        sc.skip_comments_and_ws();
+        if sc.peek() == Some('>') {
+            sc.next();
+            sc.skip_comments_and_ws();
+        }
+        let then_pkt = parse_packet(sc)?;
+        if then_pkt.ns.is_some() || then_pkt.op != "then" {
+            bail!("expected [then]");
+        }
+        sc.skip_comments_and_ws();
+        if sc.peek() != Some('{') {
+            bail!("[then] needs block");
+        }
+        let Node::Block(block) = parse_block(sc)? else {
+            unreachable!()
+        };
+        Ok(block)
+    } else {
+        Ok(Vec::new())
+    }
+}
+
+fn starts_with(sc: &Scanner, pat: &str) -> bool {
+    let start = sc.pos();
+    let end = start + pat.len();
+    end <= sc.len() && sc.slice(start, end) == pat.as_bytes()
+}
+
+fn unexpected(sc: &Scanner, where_: &str) -> String {
+    let (line_text, col, line_no) = line_context_with_number(sc, sc.pos());
+    let snippet = line_text.trim_end_matches('\r').replace('\t', "    ");
+    let offending = sc.peek().unwrap_or('?');
+    let detail = format!(
+        "unexpected character at {where_}: '{}' at {line_no}:{col}",
+        offending
+    );
+    let hint = unexpected_hint(offending, where_);
+    render_error_box(line_no, col, &snippet, &hint, &detail)
+}
+
+// --- helpers for packet extraction ---
+
+fn packet_label_hint(sc: &Scanner, start: usize) -> Option<String> {
+    let bytes = sc.slice(start, sc.len());
+    let preview = String::from_utf8_lossy(bytes);
+    let first_line = preview.lines().next()?.trim_start();
+    if !first_line.starts_with('[') {
+        return None;
+    }
+    let after = &first_line[1..];
+    if after.is_empty() {
+        return None;
+    }
+    let mut end = after.len();
+    for (idx, ch) in after.char_indices() {
+        if matches!(ch, '@' | '(' | ']' | '>' | '{' | ' ' | '\t' | '\r') {
+            end = idx;
+            break;
+        }
+    }
+    let raw = after[..end].trim();
+    if raw.is_empty() {
+        return None;
+    }
+    let tail = raw.rsplit(':').next().unwrap_or(raw);
+    Some(capitalize_first(tail))
+}
+
+fn capitalize_first(s: &str) -> String {
+    let mut chars = s.chars();
+    match chars.next() {
+        Some(first) => {
+            let mut out = String::new();
+            for c in first.to_uppercase() {
+                out.push(c);
+            }
+            out.push_str(chars.as_str());
+            out
+        }
+        None => String::new(),
+    }
+}
+
+fn packet_pretty_error(
+    sc: &Scanner,
+    start: usize,
+    detail: &str,
+    detail_pos: Option<(usize, usize)>,
+) -> Option<String> {
+    let (packet_line, packet_col, packet_line_no) = line_context_with_number(sc, start);
+    let (line_text, col, line_no) = if let Some((detail_line, detail_col)) = detail_pos {
+        if detail_line >= packet_line_no {
+            if let Some((line, _)) = line_by_number(sc, detail_line) {
+                (line, detail_col, detail_line)
+            } else {
+                (packet_line, packet_col, packet_line_no)
+            }
+        } else {
+            (packet_line, packet_col, packet_line_no)
+        }
+    } else {
+        (packet_line, packet_col, packet_line_no)
+    };
+
+    let snippet = line_text.trim_end_matches('\r').replace('\t', "    ");
+    let hint = friendly_hint(detail);
+    let detail_line = format!("engine says: {detail}");
+    Some(render_error_box(
+        line_no,
+        col,
+        &snippet,
+        &hint,
+        &detail_line,
+    ))
+}
+
+fn line_by_number(sc: &Scanner, target: usize) -> Option<(String, usize)> {
+    let mut line_no = 1usize;
+    let mut current_start = 0usize;
+    let bytes = sc.slice(0, sc.len());
+
+    for (idx, b) in bytes.iter().enumerate() {
+        if *b == b'\n' {
+            if line_no == target {
+                let line = String::from_utf8_lossy(sc.slice(current_start, idx)).to_string();
+                return Some((line, current_start));
+            }
+            line_no += 1;
+            current_start = idx + 1;
+        }
+    }
+
+    if line_no == target {
+        let line = String::from_utf8_lossy(sc.slice(current_start, sc.len())).to_string();
+        return Some((line, current_start));
+    }
+
+    None
+}
+
+fn extract_line_col(detail: &str) -> Option<(usize, usize)> {
+    for marker in ["before ", "at "] {
+        if let Some(idx) = detail.rfind(marker) {
+            let slice = &detail[idx + marker.len()..];
+            let coords: String = slice
+                .chars()
+                .take_while(|c| c.is_ascii_digit() || *c == ':')
+                .collect();
+            let mut parts = coords.split(':');
+            let line: usize = parts.next()?.parse().ok()?;
+            let col: usize = parts.next()?.parse().ok()?;
+            return Some((line, col));
+        }
+    }
+    None
+}
+
+fn line_context_with_number(sc: &Scanner, pos: usize) -> (String, usize, usize) {
+    let mut line_start = 0usize;
+    let mut line_no = 1usize;
+    for (idx, b) in sc.slice(0, pos).iter().enumerate() {
+        if *b == b'\n' {
+            line_no += 1;
+            line_start = idx + 1;
+        }
+    }
+
+    let mut line_end = sc.len();
+    for (idx, b) in sc.slice(pos, sc.len()).iter().enumerate() {
+        if *b == b'\n' {
+            line_end = pos + idx;
+            break;
+        }
+    }
+
+    let line = String::from_utf8_lossy(sc.slice(line_start, line_end)).to_string();
+    let col = pos.saturating_sub(line_start) + 1;
+    (line, col, line_no)
+}
+
+/// Return the substring within the first pair of parentheses in an op like
+/// `search(path)`.
+pub fn extract_paren(op: &str) -> Option<&str> {
+    let start = op.find('(')?;
+    let end = op.rfind(')')?;
+    if end <= start + 1 {
+        return None;
+    }
+    Some(&op[start + 1..end])
+}
+
+/// Parse a source snippet containing exactly one packet and return that packet.
+pub fn parse_single_packet(src: &str) -> Result<Packet> {
+    match parse(src)? {
+        Node::Packet(p) => Ok(p),
+        Node::Chain(mut v) if v.len() == 1 => {
+            if let Node::Packet(p) = v.remove(0) {
+                Ok(p)
+            } else {
+                bail!("expected packet")
+            }
+        }
+        _ => bail!("expected packet"),
+    }
+}
+

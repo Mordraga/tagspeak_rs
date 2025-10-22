@@ -6,9 +6,11 @@ pub mod core {
     pub mod compare;
     pub mod dump;
     pub mod env;
+    pub mod help;
     pub mod input;
     pub mod int;
     pub mod len;
+    pub mod lint;
     pub mod math;
     pub mod msg;
     pub mod note;
@@ -44,13 +46,15 @@ pub mod execs {
     pub mod red;
     pub mod repl;
     pub mod run;
+    pub mod tagspeak;
 }
 
 // Re-export for backward compatibility with existing paths
+#[allow(unused_imports)]
 pub use core::{
-    array, bool, cd, compare, dump, env, input, int, len, math, msg, note, obj, parse, print, rand,
-    reflect, store,
+    array, bool, cd, compare, dump, env, help, input, int, len, lint, math, msg, note, obj, parse,
+    print, rand, reflect, store,
 };
-pub use execs::{confirm, exec, http, red, repl, run};
+pub use execs::{confirm, exec, http, red, repl, run, tagspeak};
 pub use files::{load, log, modify, query, save, search};
 pub use flow::{call, conditionals, funct, iter, r#loop};

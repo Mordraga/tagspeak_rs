@@ -27,7 +27,7 @@ mod tests {
     #[test]
     fn defines_and_calls_function() -> Result<()> {
         let script = "[funct:step]{[math@1+2]>[store@x]}>[call@step]>[print@x]";
-        let node = router::parse(script)?;
+        let node = router::parse(script).map_err(anyhow::Error::new)?;
         let mut rt = Runtime::new()?;
         rt.eval(&node)?;
         assert_eq!(rt.get_num("x"), Some(3.0));

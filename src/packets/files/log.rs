@@ -86,7 +86,7 @@ mod tests {
         fs::write(base.join("red.tgsk"), "")?;
         let script = base.join("sub").join("main.tgsk");
         fs::write(&script, "[msg@\"hi\"]>[log@/out.json]")?;
-        let node = router::parse(&fs::read_to_string(&script)?)?;
+        let node = router::parse(&fs::read_to_string(&script)?).map_err(anyhow::Error::new)?;
         let mut rt = Runtime::from_entry(&script)?;
         rt.eval(&node)?;
         let content = fs::read_to_string(base.join("out.json"))?;
@@ -108,7 +108,8 @@ mod tests {
             &script,
             "[log(json)@/profile.json]{[key(name)@\"Saryn\"][key(age)@25][key(active)@true]}",
         )?;
-        let node = crate::router::parse(&fs::read_to_string(&script)?)?;
+        let node =
+            crate::router::parse(&fs::read_to_string(&script)?).map_err(anyhow::Error::new)?;
         let mut rt = crate::kernel::Runtime::from_entry(&script)?;
         rt.eval(&node)?;
         let content = fs::read_to_string(base.join("profile.json"))?;

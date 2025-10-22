@@ -53,6 +53,12 @@ Data is always carried forward by the `>` connector:
 
 - `[dump]` — pretty-print the last value (documents as pretty JSON); pass-through.
 
+- `[mod@doc]{...}` — mutate a loaded document. Sugar packets: `[set(path)@value]`, `[set(path, missing)@value]`, `[remove(path)]`, `[append(list)@value]`, `[merge(meta)@{...}]`. Flags: `[mod(overwrite)@doc]` promotes `comp()` to `comp!()`, and `[mod(debug)@doc]` prints before/after snapshots.
+
+- `[help@packet]` — returns a quick reference string for the named packet. `[help@*]` lists all topics.
+
+- `[lint@/path/script.tgsk]` — runs heuristics that flag lingering notes, unsafe exec usage, and TODO markers. Accepts inline script text as well.
+
 - `[reflect(packets)]` — introspect canonical packets; `[reflect(packets_full)]` writes `docs/PACKETS.json`. Also `[reflect(vars)]`, `[reflect(runtime)]`, `[reflect(doc)@handle]`.
 
 - `[input@"Prompt "]` — read a single line from stdin. Returns the entered string. Respects `TAGSPEAK_NONINTERACTIVE=1` (returns Unit). Sugar: `[input:line@"Prompt "]`.
@@ -104,7 +110,10 @@ Notes:
 - `[exec@"cmd"]` — run a shell command; returns stdout string. Modes: `[exec(code)@"cmd"]` (exit code), `[exec(stderr)@"cmd"]` (stderr), `[exec(json)@"cmd"]` (JSON string `{code,stdout,stderr}`).
   - Requires a yellow consent block.
 
-- `[run@/path/script.tgsk]` — execute another TagSpeak file inside the same red box; updates cwd relative to that file. Depth limited (default 8, `TAGSPEAK_MAX_RUN_DEPTH`).
+- `[run@/path/script.tgsk]` – execute another TagSpeak file inside the same red box; updates cwd relative to that file. Depth limited (default 8, `TAGSPEAK_MAX_RUN_DEPTH`).
+- `[tagspeak:run@/path/script.tgsk]` – CLI-flavored wrapper around `[run]`. Sugar: `[tagspeak run@/path/script.tgsk]`. Honors the same yellow + depth guards as `[run]`.
+- `[tagspeak:build@/path/script.tgsk]` – parse-check a script without executing; returns `/relative/path` when the syntax is valid.
+  Paths starting with `/` are anchored to the current red root (no leading project directory required).
 
 - `[http(get|post|put|delete)@url]{ [key(header.Name)@val] [key(json)@{...}] [key(body)@"..."] }` — outbound HTTP; disabled by default. Enable with `.tagspeak.toml` `[network]` and allowlist hosts.
 
@@ -206,6 +215,27 @@ version = "0.1.0"
 anyhow = "1"
 serde = "1"
 ```
+
+## CLI Commands
+
+- `tagspeak run <file.tgsk>` — execute a script from the shell (same as double-clicking or calling the binary directly).
+- `tagspeak build <file.tgsk>` — syntax-check a script without running it; prints `build_ok /relative/path` on success.
+- `tagspeak help [packet]` — print inline documentation for a packet (or list the available topics when omitted).
+- `tagspeak lint <file.tgsk>` — run the `[lint]` heuristics against a script inside the current red box.
+
+### CLI Sugar Wrapper
+
+```tgsk
+[tagspeak run@/basics/data/literals.tgsk]
+```
+
+Runs another script using CLI-style sugar. For a syntax check without execution:
+
+```tgsk
+[tagspeak build@/basics/data/literals.tgsk]
+```
+
+Returns `/basics/data/literals.tgsk` on success.
 
 ---
 
