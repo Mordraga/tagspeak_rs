@@ -412,7 +412,10 @@ fn parse_if(
         sc.skip_comments_and_ws();
     }
 
-    let else_b = parse_or_else(sc, diagnostics)?;
+    let else_b = match parse_or_else(sc, diagnostics) {
+        Some(nodes) => nodes,
+        None => return None,
+    };
 
     Some(Node::If {
         cond,
@@ -491,12 +494,17 @@ fn parse_or_else(sc: &mut Scanner, diagnostics: &mut Vec<ParseDiagnostic>) -> Op
             sc.next();
             sc.skip_comments_and_ws();
         }
-        let else_b = parse_or_else(sc, diagnostics)?;
-        Some(vec![Node::If {
+        let else_b = match parse_or_else(sc, diagnostics) {
+            Some(nodes) => nodes,
+            None => return None,
+        };
+        let mut nodes = Vec::new();
+        nodes.push(Node::If {
             cond: parse_cond(&src),
             then_b,
             else_b,
-        }])
+        });
+        Some(nodes)
     } else if starts_with(sc, "[else]") {
         let else_start = sc.pos();
         let _pkt = match parse_packet(sc) {
@@ -981,12 +989,14 @@ fn resync_after_error(sc: &mut Scanner, origin: usize) {
                 return;
             }
             Some('/') => {
-                if pos + 1 < limit
-                    && let Some(next) = sc.char_at(pos + 1)
-                        && (next == '/' || next == '*') {
+                if pos + 1 < limit {
+                    if let Some(next) = sc.char_at(pos + 1) {
+                        if next == '/' || next == '*' {
                             sc.i = pos;
                             return;
                         }
+                    }
+                }
             }
             _ => {}
         }

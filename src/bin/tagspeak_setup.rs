@@ -1,4 +1,4 @@
-use std::io::{self, Read};
+#![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 
 #[cfg(target_os = "windows")]
 fn main() {
@@ -16,286 +16,187 @@ fn main() {
 }
 
 #[cfg(target_os = "windows")]
-mod wizard {
-    use anyhow::{Context, Result, anyhow};
-    use std::collections::HashSet;
-    use std::fs;
-    use std::io::{self, Write};
-    use std::path::{Path, PathBuf};
-    use std::process::Command;
-    use winreg::RegKey;
-    use winreg::enums::*;
-
-    use windows_sys::Win32::UI::Shell::{SHCNE_ASSOCCHANGED, SHCNF_IDLIST, SHChangeNotify};
-    use windows_sys::Win32::UI::WindowsAndMessaging::{
-        HWND_BROADCAST, SMTO_ABORTIFHUNG, SendMessageTimeoutW, WM_SETTINGCHANGE,
-    };
-
-    const ENGINE_HINT_FILE: &str = "engine_hint.txt";
-
-    pub fn run() -> Result<()> {
-        println!("========================================");
-        println!("        TagSpeak Setup Wizard");
-        println!("========================================\n");
-
-        loop {
-            println!("What would you like to do today?");
-            println!("  1) Install or update TagSpeak");
-            println!("  2) Uninstall TagSpeak");
-            println!("  3) Build/refresh the engine binary");
-            println!("  4) Exit");
-
-            let choice = prompt("\nChoose an option (1-4): ")?;
-            match choice.as_str() {
-                "1" => install_flow()?,
-                "2" => uninstall_flow()?,
-                "3" => build_engine_flow()?,
-                "4" => {
-                    println!("\nThanks for visiting the TagSpeak wizard. See you next time!");
-                    return Ok(());
-                }
-                _ => println!("\nPlease enter 1, 2, 3, or 4.\n"),
+impl App {
+    fn post_init_cleanup(&self) {
+        // Try to discover the engine via PATH if not set or missing
+        let cur = self.tb_engine.text();
+        if cur.is_empty() || !std::path::Path::new(&cur).exists() {
+            if let Ok(p) = which::which("tagspeak_rs") {
+                self.tb_engine.set_text(&p.display().to_string());
             }
+        }
+        if !std::path::Path::new(&self.tb_engine.text()).exists() {
+            self.lbl_status
+                .set_text("Select your tagspeak_rs.exe, then click Install to register .tgsk.");
+        }
+        // Normalize odd characters that can sneak into resources
+        self.btn_browse.set_text("Browse...");
+        self.update_enabled();
+    }
+    fn init_defaults(&self) {
+        // try to auto-fill engine path (…\tagspeak_rs\target\release\tagspeak_rs.exe)
+        if let Ok(mut here) = std::env::current_exe() {
+            for _ in 0..2 {
+                here = here.parent().unwrap().to_path_buf();
+            } // up from target\release
+            here.push("tagspeak_rs\\target\\release\\tagspeak_rs.exe");
+            if here.exists() {
+                self.tb_engine.set_text(&here.display().to_string());
+            }
+        }
+        // nice spacing so DPI doesn’t squish stuff
+        self.layout.spacing(8);
+        self.layout.margin([12, 12, 12, 12]);
+
+        self.update_enabled();
+
+        // if engine not found, offer to build
+        if !std::path::Path::new(&self.tb_engine.text()).exists() {
+            self.lbl_status
+                .set_text("Engine not found. Click “Build engine”.");
         }
     }
 
-    fn install_flow() -> Result<()> {
-        println!("\n--- Step 1: Find the TagSpeak engine (tagspeak_rs.exe) ---\n");
-        let mut engine = pick_engine_path()?;
-        println!("Using engine: {}\n", engine.display());
-
-        println!("--- Step 2: Choose an installation folder ---\n");
-        if yes_no(
-            "Copy the engine into a dedicated TagSpeak install folder? [Y/n]: ",
-            true,
-        )? {
-            engine = copy_engine_to_install_dir(&engine)?;
-        } else {
-            println!("Keeping the engine where it is ({}).", engine.display());
-        }
-
-        println!("\n--- Step 3: Installation options ---\n");
-        let register_assoc = yes_no("Associate .tgsk files with TagSpeak? [Y/n]: ", true)?;
-        let install_cli = yes_no("Install the `tagspeak` command-line helper? [Y/n]: ", true)?;
-
-        println!("\n--- Step 4: Confirm ---\n");
-        println!("  Engine path       : {}", engine.display());
-        if let Some(parent) = engine.parent() {
-            println!("  Install folder    : {}", parent.display());
-        }
-        println!("  File association  : {}", pretty_bool(register_assoc));
-        println!("  CLI helper        : {}", pretty_bool(install_cli));
-
-        if !yes_no("\nProceed with these changes? [Y/n]: ", true)? {
-            println!("\nNo changes were made.\n");
-            return Ok(());
-        }
-
-        let engine = fs::canonicalize(&engine)
-            .with_context(|| format!("Failed to resolve {}", engine.display()))?;
-
-        if register_assoc
-            && let Err(err) = register_file_assoc(&engine) {
-                return Err(decorate_permission_error(
-                    err,
-                    "Registering .tgsk file associations",
-                ));
-            }
-        if install_cli
-            && let Err(err) = install_cli_alias(&engine) {
-                return Err(decorate_permission_error(
-                    err,
-                    "Installing the TagSpeak CLI helper",
-                ));
-            }
-
-        if let Err(err) = write_engine_hint(&engine) {
-            return Err(decorate_permission_error(err, "Saving the engine location"));
-        }
-        println!("\nTagSpeak is ready to go. Enjoy!\n");
-        Ok(())
+    fn update_enabled(&self) {
+        let ok = std::path::Path::new(&self.tb_engine.text()).exists();
+        self.btn_install.set_enabled(ok);
+        self.btn_uninstall.set_enabled(true);
+        self.btn_run.set_enabled(ok);
     }
 
-    fn uninstall_flow() -> Result<()> {
-        println!("\nThis will remove the .tgsk association and CLI helper.");
-        if !yes_no("Continue? [y/N]: ", false)? {
-            println!("\nNo changes were made.\n");
-            return Ok(());
-        }
-
-        unregister_file_assoc()?;
-        remove_cli_alias()?;
-        println!("\nTagSpeak was removed from file associations and PATH.\n");
-        Ok(())
-    }
-
-    fn build_engine_flow() -> Result<()> {
-        if !has_cargo() {
-            println!(
-                "\nCargo (Rust) is not available. Install it from https://rustup.rs, \
-then run this option again.\n"
-            );
-            return Ok(());
-        }
-
-        println!("\nBuilding TagSpeak engine (cargo build --release --bin tagspeak_rs)...\n");
-        // Build only the engine binary to avoid rebuilding this wizard while it's running
-        let status = Command::new("cargo")
-            .args(["build", "--release", "--bin", "tagspeak_rs"])
-            .status()
-            .context("Failed to run cargo build")?;
-        if status.success() {
-            println!("Build finished successfully.\n");
-            if let Some(built) = discover_built_engine() {
-                println!("Built engine: {}", built.display());
-                if yes_no(
-                    "Copy this build into your TagSpeak install folder now? [Y/n]: ",
-                    true,
-                )? {
-                    let _ = copy_engine_to_install_dir(&built)?;
+    fn browse_engine(&self) {
+        let mut dialog = nwg::FileDialog::default();
+        if nwg::FileDialog::builder()
+            .title("Select tagspeak_rs.exe")
+            .action(nwg::FileDialogAction::Open)
+            .filters("Executable (*.exe)|*.exe")
+            .build(&mut dialog)
+            .is_ok()
+        {
+            // Show the dialog; only proceed if user selected a file
+            if dialog.run(Some(&self.window)) {
+                if let Ok(os) = dialog.get_selected_item() {
+                    let p = std::path::PathBuf::from(os);
+                    self.tb_engine.set_text(&p.display().to_string());
+                    self.update_enabled();
                 }
             }
-        } else {
-            println!("Build failed (status {}).\n", status);
         }
-        Ok(())
     }
 
-    fn pick_engine_path() -> Result<PathBuf> {
-        loop {
-            let mut options = discover_engine_candidates();
-            options.sort();
-
-            if options.is_empty() {
-                println!("Couldn't automatically find tagspeak_rs.exe.");
+    fn install(&self) {
+        // Ensure we have an engine; if missing, try to build if Rust toolchain is available.
+        let mut exe = std::path::PathBuf::from(self.tb_engine.text());
+        if !exe.exists() {
+            // Try building if cargo is available
+            if has_cargo() {
+                self.set_busy(true, "Building TagSpeak engine… this can take a minute");
+                self.build_engine();
+                exe = std::path::PathBuf::from(self.tb_engine.text());
+                if !exe.exists() {
+                    self.set_busy(
+                        false,
+                        "Build finished but engine not found. Select it manually or try again.",
+                    );
+                    return;
+                }
             } else {
-                println!("Found these candidates:");
-                for (idx, path) in options.iter().enumerate() {
-                    println!("  {}) {}", idx + 1, path.display());
-                }
+                // Offer to open Rust installer page
+                nwg::modal_info_message(
+                    &self.window,
+                    "Rust toolchain required",
+                    "Rust (cargo) is not installed. We'll open rustup.rs in your browser. Install Rust, then return here and click Install again.",
+                );
+                let _ = std::process::Command::new("rundll32")
+                    .args(["url.dll,FileProtocolHandler", "https://rustup.rs"])
+                    .spawn();
+                return;
             }
-            println!("  C) Choose a custom path");
-            println!("  B) Build the engine now");
+        }
 
-            let choice = prompt("\nSelect an option: ")?;
-            if let Ok(num) = choice.parse::<usize>()
-                && (1..=options.len()).contains(&num) {
-                    let candidate = &options[num - 1];
-                    if candidate.exists() {
-                        if let Some(resolved) = resolve_engine_candidate(candidate) {
-                            return Ok(resolved);
-                        }
-                        println!(
-                            "That selection is a folder without a tagspeak_rs.exe. Let's try again.\n"
-                        );
-                        continue;
-                    }
-                    println!("That path no longer exists. Let's try again.\n");
-                    continue;
-                }
+        if let Err(e) = do_install(exe) {
+            nwg::modal_error_message(&self.window, "Install failed", &format!("{e:#}"));
+            return;
+        }
+        nwg::modal_info_message(&self.window, "Done", "Associated .tgsk with TagSpeak!");
+        let _ = refresh_icons();
+        self.update_enabled();
+    }
 
-            match choice.to_uppercase().as_str() {
-                "C" => {
-                    let custom = prompt("Enter the full path to tagspeak_rs.exe: ")?;
-                    let trimmed = trim_quotes(&custom);
-                    if trimmed.is_empty() {
-                        println!("Please provide a path.\n");
-                        continue;
-                    }
-                    let path = PathBuf::from(&trimmed);
-                    if !path.exists() {
-                        println!("That path doesn't exist. Try again.\n");
-                        continue;
-                    }
-                    if let Some(resolved) = resolve_engine_candidate(&path) {
-                        return Ok(resolved);
-                    }
-                    if path.is_dir() {
-                        println!(
-                            "That folder doesn't contain tagspeak_rs.exe. Build the engine first or point directly at the executable.\n"
-                        );
-                    } else {
-                        println!(
-                            "That file isn't the TagSpeak engine (tagspeak_rs.exe). Try again.\n"
-                        );
-                    }
-                }
-                "B" => {
-                    build_engine_flow()?;
-                }
-                _ => println!("Please choose one of the listed options.\n"),
-            }
+    fn uninstall(&self) {
+        if let Err(e) = do_uninstall() {
+            nwg::modal_error_message(&self.window, "Uninstall failed", &format!("{e:#}"));
+            return;
+        }
+        nwg::modal_info_message(&self.window, "Removed", "Association for .tgsk removed.");
+        let _ = refresh_icons();
+        self.update_enabled();
+    }
+
+    fn run_engine(&self) {
+        let path = std::path::PathBuf::from(self.tb_engine.text());
+        if path.exists() {
+            let _ = std::process::Command::new(path).status();
+        } else {
+            nwg::modal_error_message(&self.window, "Not found", "Engine path doesn’t exist.");
         }
     }
 
-    fn prompt(message: &str) -> Result<String> {
-        print!("{message}");
-        io::stdout().flush().ok();
-        let mut buf = String::new();
-        io::stdin()
-            .read_line(&mut buf)
-            .map_err(|e| anyhow!("Failed to read input: {e}"))?;
-        Ok(buf.trim().to_string())
-    }
+    fn build_engine(&self) {
+        self.set_busy(true, "Building TagSpeak engine… this can take a minute");
 
-    fn yes_no(message: &str, default_yes: bool) -> Result<bool> {
-        loop {
-            let answer = prompt(message)?;
-            if answer.is_empty() {
-                return Ok(default_yes);
+        // Locate repo root: ...\tagspeak_rs\target\release\setup.exe -> pop 3
+        let repo = match std::env::current_exe().ok().and_then(|mut p| {
+            for _ in 0..3 {
+                let _ = p.pop();
             }
-            match answer.to_lowercase().as_str() {
-                "y" | "yes" => return Ok(true),
-                "n" | "no" => return Ok(false),
-                _ => println!("Please answer yes or no (y/n)."),
-            }
-        }
-    }
-
-    fn discover_engine_candidates() -> Vec<PathBuf> {
-        let mut seen = HashSet::new();
-        let mut out = Vec::new();
-
-        let mut push_candidate = |path: PathBuf| {
-            if let Some(valid) = resolve_engine_candidate(&path) {
-                let key = normalize_path(&valid);
-                if seen.insert(key) {
-                    out.push(valid);
-                }
+            Some(p)
+        }) {
+            Some(p) => p,
+            None => {
+                self.set_busy(false, "Couldn’t resolve repo root");
+                return;
             }
         };
 
-        if let Some(saved) = read_engine_hint() {
-            push_candidate(saved);
+        // sanity check
+        let mut cargo_toml = repo.clone();
+        cargo_toml.push("Cargo.toml");
+        if !cargo_toml.exists() {
+            self.set_busy(false, "Cargo.toml not found at repo root");
+            return;
         }
-        if let Ok(exe) = std::env::current_exe()
-            && let Some(dir) = exe.parent() {
-                push_candidate(dir.join("tagspeak_rs.exe"));
-                if let Some(parent) = dir.parent() {
-                    push_candidate(parent.join("tagspeak_rs.exe"));
+
+        // find `cargo` (PATH or common location)
+        let cargo = find_cargo();
+
+        let status = std::process::Command::new(cargo)
+            .current_dir(&repo)
+            .args(["build", "--release", "-p", "tagspeak_rs"])
+            .status();
+
+        match status {
+            Ok(s) if s.success() => {
+                let mut exe = repo.clone();
+                exe.push(r"target\release\tagspeak_rs.exe");
+                if exe.exists() {
+                    self.tb_engine.set_text(&exe.display().to_string());
+                    self.update_enabled();
+                    self.set_busy(false, "Build complete ✔");
+                } else {
+                    self.set_busy(false, "Build succeeded, but tagspeak_rs.exe not found");
                 }
             }
-        if let Ok(found) = which::which("tagspeak_rs") {
-            push_candidate(found);
-        }
-        if let Ok(cwd) = std::env::current_dir() {
-            push_candidate(cwd.join("target\\release\\tagspeak_rs.exe"));
-            push_candidate(cwd.join("target\\debug\\tagspeak_rs.exe"));
-        }
-
-        out
-    }
-
-    fn resolve_engine_candidate<P: AsRef<Path>>(candidate: P) -> Option<PathBuf> {
-        let path = candidate.as_ref();
-        if path.is_file() {
-            if path
-                .file_name()
-                .and_then(|name| name.to_str())
-                .map(|name| name.eq_ignore_ascii_case("tagspeak_rs.exe"))
-                .unwrap_or(false)
-            {
-                return fs::canonicalize(path).ok();
+            Ok(s) => {
+                // [myth] goal: surface the numeric exit code
+                let code = s
+                    .code()
+                    .map(|c| c.to_string())
+                    .unwrap_or_else(|| "unknown".into());
+                self.set_busy(false, &format!("Build failed (exit code {code})"));
+            }
+            Err(e) => {
+                self.set_busy(false, &format!("Couldn’t launch cargo: {e}"));
             }
             return None;
         }
@@ -424,115 +325,15 @@ then run this option again.\n"
         let _ = classes.delete_subkey_all(".tgsk");
         let _ = classes.delete_subkey_all("TagSpeakFile");
 
-        if let Ok(file_exts) = hkcu.open_subkey_with_flags(
-            "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\FileExts",
-            KEY_ALL_ACCESS,
-        ) {
-            let _ = file_exts.delete_subkey_all(".tgsk");
-        }
-
-        refresh_icons();
-        Ok(())
+    // Also clear Explorer per-user association cache for .tgsk
+    if let Ok(file_exts) = hkcu.open_subkey_with_flags(
+        "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\FileExts",
+        KEY_ALL_ACCESS,
+    ) {
+        let _ = file_exts.delete_subkey_all(".tgsk");
     }
-
-    fn install_cli_alias(engine: &Path) -> Result<()> {
-        let dir = tagspeak_data_dir();
-        fs::create_dir_all(&dir)?;
-        let alias = dir.join("tagspeak.exe");
-        if alias.exists() {
-            let _ = fs::remove_file(&alias);
-        }
-        fs::copy(engine, &alias)?;
-        ensure_path_contains(&dir)?;
-        Ok(())
-    }
-
-    fn remove_cli_alias() -> Result<()> {
-        let dir = tagspeak_data_dir();
-        let alias = dir.join("tagspeak.exe");
-        if alias.exists() {
-            let _ = fs::remove_file(&alias);
-        }
-        remove_from_path(&dir)?;
-        Ok(())
-    }
-
-    fn tagspeak_data_dir() -> PathBuf {
-        dirs::data_dir()
-            .or_else(dirs::data_local_dir)
-            .unwrap_or_else(|| {
-                dirs::home_dir()
-                    .unwrap_or_else(|| PathBuf::from("C:\\"))
-                    .join("AppData\\Local")
-            })
-            .join("TagSpeak")
-    }
-
-    fn write_engine_hint(engine: &Path) -> Result<()> {
-        let dir = tagspeak_data_dir();
-        fs::create_dir_all(&dir)?;
-        let hint = dir.join(ENGINE_HINT_FILE);
-        fs::write(hint, engine.display().to_string())?;
-        Ok(())
-    }
-
-    fn read_engine_hint() -> Option<PathBuf> {
-        let hint = tagspeak_data_dir().join(ENGINE_HINT_FILE);
-        fs::read_to_string(hint).ok().map(PathBuf::from)
-    }
-
-    fn write_user_icon() -> Result<String> {
-        let dir = tagspeak_data_dir();
-        fs::create_dir_all(&dir)?;
-        let icon = dir.join("tagspeak.ico");
-        fs::write(&icon, include_bytes!("../../misc/Tagspeak.ico"))?;
-        Ok(icon.display().to_string())
-    }
-
-    fn ensure_path_contains(dir: &Path) -> Result<()> {
-        let canonical = normalize_path(dir);
-        let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-        let env = hkcu.open_subkey_with_flags("Environment", KEY_READ | KEY_WRITE)?;
-        let mut path: String = env.get_value("Path").unwrap_or_default();
-        let mut entries: Vec<String> = path
-            .split(';')
-            .filter_map(|s| {
-                let trimmed = s.trim();
-                (!trimmed.is_empty()).then(|| trimmed.to_string())
-            })
-            .collect();
-
-        if entries.iter().any(|p| normalize_str(p) == canonical) {
-            return Ok(());
-        }
-
-        entries.push(dir.display().to_string());
-        path = entries.join(";");
-        env.set_value("Path", &path)?;
-        broadcast_env_change();
-        Ok(())
-    }
-
-    fn remove_from_path(dir: &Path) -> Result<()> {
-        let canonical = normalize_path(dir);
-        let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-        let env = hkcu.open_subkey_with_flags("Environment", KEY_READ | KEY_WRITE)?;
-        let path: String = env.get_value("Path").unwrap_or_default();
-        let mut entries: Vec<String> = path
-            .split(';')
-            .filter_map(|s| {
-                let trimmed = s.trim();
-                (!trimmed.is_empty()).then(|| trimmed.to_string())
-            })
-            .collect();
-        let original_len = entries.len();
-        entries.retain(|p| normalize_str(p) != canonical);
-        if entries.len() != original_len {
-            env.set_value("Path", &entries.join(";"))?;
-            broadcast_env_change();
-        }
-        Ok(())
-    }
+    Ok(())
+}
 
     fn normalize_path(path: &Path) -> String {
         normalize_str(&path.display().to_string())
