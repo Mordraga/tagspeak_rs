@@ -72,56 +72,6 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
     Ok(rt.last.clone())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::router;
-    use std::fs;
-
-    #[test]
-    fn writes_json() -> Result<()> {
-        let base = std::env::temp_dir().join(format!("tgsk_log_test_{}", std::process::id()));
-        let _ = fs::remove_dir_all(&base);
-        fs::create_dir_all(base.join("sub"))?;
-        fs::write(base.join("red.tgsk"), "")?;
-        let script = base.join("sub").join("main.tgsk");
-        fs::write(&script, "[msg@\"hi\"]>[log@/out.json]")?;
-        let node = router::parse(&fs::read_to_string(&script)?).map_err(anyhow::Error::new)?;
-        let mut rt = Runtime::from_entry(&script)?;
-        rt.eval(&node)?;
-        let content = fs::read_to_string(base.join("out.json"))?;
-        assert!(content.contains("\"hi\""));
-        fs::remove_dir_all(base)?;
-        Ok(())
-    }
-
-    #[test]
-    fn structured_json_log() -> Result<()> {
-        use std::fs;
-        let base =
-            std::env::temp_dir().join(format!("tgsk_log_struct_json_{}", std::process::id()));
-        let _ = fs::remove_dir_all(&base);
-        fs::create_dir_all(base.join("sub"))?;
-        fs::write(base.join("red.tgsk"), "")?;
-        let script = base.join("sub").join("main.tgsk");
-        fs::write(
-            &script,
-            "[log(json)@/profile.json]{[key(name)@\"Saryn\"][key(age)@25][key(active)@true]}",
-        )?;
-        let node =
-            crate::router::parse(&fs::read_to_string(&script)?).map_err(anyhow::Error::new)?;
-        let mut rt = crate::kernel::Runtime::from_entry(&script)?;
-        rt.eval(&node)?;
-        let content = fs::read_to_string(base.join("profile.json"))?;
-        let val: serde_json::Value = serde_json::from_str(&content)?;
-        assert_eq!(val["name"], "Saryn");
-        assert_eq!(val["age"], 25);
-        assert_eq!(val["active"], true);
-        fs::remove_dir_all(base)?;
-        Ok(())
-    }
-}
-
 // ---- helpers ----
 
 enum Mode {
@@ -131,8 +81,8 @@ enum Mode {
 }
 
 fn detect_mode(op: &str, ext: &str) -> Mode {
-    if let Some(rest) = op.strip_prefix("log(") {
-        if let Some(end) = rest.find(')') {
+    if let Some(rest) = op.strip_prefix("log(")
+        && let Some(end) = rest.find(')') {
             match &rest[..end].to_lowercase() {
                 s if s == "json" => return Mode::Json,
                 s if s == "yaml" => return Mode::Yaml,
@@ -140,7 +90,6 @@ fn detect_mode(op: &str, ext: &str) -> Mode {
                 _ => {}
             }
         }
-    }
     match ext.to_lowercase().as_str() {
         "yaml" | "yml" => Mode::Yaml,
         "toml" => Mode::Toml,
@@ -232,7 +181,7 @@ fn arg_to_json(rt: &Runtime, arg: &Arg) -> Result<serde_json::Value> {
     Ok(match arg {
         Arg::Number(n) => {
             if n.fract() == 0.0 && *n >= (i64::MIN as f64) && *n <= (i64::MAX as f64) {
-                serde_json::Value::Number(serde_json::Number::from((*n as i64)))
+                serde_json::Value::Number(serde_json::Number::from(*n as i64))
             } else {
                 serde_json::Value::Number(
                     serde_json::Number::from_f64(*n)
@@ -255,4 +204,54 @@ fn arg_to_json(rt: &Runtime, arg: &Arg) -> Result<serde_json::Value> {
         },
         _ => serde_json::Value::Null,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::router;
+    use std::fs;
+
+    #[test]
+    fn writes_json() -> Result<()> {
+        let base = std::env::temp_dir().join(format!("tgsk_log_test_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&base);
+        fs::create_dir_all(base.join("sub"))?;
+        fs::write(base.join("red.tgsk"), "")?;
+        let script = base.join("sub").join("main.tgsk");
+        fs::write(&script, "[msg@\"hi\"]>[log@/out.json]")?;
+        let node = router::parse(&fs::read_to_string(&script)?).map_err(anyhow::Error::new)?;
+        let mut rt = Runtime::from_entry(&script)?;
+        rt.eval(&node)?;
+        let content = fs::read_to_string(base.join("out.json"))?;
+        assert!(content.contains("\"hi\""));
+        fs::remove_dir_all(base)?;
+        Ok(())
+    }
+
+    #[test]
+    fn structured_json_log() -> Result<()> {
+        use std::fs;
+        let base =
+            std::env::temp_dir().join(format!("tgsk_log_struct_json_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&base);
+        fs::create_dir_all(base.join("sub"))?;
+        fs::write(base.join("red.tgsk"), "")?;
+        let script = base.join("sub").join("main.tgsk");
+        fs::write(
+            &script,
+            "[log(json)@/profile.json]{[key(name)@\"Saryn\"][key(age)@25][key(active)@true]}",
+        )?;
+        let node =
+            crate::router::parse(&fs::read_to_string(&script)?).map_err(anyhow::Error::new)?;
+        let mut rt = crate::kernel::Runtime::from_entry(&script)?;
+        rt.eval(&node)?;
+        let content = fs::read_to_string(base.join("profile.json"))?;
+        let val: serde_json::Value = serde_json::from_str(&content)?;
+        assert_eq!(val["name"], "Saryn");
+        assert_eq!(val["age"], 25);
+        assert_eq!(val["active"], true);
+        fs::remove_dir_all(base)?;
+        Ok(())
+    }
 }

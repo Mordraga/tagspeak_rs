@@ -50,8 +50,8 @@ pub fn load(root: Option<&Path>) -> Config {
     // Read TOML if present
     if let Some(root) = root {
         let path = root.join(".tagspeak.toml");
-        if let Ok(s) = std::fs::read_to_string(path) {
-            if let Ok(val) = s.parse::<toml::Value>() {
+        if let Ok(s) = std::fs::read_to_string(path)
+            && let Ok(val) = s.parse::<toml::Value>() {
                 // security.allow_exec (bool)
                 if let Some(b) = val
                     .get("security")
@@ -76,11 +76,9 @@ pub fn load(root: Option<&Path>) -> Config {
                     .get("run")
                     .and_then(|t| t.get("max_depth"))
                     .and_then(|v| v.as_integer())
-                {
-                    if n > 0 {
+                    && n > 0 {
                         cfg.run_max_depth = n as usize;
                     }
-                }
                 // run.require_yellow (bool)
                 if let Some(b) = val
                     .get("run")
@@ -117,18 +115,16 @@ pub fn load(root: Option<&Path>) -> Config {
                         .collect();
                 }
             }
-        }
     }
 
     // Env overrides
     if let Some(b) = parse_bool_env("TAGSPEAK_ALLOW_EXEC") {
         cfg.allow_exec = b;
     }
-    if let Some(n) = parse_usize_env("TAGSPEAK_MAX_RUN_DEPTH") {
-        if n > 0 {
+    if let Some(n) = parse_usize_env("TAGSPEAK_MAX_RUN_DEPTH")
+        && n > 0 {
             cfg.run_max_depth = n;
         }
-    }
     if let Some(b) = parse_bool_env("TAGSPEAK_NONINTERACTIVE") {
         cfg.prompts_noninteractive = b;
     }

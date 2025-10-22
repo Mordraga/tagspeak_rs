@@ -23,17 +23,15 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
         }
     }
 
-    if let Some(prev) = before {
-        if prev.json != doc.json {
-            if let (Ok(before_s), Ok(after_s)) = (
+    if let Some(prev) = before
+        && prev.json != doc.json
+            && let (Ok(before_s), Ok(after_s)) = (
                 serde_json::to_string_pretty(&prev.json),
                 serde_json::to_string_pretty(&doc.json),
             ) {
                 println!("[mod(debug)] before:\n{before_s}");
                 println!("[mod(debug)] after:\n{after_s}");
             }
-        }
-    }
 
     rt.set_var(handle, Value::Doc(doc.clone()))?;
     Ok(Value::Doc(doc))
@@ -193,7 +191,7 @@ fn parse_path(path: &str) -> Result<Vec<Segment>> {
                     buf.clear();
                 }
                 let mut num = String::new();
-                while let Some(ch) = chars.next() {
+                for ch in chars.by_ref() {
                     if ch == ']' {
                         break;
                     }

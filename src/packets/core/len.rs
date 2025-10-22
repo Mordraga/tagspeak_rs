@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-use crate::kernel::{Arg, Packet, Runtime, Value};
+use crate::kernel::{Packet, Runtime, Value};
 
 // [len] -> length of last value (string/doc)
 // [len@var|"text"] -> length of the provided arg

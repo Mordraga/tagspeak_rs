@@ -311,9 +311,7 @@ fn find_top_level_delim(src: &str, needle: char) -> Option<usize> {
                 continue;
             }
             ')' => {
-                if depth_paren > 0 {
-                    depth_paren -= 1;
-                }
+                depth_paren = depth_paren.saturating_sub(1);
                 continue;
             }
             '[' => {
@@ -321,9 +319,7 @@ fn find_top_level_delim(src: &str, needle: char) -> Option<usize> {
                 continue;
             }
             ']' => {
-                if depth_brack > 0 {
-                    depth_brack -= 1;
-                }
+                depth_brack = depth_brack.saturating_sub(1);
                 continue;
             }
             '{' => {
@@ -331,9 +327,7 @@ fn find_top_level_delim(src: &str, needle: char) -> Option<usize> {
                 continue;
             }
             '}' => {
-                if depth_brace > 0 {
-                    depth_brace -= 1;
-                }
+                depth_brace = depth_brace.saturating_sub(1);
                 continue;
             }
             _ => {}
@@ -418,10 +412,7 @@ fn parse_if(
         sc.skip_comments_and_ws();
     }
 
-    let else_b = match parse_or_else(sc, diagnostics) {
-        Some(nodes) => nodes,
-        None => return None,
-    };
+    let else_b = parse_or_else(sc, diagnostics)?;
 
     Some(Node::If {
         cond,
@@ -500,17 +491,12 @@ fn parse_or_else(sc: &mut Scanner, diagnostics: &mut Vec<ParseDiagnostic>) -> Op
             sc.next();
             sc.skip_comments_and_ws();
         }
-        let else_b = match parse_or_else(sc, diagnostics) {
-            Some(nodes) => nodes,
-            None => return None,
-        };
-        let mut nodes = Vec::new();
-        nodes.push(Node::If {
+        let else_b = parse_or_else(sc, diagnostics)?;
+        Some(vec![Node::If {
             cond: parse_cond(&src),
             then_b,
             else_b,
-        });
-        Some(nodes)
+        }])
     } else if starts_with(sc, "[else]") {
         let else_start = sc.pos();
         let _pkt = match parse_packet(sc) {
@@ -995,14 +981,12 @@ fn resync_after_error(sc: &mut Scanner, origin: usize) {
                 return;
             }
             Some('/') => {
-                if pos + 1 < limit {
-                    if let Some(next) = sc.char_at(pos + 1) {
-                        if next == '/' || next == '*' {
+                if pos + 1 < limit
+                    && let Some(next) = sc.char_at(pos + 1)
+                        && (next == '/' || next == '*') {
                             sc.i = pos;
                             return;
                         }
-                    }
-                }
             }
             _ => {}
         }

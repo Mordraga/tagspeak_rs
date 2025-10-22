@@ -1,5 +1,4 @@
 use anyhow::{Result, bail};
-use std::path::PathBuf;
 use std::time::SystemTime;
 
 use crate::kernel::values::Document;
@@ -19,7 +18,7 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
     let path = root.join(&rt.cwd).join("_object.json");
     let doc = Document::new(
         obj,
-        PathBuf::from(path),
+        path,
         String::from("json"),
         SystemTime::now(),
         root.clone(),
@@ -97,7 +96,7 @@ fn arg_to_json(rt: &Runtime, arg: &Arg) -> Result<serde_json::Value> {
     Ok(match arg {
         Arg::Number(n) => {
             if n.fract() == 0.0 && *n >= (i64::MIN as f64) && *n <= (i64::MAX as f64) {
-                serde_json::Value::Number(serde_json::Number::from((*n as i64)))
+                serde_json::Value::Number(serde_json::Number::from(*n as i64))
             } else {
                 serde_json::Value::Number(
                     serde_json::Number::from_f64(*n)

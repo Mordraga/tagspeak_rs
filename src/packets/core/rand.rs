@@ -117,7 +117,7 @@ mod tests {
         let out = rt.eval(&node)?;
         match out {
             Value::Num(n) => {
-                assert!(n >= 0.0 && n < 1.0);
+                assert!((0.0..1.0).contains(&n));
             }
             _ => bail!("rand did not return number"),
         }
@@ -131,7 +131,7 @@ mod tests {
         let out = rt.eval(&node)?;
         match out {
             Value::Num(n) => {
-                assert!(n >= 1.0 && n <= 3.0);
+                assert!((1.0..=3.0).contains(&n));
             }
             _ => bail!("rand did not return number"),
         }
@@ -146,7 +146,7 @@ mod tests {
         let out = rt.eval(&node)?;
         match out {
             Value::Num(n) => {
-                assert!(n >= 5.0 && n <= 10.0);
+                assert!((5.0..=10.0).contains(&n));
             }
             _ => bail!("rand did not return number"),
         }

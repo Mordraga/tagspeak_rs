@@ -19,12 +19,13 @@ impl<'a> Scanner<'a> {
         self.i
     }
     pub fn len(&self) -> usize {
-        self.limit
+        self.len
     }
     pub fn slice(&self, start: usize, end: usize) -> &[u8] {
         &self.src[start..end]
     }
 
+    #[allow(dead_code)]
     pub fn total_len(&self) -> usize {
         self.len
     }
@@ -253,6 +254,7 @@ impl<'a> Scanner<'a> {
         (idx < self.limit).then(|| self.src[idx] as char)
     }
 
+    #[allow(dead_code)]
     pub fn read_ident_or_number(&mut self) -> String {
         let mut s = String::new();
         while let Some(c) = self.peek() {
@@ -266,6 +268,7 @@ impl<'a> Scanner<'a> {
         s
     }
 
+    #[allow(dead_code)]
     pub fn read_raw_until(&mut self, terminator: char) -> String {
         let mut s = String::new();
         while let Some(c) = self.peek() {

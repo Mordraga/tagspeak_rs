@@ -12,8 +12,8 @@ enum ExecMode {
 }
 
 fn detect_mode(op: &str) -> ExecMode {
-    if let Some(rest) = op.strip_prefix("exec(") {
-        if let Some(end) = rest.find(')') {
+    if let Some(rest) = op.strip_prefix("exec(")
+        && let Some(end) = rest.find(')') {
             match &rest[..end].to_lowercase() {
                 s if s == "stderr" => return ExecMode::Stderr,
                 s if s == "code" => return ExecMode::Code,
@@ -21,7 +21,6 @@ fn detect_mode(op: &str) -> ExecMode {
                 _ => {}
             }
         }
-    }
     ExecMode::Stdout
 }
 

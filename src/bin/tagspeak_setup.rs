@@ -1,4 +1,4 @@
-use std::io::{self, Read, Write};
+use std::io::{self, Read};
 
 #[cfg(target_os = "windows")]
 fn main() {
@@ -94,22 +94,20 @@ mod wizard {
         let engine = fs::canonicalize(&engine)
             .with_context(|| format!("Failed to resolve {}", engine.display()))?;
 
-        if register_assoc {
-            if let Err(err) = register_file_assoc(&engine) {
+        if register_assoc
+            && let Err(err) = register_file_assoc(&engine) {
                 return Err(decorate_permission_error(
                     err,
                     "Registering .tgsk file associations",
                 ));
             }
-        }
-        if install_cli {
-            if let Err(err) = install_cli_alias(&engine) {
+        if install_cli
+            && let Err(err) = install_cli_alias(&engine) {
                 return Err(decorate_permission_error(
                     err,
                     "Installing the TagSpeak CLI helper",
                 ));
             }
-        }
 
         if let Err(err) = write_engine_hint(&engine) {
             return Err(decorate_permission_error(err, "Saving the engine location"));
@@ -140,9 +138,10 @@ then run this option again.\n"
             return Ok(());
         }
 
-        println!("\nBuilding TagSpeak engine (cargo build --release)...\n");
+        println!("\nBuilding TagSpeak engine (cargo build --release --bin tagspeak_rs)...\n");
+        // Build only the engine binary to avoid rebuilding this wizard while it's running
         let status = Command::new("cargo")
-            .args(["build", "--release", "-p", "tagspeak_rs"])
+            .args(["build", "--release", "--bin", "tagspeak_rs"])
             .status()
             .context("Failed to run cargo build")?;
         if status.success() {
@@ -179,8 +178,8 @@ then run this option again.\n"
             println!("  B) Build the engine now");
 
             let choice = prompt("\nSelect an option: ")?;
-            if let Ok(num) = choice.parse::<usize>() {
-                if (1..=options.len()).contains(&num) {
+            if let Ok(num) = choice.parse::<usize>()
+                && (1..=options.len()).contains(&num) {
                     let candidate = &options[num - 1];
                     if candidate.exists() {
                         if let Some(resolved) = resolve_engine_candidate(candidate) {
@@ -194,7 +193,6 @@ then run this option again.\n"
                     println!("That path no longer exists. Let's try again.\n");
                     continue;
                 }
-            }
 
             match choice.to_uppercase().as_str() {
                 "C" => {
@@ -270,14 +268,13 @@ then run this option again.\n"
         if let Some(saved) = read_engine_hint() {
             push_candidate(saved);
         }
-        if let Ok(exe) = std::env::current_exe() {
-            if let Some(dir) = exe.parent() {
+        if let Ok(exe) = std::env::current_exe()
+            && let Some(dir) = exe.parent() {
                 push_candidate(dir.join("tagspeak_rs.exe"));
                 if let Some(parent) = dir.parent() {
                     push_candidate(parent.join("tagspeak_rs.exe"));
                 }
             }
-        }
         if let Ok(found) = which::which("tagspeak_rs") {
             push_candidate(found);
         }
@@ -462,7 +459,7 @@ then run this option again.\n"
 
     fn tagspeak_data_dir() -> PathBuf {
         dirs::data_dir()
-            .or_else(|| dirs::data_local_dir())
+            .or_else(dirs::data_local_dir)
             .unwrap_or_else(|| {
                 dirs::home_dir()
                     .unwrap_or_else(|| PathBuf::from("C:\\"))

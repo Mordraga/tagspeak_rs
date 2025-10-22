@@ -82,7 +82,7 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
     // increment depth, eval, then restore
     rt.set_num("__run_depth", (cur_depth as f64) + 1.0)?;
     let out = rt.eval(&ast)?;
-    rt.set_num("__run_depth", (cur_depth as f64))?;
+    rt.set_num("__run_depth", cur_depth as f64)?;
 
     // Restore cwd
     rt.cwd = prev_cwd;

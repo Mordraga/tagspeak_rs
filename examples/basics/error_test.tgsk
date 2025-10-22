@@ -1,40 +1,40 @@
 [note@"Uncomment the scenario you want to try; parser stops at the first error you leave active."]
 
 [note@Missing opening bracket]
-print@"Missing opening bracket"]
+// print@"Missing opening bracket"]
 
 [note@Missing closing bracket]
-[print@"Unfinished packet"
+// [print@"Unfinished packet"
 
 // --- Extra closing ']' (uncomment to test)
-[print@"One too many"]]
+// [print@"One too many"]]
 
 // --- Empty packet op (uncomment to test)
-[print@"Trigger empty op"]> []
+// [print@"Trigger empty op"]> []
 
 // --- Mismatched braces (uncomment to test)
-[print@"Brace mismatch"}
+// [print@"Brace mismatch"}
 
 // --- Unterminated packet or  (uncomment to test)
-[print@"Testing ["]
+// [print@"Testing ["]
 
 // --- Missing argument (uncomment to test)
-[print@]
+// [print@]
 
 // --- Unterminated packet with wrong string form (uncomment to test)
-[print@12345
+// [print@12345
 
 // --- Unclosed nested packet (uncomment to test)
-[store@value]{foo: [bar@baz}
+// [store@value]{foo: [bar@baz}
 
 // --- Unexpected symbol at top-level (uncomment to test)
-@print["hello"]
+// @print["hello"]
 
 // --- Orphaned closing bracket (uncomment to test)
-]
+// ]
 
 // --- Orphaned closing brace (uncomment to test)
-}
+// }
 
 // --- Stray character (uncomment to test)
-p
+// p

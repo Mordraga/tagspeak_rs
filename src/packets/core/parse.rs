@@ -1,16 +1,14 @@
 use anyhow::{Result, bail};
-use std::path::PathBuf;
 use std::time::SystemTime;
 
 use crate::kernel::values::Document;
 use crate::kernel::{Arg, Packet, Runtime, Value};
 
 fn detect_mode(op: &str) -> Option<&str> {
-    if let Some(rest) = op.strip_prefix("parse(") {
-        if let Some(end) = rest.find(')') {
+    if let Some(rest) = op.strip_prefix("parse(")
+        && let Some(end) = rest.find(')') {
             return Some(&rest[..end]);
         }
-    }
     None
 }
 
@@ -50,7 +48,7 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
     let path = root.join(&cwd).join("_parsed.json");
     let doc = Document::new(
         json_val,
-        PathBuf::from(path),
+        path,
         String::from("json"),
         SystemTime::now(),
         root.clone(),

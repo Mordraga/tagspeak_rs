@@ -1,5 +1,4 @@
-use anyhow::{Result, bail};
-use std::path::PathBuf;
+use anyhow::Result;
 use std::time::SystemTime;
 
 use crate::kernel::values::Document;
@@ -42,7 +41,7 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
     let path = root_path.join(&rt.cwd).join("_array.json");
     let doc = Document::new(
         json,
-        PathBuf::from(path),
+        path,
         String::from("json"),
         SystemTime::now(),
         root_path.clone(),

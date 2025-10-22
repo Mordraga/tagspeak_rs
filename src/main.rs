@@ -83,7 +83,7 @@ fn init_red(dir: Option<&str>) -> Result<()> {
 
 fn run_script(path: &str) -> Result<()> {
     println!("Running file: {}", &path);
-    let src = fs::read_to_string(&path)?;
+    let src = fs::read_to_string(path)?;
     let ast = router::parse(&src).map_err(anyhow::Error::new)?;
     let mut rt = Runtime::from_entry(Path::new(&path))?;
     if rt.effective_root.is_none() {

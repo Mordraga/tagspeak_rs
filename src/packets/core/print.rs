@@ -22,6 +22,7 @@ fn pretty(v: &Value) -> String {
 
 // Support simple composite printing: tokens of idents and quoted strings
 // Example: [print@sq " is the square of " x]
+#[allow(dead_code)]
 fn format_composite(rt: &Runtime, raw: &str) -> Option<String> {
     let mut i = 0usize;
     let chars: Vec<char> = raw.chars().collect();

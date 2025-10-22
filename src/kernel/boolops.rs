@@ -1,6 +1,7 @@
 use crate::kernel::ast::{CmpBase, Comparator};
 use crate::kernel::values::Value;
 
+#[allow(dead_code)]
 pub fn reduce_op_chain_is_valid() -> bool {
     true
 } // placeholder if needed

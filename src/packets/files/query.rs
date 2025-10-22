@@ -77,7 +77,7 @@ fn parse_path(path: &str) -> Result<Vec<Segment>> {
                     buf.clear();
                 }
                 let mut num = String::new();
-                while let Some(ch) = chars.next() {
+                for ch in chars.by_ref() {
                     if ch == ']' {
                         break;
                     }
@@ -105,12 +105,11 @@ fn navigate_read<'a>(rt: &Runtime, root: &'a JsonValue, segs: &[Segment]) -> Opt
                         continue;
                     }
                     if let Some(var) = rt.get_var(k) {
-                        if let Some(key) = value_to_key(&var) {
-                            if let Some(next) = obj.get(&key) {
+                        if let Some(key) = value_to_key(&var)
+                            && let Some(next) = obj.get(&key) {
                                 cur = next;
                                 continue;
                             }
-                        }
                         if let Some(idx) = value_to_index(&var) {
                             let key_name = idx.to_string();
                             if let Some(next) = obj.get(&key_name) {
@@ -125,12 +124,11 @@ fn navigate_read<'a>(rt: &Runtime, root: &'a JsonValue, segs: &[Segment]) -> Opt
                         cur = arr.get(idx)?;
                         continue;
                     }
-                    if let Some(var) = rt.get_var(k) {
-                        if let Some(idx) = value_to_index(&var) {
+                    if let Some(var) = rt.get_var(k)
+                        && let Some(idx) = value_to_index(&var) {
                             cur = arr.get(idx)?;
                             continue;
                         }
-                    }
                     return None;
                 } else {
                     return None;

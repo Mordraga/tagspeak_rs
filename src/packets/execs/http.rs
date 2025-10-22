@@ -6,11 +6,10 @@ use crate::kernel::config;
 use crate::kernel::{Arg, Packet, Runtime, Value};
 
 fn detect_method(op: &str) -> Option<&str> {
-    if let Some(rest) = op.strip_prefix("http(") {
-        if let Some(end) = rest.find(')') {
+    if let Some(rest) = op.strip_prefix("http(")
+        && let Some(end) = rest.find(')') {
             return Some(&rest[..end]);
         }
-    }
     None
 }
 
@@ -30,8 +29,7 @@ fn allowed_url(cfg: &config::Config, url: &Url) -> bool {
             if full.starts_with(p) {
                 return true;
             }
-        } else if p.starts_with("*.") {
-            let suf = &p[2..];
+        } else if let Some(suf) = p.strip_prefix("*.") {
             if host.ends_with(suf) {
                 return true;
             }
@@ -82,10 +80,9 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
         for node in body {
             if let Node::Packet(pkt) = node {
                 let op = pkt.op.as_str();
-                if op.starts_with("key(") && op.ends_with(')') {
-                    if let Some(name) = op.get(4..op.len() - 1) {
-                        if name.starts_with("header.") {
-                            let h = &name[7..];
+                if op.starts_with("key(") && op.ends_with(')')
+                    && let Some(name) = op.get(4..op.len() - 1) {
+                        if let Some(h) = name.strip_prefix("header.") {
                             let val = match pkt.arg.as_ref() {
                                 Some(Arg::Str(s)) => s.clone(),
                                 Some(Arg::Ident(i)) => i.clone(),
@@ -100,13 +97,11 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
                                 let j = arg_to_json(rt, arg)?;
                                 req = req.json(&j);
                             }
-                        } else if name == "body" {
-                            if let Some(Arg::Str(s)) = pkt.arg.as_ref() {
+                        } else if name == "body"
+                            && let Some(Arg::Str(s)) = pkt.arg.as_ref() {
                                 req = req.body(s.clone());
                             }
-                        }
                     }
-                }
             }
         }
     }
@@ -121,7 +116,7 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
     Ok(out)
 }
 
-fn handle_response(mut resp: Response) -> Result<Value> {
+fn handle_response(resp: Response) -> Result<Value> {
     let status = resp.status();
     let ctype = resp
         .headers()
@@ -163,7 +158,7 @@ fn arg_to_json(rt: &Runtime, arg: &Arg) -> Result<serde_json::Value> {
     Ok(match arg {
         Arg::Number(n) => {
             if n.fract() == 0.0 && *n >= (i64::MIN as f64) && *n <= (i64::MAX as f64) {
-                serde_json::Value::Number(serde_json::Number::from((*n as i64)))
+                serde_json::Value::Number(serde_json::Number::from(*n as i64))
             } else {
                 serde_json::Value::Number(
                     serde_json::Number::from_f64(*n)

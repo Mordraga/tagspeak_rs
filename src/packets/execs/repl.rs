@@ -5,15 +5,14 @@ use std::sync::{Mutex, OnceLock};
 use crate::kernel::{Packet, Runtime, Value};
 
 fn parse_model(op: &str) -> Option<String> {
-    if let Some(rest) = op.strip_prefix("repl(") {
-        if let Some(end) = rest.find(')') {
+    if let Some(rest) = op.strip_prefix("repl(")
+        && let Some(end) = rest.find(')') {
             let raw = &rest[..end];
             let trimmed = raw.trim();
             if !trimmed.is_empty() {
                 return Some(trimmed.to_string());
             }
         }
-    }
     None
 }
 
