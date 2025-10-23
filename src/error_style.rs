@@ -1,3 +1,4 @@
+// Clean, ASCII-only terminal styling for error panels.
 const COLOR_RESET: &str = "\x1b[0m";
 const COLOR_HEADER: &str = "\x1b[38;5;220m";
 const COLOR_DETAIL: &str = "\x1b[38;5;203m";
@@ -6,11 +7,11 @@ const COLOR_HINT: &str = "\x1b[38;5;111m";
 const COLOR_SNIPPET: &str = "\x1b[38;5;250m";
 const COLOR_POINTER: &str = "\x1b[38;5;214m";
 
-const GLYPH_DETAIL: &str = "❌";
-const GLYPH_LOCATION: &str = "📍";
-const GLYPH_HINT: &str = "💡";
-const GLYPH_PREFIX: &str = "✍️  ";
-const GLYPH_POINTER: &str = "↑";
+const GLYPH_DETAIL: &str = "[!]";
+const GLYPH_LOCATION: &str = "[@]";
+const GLYPH_HINT: &str = "[>]";
+const GLYPH_PREFIX: &str = "  | ";
+const GLYPH_POINTER: &str = "^";
 
 pub fn render_error_box(
     line_no: usize,
@@ -46,12 +47,11 @@ pub fn render_error_box(
         .max()
         .unwrap_or(0);
 
-    let title = format!(" {} ", "TagSpeak Error");
-    let header = format!("╭{:─^width$}╮", title, width = inner_width);
-    let footer = format!("╰{:─^width$}╯", "", width = inner_width);
+    let title = "+---------------- TagSpeak Error ----------------+".to_string();
+    let footer = format!("+{}+", "-".repeat(inner_width.max(4)));
 
     let mut out = String::new();
-    out.push_str(&colorize(&header, COLOR_HEADER));
+    out.push_str(&colorize(&title, COLOR_HEADER));
     out.push('\n');
     for (line, color) in &lines {
         out.push_str(&colorize(&pad_line_no_border(line, inner_width), color));
@@ -120,7 +120,7 @@ fn classify_detail(detail: &str) -> (HintCategory, String) {
     }
     (
         HintCategory::Syntax,
-        "Something’s a little out of place. Deep breath. Let’s sort out the syntax together."
+        "Something's a little out of place. Deep breath. Let's sort out the syntax together."
             .to_string(),
     )
 }
@@ -129,47 +129,36 @@ fn classify_unexpected(ch: char, where_: &str) -> (HintCategory, String) {
     match (where_, ch) {
         (_, ']') => (
             HintCategory::Delimiter,
-            "A ']' without a '['? That’s like a hug with no arms — pair it up properly."
-                .to_string(),
+            "A ']' without a '['? Pair it up properly.".to_string(),
         ),
         (_, '}') => (
             HintCategory::Delimiter,
-            "Ending a block that never started? Try adding a '{' before it to keep things tidy."
-                .to_string(),
+            "A '}' without a '{'? Let's bring its partner back to the party.".to_string(),
         ),
-        ("top-level", '@') => (
+        ("top-level", c) => (
             HintCategory::Syntax,
-            "Using '@' on its own? Start with a packet like [print@...] to give it a home."
-                .to_string(),
-        ),
-        ("top-level", c) if c.is_ascii_alphanumeric() => (
-            HintCategory::Syntax,
-            "Loose literal text? Wrap it in [msg@...] or comment it out to keep things clean."
-                .to_string(),
+            format!("Unexpected character '{c}' at top-level. Is this a stray symbol?"),
         ),
         _ => (
             HintCategory::Syntax,
-            format!("'{ch}' doesn’t belong here. Let’s double-check the structure and try again."),
+            format!("Unexpected character '{ch}'. Double-check packet syntax and placement."),
         ),
     }
 }
 
 fn delimiter_hint(detail: &str, lower: &str) -> Option<String> {
-    if lower.contains("unterminated string") {
+    if lower.contains("unbalanced [ ... ]") {
         return Some(
-            "Opened a quote but didn’t close it. Pop in the missing '\"' to finish the thought."
+            "There's an opening '[' that didn't find its closing ']'. Let's add the match."
                 .to_string(),
         );
     }
-    if lower.contains("unbalanced [ ... ]") {
-        return Some(
-            "Started a packet and forgot the ']'. Let’s add the closing bracket to complete the pair."
-                .to_string(),
-        );
+    if lower.contains("unbalanced ( ... )") {
+        return Some("A '(' is missing its ')' — let's close it.".to_string());
     }
     if lower.contains("unbalanced { ... }") {
         return Some(
-            "Looks like a block is missing its '}'. Let’s close it up so nothing leaks."
+            "Looks like a block is missing its '}'. Let's close it up so nothing leaks."
                 .to_string(),
         );
     }
@@ -184,7 +173,7 @@ fn delimiter_hint(detail: &str, lower: &str) -> Option<String> {
     }
     if lower.contains("unexpected character") && lower.contains("']'") {
         return Some(
-            "This ']' doesn’t match anything. Add a '[' before it, or drop it entirely."
+            "This ']' doesn't match anything. Add a '[' before it, or drop it entirely."
                 .to_string(),
         );
     }
@@ -206,7 +195,7 @@ fn packet_hint(lower: &str) -> Option<String> {
     }
     if lower.contains("expected [then]") {
         return Some(
-            "Missing a [then]{...} block after your condition. Let’s add it to complete the flow."
+            "Missing a [then]{...} block after your condition. Let's add it to complete the flow."
                 .to_string(),
         );
     }
@@ -218,7 +207,7 @@ fn packet_hint(lower: &str) -> Option<String> {
     }
     if lower.contains("unknown operation") {
         return Some(
-            "That op isn’t recognized. Maybe it’s a typo or missing its module prefix?".to_string(),
+            "That op isn't recognized. Maybe it's a typo or missing its module prefix?".to_string(),
         );
     }
     None
@@ -230,13 +219,13 @@ fn variable_hint(lower: &str) -> Option<String> {
     }
     if lower.contains("variable") && lower.contains("not found") {
         return Some(
-            "You're using a variable that hasn’t been declared yet. Give it a name and value first."
+            "You're using a variable that hasn't been declared yet. Give it a name and value first."
                 .to_string(),
         );
     }
     if lower.contains("invalid variable name") {
         return Some(
-            "That variable name doesn’t follow syntax rules. Try something alphanumeric and clean."
+            "That variable name doesn't follow syntax rules. Try something alphanumeric and clean."
                 .to_string(),
         );
     }

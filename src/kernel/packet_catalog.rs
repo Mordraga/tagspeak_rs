@@ -56,10 +56,11 @@ pub fn is_known_packet(ns: Option<&str>, op: &str) -> bool {
 }
 
 pub fn suggest_packet(ns: Option<&str>, op: &str) -> Option<&'static str> {
-    if let Some(namespace) = ns
-        && namespace.eq_ignore_ascii_case("yellow") {
+    if let Some(namespace) = ns {
+        if namespace.eq_ignore_ascii_case("yellow") {
             return Some("yellow");
         }
+    }
 
     let op_norm = op.to_ascii_lowercase();
     let mut best: Option<&'static str> = None;

@@ -11,7 +11,6 @@ pub struct Scanner<'a> {
     pub i: usize,
     len: usize,
     limit: usize,
-    limit: usize,
 }
 
 impl<'a> Scanner<'a> {
@@ -244,10 +243,6 @@ impl<'a> Scanner<'a> {
         }
         let (ln, col) = self.cur_line_col();
         bail!("unbalanced {} ... {} before {}:{}", open, close, ln, col)
-    }
-
-    pub fn char_at(&self, idx: usize) -> Option<char> {
-        (idx < self.limit).then(|| self.src[idx] as char)
     }
 
     pub fn char_at(&self, idx: usize) -> Option<char> {

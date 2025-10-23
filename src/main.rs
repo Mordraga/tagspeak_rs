@@ -1,5 +1,4 @@
 mod error_style;
-mod error_style;
 mod interpreter;
 mod kernel;
 mod packets;

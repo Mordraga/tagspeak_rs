@@ -42,12 +42,16 @@ winres = "0.1"
 [target.'cfg(target_os = "linux")'.dependencies]
 winit = "0.29"
 
-# no [features] block needed
+[features]
+# Build GUI setup helpers only when explicitly requested
+setup_wizard = []
 
 [[bin]]
 name = "tagspeak_setup"
 path = "src/bin/tagspeak_setup.rs"
+required-features = ["setup_wizard"]
 
 [[bin]]
 name = "tagspeak_setup_linux"
 path = "src/bin/tagspeak_setup_linux.rs"
+required-features = ["setup_wizard"]
