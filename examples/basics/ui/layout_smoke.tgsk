@@ -1,0 +1,17 @@
+[app@"Layout Smoke"]{
+  [frame:top@"top"]{ [label@"top"] }
+  [layout(location=top, direction=horizontal, padding=4, spacing=4)@top]
+
+  [frame:left@"left"]{ [label@"left"] }
+  [layout(location=left, direction=vertical, padding=4, spacing=4)@left]
+
+  [frame:center@"center"]{ [label@"center"] }
+  [layout(location=center, direction=vertical, align=center, spacing=8)@center]
+
+  [frame:right@"right"]{ [label@"right"] }
+  [layout(location=right, direction=vertical, padding=4, spacing=4)@right]
+
+  [frame:bottom@"bottom"]{ [label@"bottom"] }
+  [layout(location=bottom, direction=horizontal, padding=4, spacing=4)@bottom]
+}
+

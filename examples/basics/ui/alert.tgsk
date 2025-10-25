@@ -1,0 +1,3 @@
+[note@"Show an alert without changing the value"]
+[msg@"Hello world!"]>[ui:alert@"This is an alert"]>[print]
+

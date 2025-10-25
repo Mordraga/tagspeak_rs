@@ -20,6 +20,7 @@ pub mod core {
     pub mod rand;
     pub mod reflect;
     pub mod store;
+    pub mod var;
 }
 
 pub mod files {
@@ -49,6 +50,14 @@ pub mod execs {
     pub mod tagspeak;
 }
 
+pub mod ui {
+    pub mod alert;
+    pub mod select;
+    pub mod window;
+    pub mod app;
+    pub mod scope;
+}
+
 // Re-export for backward compatibility with existing paths
 #[allow(unused_imports)]
 pub use core::{
@@ -58,3 +67,4 @@ pub use core::{
 pub use execs::{confirm, exec, http, red, repl, run, tagspeak};
 pub use files::{load, log, modify, query, save, search};
 pub use flow::{call, conditionals, funct, iter, r#loop};
+pub use ui::{alert as ui_alert, select as ui_select, window as ui_window, app as ui_app, scope as ui_scope};

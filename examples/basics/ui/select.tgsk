@@ -1,0 +1,4 @@
+[note@"Choose a color and store it"]
+[ui:select@"red|green|blue"]>[store@color]
+[print@"You picked: "]>[print@color]
+

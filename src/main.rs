@@ -2,6 +2,7 @@ mod error_style;
 mod interpreter;
 mod kernel;
 mod packets;
+mod ui;
 mod router;
 
 use anyhow::{Result, anyhow};

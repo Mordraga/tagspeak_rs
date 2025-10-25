@@ -1,0 +1,63 @@
+[int@0]>[store:fluid@clicks]
+[msg@""]>[store@url]
+
+[funct:add_one]{ 
+    [math@clicks+1]>[store:fluid@clicks]>[print@clicks]
+}
+
+[funct:minus_one]{
+    [math@clicks-1]>[store:fluid@clicks]>[print@clicks] 
+}
+
+[funct:add_five]{
+    [math@clicks+5]>[store:fluid@clicks]>[print@clicks]
+}
+
+[funct:minus_five]{
+    [math@clicks-5]>[store:fluid@clicks]>[print@clicks]
+}
+
+[funct:reset]{
+    [int@0]>[store:fluid@clicks]>[print@clicks]
+}
+
+[app@"Tag Counter"]{
+    [frame:main@""]{
+        [layout(location=center, direction=horizontal, spacing=12)]{
+            [frame:ones@""]{
+                [layout(direction=vertical, 
+                        align=center, 
+                        spacing=6,
+                        padding=4, 
+                        border=1, 
+                        border_color="#4a90e2"
+                        )]{
+                    [label@"Ones Counter"]
+                    [button@"Add one"]{ [call@add_one] }
+                    [button@"Minus one"]{ [call@minus_one] }
+                }
+            }
+
+            [frame:fives@""]{
+                [layout(direction=vertical, 
+                        align=center, 
+                        spacing=6, 
+                        padding=4,
+                        border=1, 
+                        border_color="#e24a6d"
+                        )]{
+                    [label@"Fives Counter"]
+                    [button@"Add five"]{ [call@add_five] }
+                    [button@"Minus five"]{ [call@minus_five] } 
+                }
+            }
+        }
+    }
+
+    [frame:display@""]{
+        [layout(direction=vertical, align=center, spacing=6, width=fill)]{
+        [label@"Button clicked "]>[label@clicks]>[label@" times"]
+        [button@"Reset Counter"]{ [call@reset] }
+        }
+    }
+}

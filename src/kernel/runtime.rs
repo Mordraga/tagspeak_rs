@@ -1,4 +1,5 @@
 use anyhow::{Result, bail};
+use crate::packets::core::var as pkt_var;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
@@ -125,8 +126,15 @@ impl Runtime {
 
     fn eval_packet(&mut self, p: &Packet) -> Result<Value> {
         match (p.ns.as_deref(), p.op.as_str()) {
+            // UI namespace
+            (Some("ui"), "alert") => crate::packets::ui_alert::handle(self, p),
+            (Some("ui"), "select") => crate::packets::ui_select::handle(self, p),
+            (Some("ui"), "window") => crate::packets::ui_window::handle(self, p),
+            (None, "app") => crate::packets::ui_app::handle(self, p),
+            (None, "scope") => crate::packets::ui_scope::handle(self, p),
             // namespaced
             (Some("funct"), _) => crate::packets::funct::handle(self, p),
+            (None, "funct") => crate::packets::funct::handle(self, p),
             (Some("tagspeak"), _) => crate::packets::tagspeak::handle(self, p),
 
             // allow namespaced loop syntax: [loop:tag@N]
@@ -139,6 +147,7 @@ impl Runtime {
             (None, "math") => crate::packets::math::handle(self, p),
             (None, "store") => crate::packets::store::handle(self, p),
             (None, "print") => crate::packets::print::handle(self, p),
+            (None, "var") => pkt_var::handle(self, p),
             (None, "dump") => crate::packets::dump::handle(self, p),
             (None, "call") => crate::packets::call::handle(self, p),
             (None, "msg") => crate::packets::msg::handle(self, p),

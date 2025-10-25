@@ -1,9 +1,11 @@
 pub const KNOWN_PACKET_OPS: &[&str] = &[
-    "note", "math", "store", "print", "dump", "call", "msg", "int", "bool", "env", "help", "lint",
+    "note", "math", "store", "print", "dump", "call", "funct", "msg", "int", "bool", "env", "help", "lint",
     "cd", "len", "rand", "array", "obj", "reflect", "load", "search", "log", "save", "mod", "exec",
     "run", "tagspeak", "yellow", "confirm", "red", "http", "repl", "parse", "get", "exists",
     "iter", "input", "eq", "ne", "lt", "le", "gt", "ge", "if", "then", "else", "or", "comp",
     "comp!", "merge", "del", "ins", "push", "set", "remove", "append", "delete",
+    // UI leaf packets
+    "label", "button", "textedit", "textbox", "popup", "separator", "spacer", "checkbox", "app", "scope",
 ];
 
 pub fn is_known_packet(ns: Option<&str>, op: &str) -> bool {
@@ -35,6 +37,7 @@ pub fn is_known_packet(ns: Option<&str>, op: &str) -> bool {
         || op_lower.starts_with("exec(")
         || op_lower.starts_with("http(")
         || op_lower.starts_with("parse(")
+        || op_lower.starts_with("layout(")
         || op_lower.starts_with("tagspeak ")
         || op_lower.starts_with("if(")
         || op_lower.starts_with("or(")

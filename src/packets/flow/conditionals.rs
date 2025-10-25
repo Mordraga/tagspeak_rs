@@ -217,10 +217,20 @@ fn parse_atom(tok: &str) -> Option<Node> {
             arg: Some(Arg::Number(n)),
             body: None,
         }))
-    } else if is_ident_like(t) {
+    } else if t.starts_with('"') && t.ends_with('"') {
+        // string literal
+        let inner = t.trim_matches('"').to_string();
         Some(Node::Packet(Packet {
             ns: None,
-            op: "math".into(),
+            op: "msg".into(),
+            arg: Some(Arg::Str(inner)),
+            body: None,
+        }))
+    } else if is_ident_like(t) {
+        // resolve identifier as a runtime variable (string/number/bool)
+        Some(Node::Packet(Packet {
+            ns: None,
+            op: "var".into(),
             arg: Some(Arg::Ident(t.to_string())),
             body: None,
         }))

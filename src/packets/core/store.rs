@@ -36,7 +36,17 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
             }
         }
         _ => {
-            rt.set_var(name, val.clone())?;
+            // If inside a [scope@name]{...}, capture stores as context-bound
+            if let Some(Value::Str(scope_name)) = rt.get_var("__scope_capture") {
+                let cond_src = format!("__ui_scope==\"{}\"", scope_name.replace('"', "\\\""));
+                let cond = parse_cond(&cond_src);
+                rt.ctx_vars
+                    .entry(name.to_string())
+                    .or_default()
+                    .push((cond, val.clone()));
+            } else {
+                rt.set_var(name, val.clone())?;
+            }
         }
     }
 

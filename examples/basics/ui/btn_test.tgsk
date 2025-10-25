@@ -1,0 +1,7 @@
+[app@"Btn Test"]{
+[frame:main@""]{
+[button@"Click me!"]{ [call@noop] }
+}
+[layout(location=center, direction=vertical, align=center, spacing=6)@main]
+}
+[funct@noop]{ [print@"noop"] }
