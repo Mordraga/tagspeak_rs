@@ -1,0 +1,6 @@
+# Attempt to read a context-bound secret outside its scope
+[scope@"private"]{
+  [msg@"topsecret"]>[store@secret]
+}
+[print@secret]
+

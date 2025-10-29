@@ -1,0 +1,5 @@
+# Direct exec under yellow gate (command is safe echo)
+[yellow@"trust me"]{
+  [exec@"echo SAFE_EXEC"]
+}
+

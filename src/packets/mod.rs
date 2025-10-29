@@ -62,7 +62,7 @@ pub mod ui {
 #[allow(unused_imports)]
 pub use core::{
     array, bool, cd, compare, dump, env, help, input, int, len, lint, math, msg, note, obj, parse,
-    print, rand, reflect, store,
+    print, rand, reflect, store, var,
 };
 pub use execs::{confirm, exec, http, red, repl, run, tagspeak};
 pub use files::{load, log, modify, query, save, search};

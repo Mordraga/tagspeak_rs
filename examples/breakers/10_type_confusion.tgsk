@@ -1,0 +1,45 @@
+# Type Confusion - What happens with mismatched types?
+
+[note@"Store non-number and compare"]
+[msg@"not_a_number"]>[store@x]
+[if@(x > 5)]>[then]{
+  [print@"String compared to number - WAT?"]
+}>[else]>[then]{
+  [print@"Comparison failed as expected"]
+}
+
+[note@"Compare Unit to numbers"]
+[env@NONEXISTENT_VAR]>[store@y]
+[if@(y == 0)]>[then]{
+  [print@"Unit equals zero?"]
+}>[else]>[then]{
+  [print@"Unit does not equal zero"]
+}
+
+[note@"Math on strings"]
+[msg@"hello"]>[store@str]
+[math@str+5]>[print]
+
+[note@"Array in conditional"]
+[array@[1,2,3]]>[store@arr]
+[if@(arr)]>[then]{
+  [print@"Array is truthy"]
+}>[else]>[then]{
+  [print@"Array is falsy"]
+}
+
+[note@"Empty string truthiness"]
+[msg@""]>[store@empty]
+[if@(empty)]>[then]{
+  [print@"Empty string is truthy"]
+}>[else]>[then]{
+  [print@"Empty string is falsy"]
+}
+
+[note@"Zero truthiness"]
+[int@0]>[store@zero]
+[if@(zero)]>[then]{
+  [print@"Zero is truthy"]
+}>[else]>[then]{
+  [print@"Zero is falsy"]
+}

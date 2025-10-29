@@ -1,0 +1,5 @@
+# Repeated loads to provoke handle pressure (should be safe with modern std I/O)
+[loop1000]{
+  [load@"/red.tgsk"]
+}
+

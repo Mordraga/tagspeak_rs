@@ -1,0 +1,11 @@
+# Conflicting store modes and scope collisions
+[msg@"A"]>[store@x]
+[msg@"B"]>[store@x]
+[msg@"RIGID"]>[store:rigid@x]
+[msg@"FLUID"]>[store:fluid@x]
+[msg@"MAIN"]>[store:context(__ui_scope==\"main\")@x]
+
+[scope@"A"]{ [msg@"one"]>[store@counter] }
+[scope@"B"]{ [msg@"two"]>[store@counter] }
+[print@counter]
+

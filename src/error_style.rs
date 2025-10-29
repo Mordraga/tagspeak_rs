@@ -47,8 +47,7 @@ pub fn render_error_box(
         .max()
         .unwrap_or(0);
 
-    let title = "+---------------- TagSpeak Error ----------------+".to_string();
-    let footer = format!("+{}+", "-".repeat(inner_width.max(4)));
+    let (title, footer) = centered_box_border("TagSpeak Error", inner_width);
 
     let mut out = String::new();
     out.push_str(&colorize(&title, COLOR_HEADER));
@@ -60,6 +59,18 @@ pub fn render_error_box(
     out.push_str(&colorize(&footer, COLOR_HEADER));
     out
 }
+
+// Helper to center the title and build footer with matching width
+fn centered_box_border(title_text: &str, content_width: usize) -> (String, String) {
+    let side_space = content_width.saturating_sub(title_text.chars().count());
+    let left = side_space / 2;
+    let right = side_space - left;
+
+    let title = format!("╭{}{}{}╮", "─".repeat(left), title_text, "─".repeat(right));
+    let footer = format!("╰{}╯", "─".repeat(content_width));
+    (title, footer)
+}
+
 
 pub fn friendly_hint(detail: &str) -> String {
     let (category, message) = classify_detail(detail);

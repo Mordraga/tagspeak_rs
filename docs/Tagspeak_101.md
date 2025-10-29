@@ -53,13 +53,15 @@ Data is always carried forward by the `>` connector:
 
 - `[dump]` — pretty-print the last value (documents as pretty JSON); pass-through.
 
-- `[mod@doc]{...}` — mutate a loaded document. Sugar packets: `[set(path)@value]`, `[set(path, missing)@value]`, `[remove(path)]`, `[append(list)@value]`, `[merge(meta)@{...}]`. Flags: `[mod(overwrite)@doc]` promotes `comp()` to `comp!()`, and `[mod(debug)@doc]` prints before/after snapshots.
+- `[mod@doc]{...}` — mutate a loaded document. Sugar packets (preferred names): `[set(path)@value]`, `[set(path, missing)@value]`, `[delete(path)]` (alias: `remove`, `del`), `[insert(path)@value]` (alias: `ins`), `[append(list)@value]` (alias: `push`), `[merge(meta)@{...}]`. Flags: `[mod(overwrite)@doc]` promotes `comp()` to `comp!()`, and `[mod(debug)@doc]` prints before/after snapshots.
 
 - `[help@packet]` — returns a quick reference string for the named packet. `[help@*]` lists all topics.
 
 - `[lint@/path/script.tgsk]` — runs heuristics that flag lingering notes, unsafe exec usage, and TODO markers. Accepts inline script text as well.
 
 - `[reflect(packets)]` — introspect canonical packets; `[reflect(packets_full)]` writes `docs/PACKETS.json`. Also `[reflect(vars)]`, `[reflect(runtime)]`, `[reflect(doc)@handle]`.
+
+- `[var@name]` — return the current value of a runtime variable (or Unit if missing).
 
 - `[input@"Prompt "]` — read a single line from stdin. Returns the entered string. Respects `TAGSPEAK_NONINTERACTIVE=1` (returns Unit). Sugar: `[input:line@"Prompt "]`.
 
@@ -82,6 +84,8 @@ Data is always carried forward by the `>` connector:
 - `[get(path)@handle]` — read a value at `path` from a document variable; returns that value (or Unit if missing).
 
 - `[exists(path)@handle]` — returns a bool indicating whether `path` exists in the document.
+
+Note: Path syntax mirrors `[mod]` — dot keys and numeric indexes in brackets, e.g., `user.name`, `items[0]`.
 
 Notes:
 - All file paths resolve inside the nearest `red.tgsk` root; attempts to escape error with `E_BOX_VIOLATION`.
@@ -128,93 +132,30 @@ Notes:
 - `[repl(model) ]{ ... }` — interactive loop (red-only). Prompts `model>` until `exit/quit`.
   - Requires red enabled (`[red@"..."]` first), and does not allow nesting (one REPL per session at a time).
   - Sets `q` to the current input then evaluates the body; prints the body’s output each turn.
-  - Example:
-    ```tgsk
-    [repl(assistant)]{
-      # echo back length of input
-      [len@q]>[print]
-    }
-    ```
+  - Example: ../examples/advanced/REPL/llm_repl.tgsk
 ---
 
 ## Examples
 
 ### Quick Dump
 
-`tgsk
-[math@2+2]>[log@result.json]
-`
-
-Produces `result.json`:
-
-```result.json
-{
-  4
-}
-```
+- Script: ../examples/logging/quick_log.tgsk
+- Output: ../examples/logging/logging_outputs/quicklog.json
 
 ### JSON Structured Log
 
-```tgsk
-[log(json)@profile.json]{
-  [key(name)@"Saryn"]
-  [key(age)@26]
-  [key(tagspeak_dev)@true]
-}
-```
-
-Produces `profile.json`:
-
-```json
-{
-  "name": "Saryn",
-  "age": 26,
-  "tagspeak_dev": true
-}
-```
+- Script: ../examples/logging/structured_log_json.tgsk
+- Output: ../examples/logging/logging_outputs/struct_json.json
 
 ### YAML Structured Log
 
-```tgsk
-[log(yaml)@profile.yaml]{
-  [key(name)@"Saryn"]
-  [key(age)@26]
-}
-```
-
-Produces `profile.yaml`:
-
-```yaml
-name: Saryn
-age: 26
-```
+- Script: ../examples/logging/structured_log_yaml.tgsk
+- Output: ../examples/logging/logging_outputs/struct_yaml.yaml
 
 ### TOML Structured Log
 
-```tgsk
-[log(toml)@Cargo.toml]{
-  [sect@package]{
-    [key(name)@"tagspeak"]
-    [key(version)@"0.1.0"]
-  }
-  [sect@dependencies]{
-    [key(anyhow)@"1"]
-    [key(serde)@"1"]
-  }
-}
-```
-
-Produces `Cargo.toml`:
-
-```toml
-[package]
-name = "tagspeak"
-version = "0.1.0"
-
-[dependencies]
-anyhow = "1"
-serde = "1"
-```
+- Script: ../examples/logging/structured_log_toml.tgsk
+- Output: ../examples/logging/logging_outputs/struct_toml.toml
 
 ## CLI Commands
 

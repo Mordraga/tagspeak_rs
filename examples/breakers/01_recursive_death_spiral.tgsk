@@ -1,0 +1,4 @@
+# Intentional infinite recursion to test call-depth handling
+[funct:boom]{ [call@boom] }
+[call@boom]
+

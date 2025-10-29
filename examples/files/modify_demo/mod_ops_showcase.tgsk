@@ -1,0 +1,45 @@
+[note@"[mod] inner ops showcase — short + full aliases"]
+
+# Start with an in-memory document (safe, no disk I/O)
+[parse(json)@{
+  "user": {"name": "Hal"},
+  "items": [1,2,3],
+  "meta": {"a": 1}
+}]>[store@doc]>[dump]
+
+[note@"insert (short)"]
+[mod@doc]{ [ins(user.nickname)@"H"] }>[dump]
+
+[note@"insert (full)"]
+[mod@doc]{ [insert(user.city)@"LA"] }>[dump]
+
+[note@"set (overwrites by default)"]
+[mod@doc]{ [set(user.name)@"Jen"] }>[dump]
+
+[note@"set with missing (does NOT overwrite existing)"]
+[mod@doc]{ [set(user.name, missing)@"X"] }>[dump]
+
+[note@"comp (set if absent)"]
+[mod@doc]{ [comp(user.score)@42] }>[dump]
+
+[note@"comp! (force overwrite)"]
+[mod@doc]{ [comp!(user.score)@7] }>[dump]
+
+[note@"merge object into meta"]
+[mod@doc]{ [merge(meta)@{"b":2, "c": {"d": 4}}] }>[dump]
+
+[note@"push (short) append to array"]
+[mod@doc]{ [push(items)@4] }>[dump]
+
+[note@"append (full) append to array"]
+[mod@doc]{ [append(items)@5] }>[dump]
+
+[note@"del (short) remove a field"]
+[mod@doc]{ [del(meta.a)] }>[dump]
+
+[note@"delete (full) remove a field"]
+[mod@doc]{ [delete(user.nickname)] }>[dump]
+
+[note@"mod(overwrite) upgrades comp -> comp!"]
+[mod(overwrite)@doc]{ [comp(user.tag)@"cool"] }>[dump]
+

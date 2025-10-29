@@ -5,7 +5,7 @@ This guide codifies the Packet Additions rules (AGENTS.md §17) so new packets s
 ## Checklist
 
 - Avoid duplicates: verify an equivalent packet doesn’t already exist.
-  - Run `[reflect(packets)]>[log(json)@/docs/PACKETS.json]` (see `examples/docs/update_packets_json.tgsk`), or inspect `docs/PACKETS.json`.
+  - Run `[reflect(packets)]>[log(json)@/docs/PACKETS.json]` (see `misc/admin_tgsk_scripts/update_packets_json.tgsk`), or inspect `docs/PACKETS.json`.
 - Inputs/outputs: specify what the packet consumes and what it returns downstream.
 - Side‑effects: packets with effects (print/log/save/exec/http/run) must pass a value through unless explicitly designed as sinks.
 - Safety gating:

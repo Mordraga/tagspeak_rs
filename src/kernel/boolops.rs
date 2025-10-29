@@ -10,8 +10,8 @@ pub fn cmp_eval(cmp: &Comparator, a: &Value, b: &Value) -> anyhow::Result<bool> 
     use CmpBase::*;
     let mut out = match cmp.base {
         Eq => eq_values(a, b),
-        Lt => order(a, b, |x, y| x < y)?,
-        Gt => order(a, b, |x, y| x > y)?,
+        Lt => match order(a, b, |x, y| x < y) { Ok(v) => v, Err(_) => false },
+        Gt => match order(a, b, |x, y| x > y) { Ok(v) => v, Err(_) => false },
     };
     if matches!(cmp.base, Lt | Gt) && cmp.include_eq {
         out = out || eq_values(a, b);

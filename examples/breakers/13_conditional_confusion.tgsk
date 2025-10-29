@@ -1,0 +1,8 @@
+# Truthiness checks
+[int@0]>[store@x]
+[if@(x)]{ [print@"truthy"] }[else]{ [print@"falsy"] }
+[msg@""]>[store@y]
+[if@(y)]{ [print@"truthy"] }[else]{ [print@"falsy"] }
+[msg@"hi"]>[store@z]
+[if@(z)]{ [print@"truthy"] }[else]{ [print@"falsy"] }
+

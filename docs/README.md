@@ -79,7 +79,7 @@ More details live in **[TagSpeak\_101.md](Tagspeak_101.md)**.
 ## Run
 
 ```bash
-cargo run -- examples/smoke.tgsk
+cargo run -- examples/basics/smoke.tgsk
 ```
 
 ### Test
@@ -192,7 +192,7 @@ allow = ["https://api.example.com", "*.example.org"]
 ### Files
 
 * `[load@/path/file.(json|yaml|yml|toml)]` — load file into an editable document
-* `[mod@handle]{ comp(path)@v | comp!(path)@v | merge(path)@{...} | del(path) | ins(path)@v | push(path)@v }` — edit document
+* `[mod@handle]{ comp(path)@v | comp!(path)@v | merge(path)@{...} | delete(path) | insert(path)@v | append(path)@v }` — edit document (aliases: `del`, `ins`, `push`)
 * `[get(path)@handle]` — extract value at `path` from document
 * `[exists(path)@handle]` — test whether `path` exists (bool)
 * `[save@handle]` — persist document back to original file

@@ -76,7 +76,7 @@ fn apply_edit(rt: &Runtime, doc: &mut Document, pkt: &Packet, options: &ModOptio
         "del" => {
             delete(&mut doc.json, &segments)?;
         }
-        "ins" => {
+        "ins" | "insert" => {
             let val = arg_to_json(
                 rt,
                 pkt.arg
@@ -517,6 +517,15 @@ mod tests {
     fn append_aliases_push() {
         let after = run_mod("[mod@doc]{[append(items)@4]}", json!({"items": [1,2,3]}));
         assert_eq!(after["items"], json!([1, 2, 3, 4]));
+    }
+
+    #[test]
+    fn insert_aliases_ins() {
+        let after = run_mod(
+            "[mod@doc]{[insert(user.name)@\"Jen\"]}",
+            json!({"user": {}}),
+        );
+        assert_eq!(after["user"]["name"], "Jen");
     }
 
     #[test]

@@ -1,7 +1,12 @@
 pub const KNOWN_PACKET_OPS: &[&str] = &[
+    // core
     "note", "math", "store", "print", "dump", "call", "funct", "msg", "int", "bool", "env", "help", "lint",
-    "cd", "len", "rand", "array", "obj", "reflect", "load", "search", "log", "save", "mod", "exec",
-    "run", "tagspeak", "yellow", "confirm", "red", "http", "repl", "parse", "get", "exists",
+    "cd", "len", "rand", "array", "obj", "reflect", "var",
+    // files/data
+    "load", "search", "log", "save", "mod", "get", "exists",
+    // execs
+    "exec", "run", "tagspeak", "yellow", "confirm", "red", "http", "repl", "parse",
+    // flow/cond
     "iter", "input", "eq", "ne", "lt", "le", "gt", "ge", "if", "then", "else", "or", "comp",
     "comp!", "merge", "del", "ins", "push", "set", "remove", "append", "delete",
     // UI leaf packets

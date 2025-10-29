@@ -1,2 +1,2 @@
-[note@"Reflect packets + descriptions from docs into docs/PACKETS.json"]
-[reflect(packets_full)]>[log(json)@/docs/PACKETS.json]
+[note@"Reflect packets by scanning src/packets + descriptions from docs into docs/PACKETS.json"]
+[reflect(packets_full_fs)]>[log(json)@/docs/PACKETS.json]

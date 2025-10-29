@@ -1,0 +1,8 @@
+# DO NOT RUN — demo of a REPL that shells user input
+[red@"I accept the risk"]
+[yellow@"definitely safe"]{
+  [repl(model)]{
+    [exec@"echo $(input)"]
+  }
+}
+

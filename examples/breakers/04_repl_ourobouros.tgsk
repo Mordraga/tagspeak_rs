@@ -1,0 +1,6 @@
+# REPL that tries to spawn another TagSpeak instance (harmless echo here)
+[red@"I accept the risk"]
+[repl(model)]{
+  [exec@"echo would run: tagspeak run script.tgsk"]
+}
+

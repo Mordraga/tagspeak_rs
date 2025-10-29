@@ -1,5 +1,7 @@
 [network]
 enabled = true
 allow = [
-  "https://httpbin.org/json"
+  "https://httpbin.org/json",
+  "https://allowed-domain.com",
+  "evil.com"
 ]

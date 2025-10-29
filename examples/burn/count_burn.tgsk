@@ -1,0 +1,5 @@
+[int@0]>[store@count]
+
+[loop@45794]{
+    [math@count+1]>[store@count]
+}

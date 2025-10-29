@@ -1,0 +1,4 @@
+# YAML anchors / alias test (billion laughs style simplified)
+[msg@"a: &A [*A]"]
+[parse(yaml)]
+

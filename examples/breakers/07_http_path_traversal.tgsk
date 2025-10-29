@@ -1,0 +1,2 @@
+# Path traversal attempt in URL path
+[http(get)@"https://allowed-domain.com/../../../etc/passwd"]>[print]

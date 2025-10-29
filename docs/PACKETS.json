@@ -9,9 +9,12 @@
       "eq",
       "ge",
       "gt",
+      "help",
+      "input",
       "int",
       "le",
       "len",
+      "lint",
       "lt",
       "math",
       "msg",
@@ -20,8 +23,10 @@
       "obj",
       "parse",
       "print",
+      "rand",
       "reflect",
-      "store"
+      "store",
+      "var"
     ],
     "execs": [
       "confirm",
@@ -30,6 +35,7 @@
       "red",
       "repl",
       "run",
+      "tagspeak",
       "yellow"
     ],
     "files": [
@@ -146,6 +152,12 @@
       "sig": "[gt@rhs]",
       "source": "Tagspeak_101.md"
     },
+    "help": {
+      "desc": "returns a quick reference string for the named packet. `[help@*]` lists all topics.",
+      "section": "Core/Data Packets",
+      "sig": "[help@packet]",
+      "source": "Tagspeak_101.md"
+    },
     "http": {
       "desc": "outbound HTTP; disabled by default. Enable with `.tagspeak.toml` `[network]` and allowlist hosts.",
       "section": "Exec Packets",
@@ -156,6 +168,12 @@
       "desc": "dataflow conditionals with explicit `then` blocks. Comparators and boolean ops allowed in `cond`.",
       "section": "Control Flow (Expanded)",
       "sig": "[if@(cond)] > [then]{...} > [or@(cond)] > [then]{...} > [else] > [then]{...}",
+      "source": "Tagspeak_101.md"
+    },
+    "input": {
+      "desc": "read a single line from stdin. Returns the entered string. Respects `TAGSPEAK_NONINTERACTIVE=1` (returns Unit). Sugar: `[input:line@\"Prompt \"]`.",
+      "section": "Core/Data Packets",
+      "sig": "[input@\"Prompt \"]",
       "source": "Tagspeak_101.md"
     },
     "int": {
@@ -180,6 +198,12 @@
       "desc": "length of last value (string length, array length, or object key count). Also `[len@var|\"text\"]`.",
       "section": "Core/Data Packets",
       "sig": "[len]",
+      "source": "Tagspeak_101.md"
+    },
+    "lint": {
+      "desc": "runs heuristics that flag lingering notes, unsafe exec usage, and TODO markers. Accepts inline script text as well.",
+      "section": "Core/Data Packets",
+      "sig": "[lint@/path/script.tgsk]",
       "source": "Tagspeak_101.md"
     },
     "load": {
@@ -213,10 +237,10 @@
       "source": "README.md"
     },
     "mod": {
-      "desc": "edit document",
-      "section": "Files",
-      "sig": "[mod@handle]{ comp(path)@v | comp!(path)@v | merge(path)@{...} | del(path) | ins(path)@v | push(path)@v }",
-      "source": "README.md"
+      "desc": "mutate a loaded document. Sugar packets (preferred names): `[set(path)@value]`, `[set(path, missing)@value]`, `[delete(path)]` (alias: `remove`, `del`), `[insert(path)@value]` (alias: `ins`), `[append(list)@value]` (alias: `push`), `[merge(meta)@{...}]`. Flags: `[mod(overwrite)@doc]` promotes `comp()` to `comp!()`, and `[mod(debug)@doc]` prints before/after snapshots.",
+      "section": "Core/Data Packets",
+      "sig": "[mod@doc]{...}",
+      "source": "Tagspeak_101.md"
     },
     "msg": {
       "desc": "string literal",
@@ -260,6 +284,12 @@
       "sig": "[print]",
       "source": "README.md"
     },
+    "rand": {
+      "desc": "random number generator; `[rand]` yields a float in (0,1), while `[rand(min,max)]` evaluates each bound (numbers, vars, or packets) and returns ints when both bounds are whole.",
+      "section": "Core/Data Packets",
+      "sig": "[rand]",
+      "source": "Tagspeak_101.md"
+    },
     "red": {
       "desc": "session consent toggle (script-level). Presence of `[red]` in a script enables red for that run.",
       "section": "Exec Packets",
@@ -295,6 +325,18 @@
       "section": "Core / Data",
       "sig": "[store@name]",
       "source": "README.md"
+    },
+    "tagspeak": {
+      "desc": "CLI-flavored wrapper around `[run]`. Sugar: `[tagspeak run@/path/script.tgsk]`. Honors the same yellow + depth guards as `[run]`.",
+      "section": "Exec Packets",
+      "sig": "[tagspeak:run@/path/script.tgsk]",
+      "source": "Tagspeak_101.md"
+    },
+    "var": {
+      "desc": "return the current value of a runtime variable (or Unit if missing).",
+      "section": "Core/Data Packets",
+      "sig": "[var@name]",
+      "source": "Tagspeak_101.md"
     },
     "yellow": {
       "desc": "alias of `[confirm]`. Sugar: `[yellow:exec@\"cmd\"]`, `[yellow:run@\"/file.tgsk\"]` to gate specific ops.",

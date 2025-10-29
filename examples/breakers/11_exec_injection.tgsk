@@ -1,0 +1,4 @@
+# Command injection via variable (gated and harmless)
+[msg@"echo pwned; echo and more"]>[store@cmd]
+[yellow@"exec var"]{ [exec@cmd] }
+

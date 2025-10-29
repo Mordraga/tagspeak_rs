@@ -14,8 +14,14 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
         .get(&name)
         .ok_or_else(|| anyhow::anyhow!(format!("unknown funct '{name}'")))?
         .clone();
-    // Evaluate the stored block in current runtime
-    let out = rt.eval(&Node::Block(body))?;
+    // Evaluate the stored block in current runtime with recursion depth guard
+    if rt.call_depth >= rt.max_call_depth {
+        bail!("E_CALL_DEPTH_EXCEEDED: max recursion depth {} reached", rt.max_call_depth);
+    }
+    rt.call_depth += 1;
+    let out = rt.eval(&Node::Block(body));
+    rt.call_depth = rt.call_depth.saturating_sub(1);
+    let out = out?;
     Ok(out)
 }
 

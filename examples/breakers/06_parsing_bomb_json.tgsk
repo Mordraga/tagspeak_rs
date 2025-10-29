@@ -1,0 +1,4 @@
+# Deeply nested JSON string (moderate depth for safety)
+[msg@"{\"a\":{\"b\":{\"c\":{\"d\":{\"e\":{\"f\":{\"g\":{\"h\":{\"i\":{\"j\":123}}}}}}}}}"]
+[parse(json)]
+

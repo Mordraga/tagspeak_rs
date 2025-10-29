@@ -13,6 +13,7 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process;
+use std::time::{Duration, Instant};
 
 fn main() {
     if let Err(err) = run_cli() {
@@ -45,6 +46,12 @@ fn run_cli() -> Result<()> {
         Some(cmd) if cmd == "help" => {
             let topic = args.next();
             run_help(topic.as_deref())
+        }
+        Some(cmd) if cmd == "burn_5s" => {
+            let path = args
+                .next()
+                .unwrap_or_else(|| "examples/burn/count_burn.tgsk".to_string());
+            burn_5s(&path)
         }
         Some(cmd) if cmd == "lint" => {
             let path = args
@@ -184,4 +191,44 @@ fn lint_script(path: &str) -> Result<()> {
             other
         )),
     }
+}
+
+fn burn_5s(path: &str) -> Result<()> {
+    // Validate and anchor to the Box root
+    let src = fs::read_to_string(&path)?;
+    router::parse(&src).map_err(anyhow::Error::new)?;
+    let mut rt = Runtime::from_entry(Path::new(&path))?;
+    if rt.effective_root.is_none() {
+        return Err(anyhow!(
+            "E_BOX_REQUIRED: No red.tgsk root detected. Run `tagspeak init` in your project root."
+        ));
+    }
+
+    // Simulate for exactly 5 seconds:
+    // [loop100000]{[int@1]>[store@counter]>[math@counter+1]}
+    let deadline = Instant::now() + Duration::from_secs(5);
+    let mut iters: u64 = 0;
+    while Instant::now() < deadline {
+        // [int@1]>[store@counter]
+        rt.set_num("counter", 1.0)?;
+        // [math@counter+1] (affects last value only)
+        let c = rt.get_num("counter").unwrap_or(0.0);
+        rt.last = Value::Num(c + 1.0);
+        iters += 1;
+    }
+
+    let final_counter = rt
+        .get_var("counter")
+        .and_then(|v| v.try_num())
+        .unwrap_or(0.0);
+    let final_last = match &rt.last { Value::Num(n) => *n, _ => 0.0 };
+
+    eprintln!(
+        "\n[burn_5s] simulated [loop100000]{{[int@1]>[store@counter]>[math@counter+1]}} for 5s: iterations={}, counter={}, last={}",
+        iters,
+        final_counter as u64,
+        final_last as u64
+    );
+
+    Ok(())
 }

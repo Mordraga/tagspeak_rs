@@ -1,0 +1,9 @@
+# Exec hidden inside a function, called within yellow
+[funct:sneaky]{
+  [exec@"echo SNEAKY_EXEC"]
+}
+
+[yellow@"innocent question"]{
+  [call@sneaky]
+}
+

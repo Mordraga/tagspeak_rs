@@ -32,7 +32,7 @@ print@"hello"]
 - Panel detail: `engine says: unterminated string …`
 - Hint: `Delimiter - Opened a quote but didn’t close it. Pop in the missing '"' to finish the thought.`
 
-## Unbalanced Brackets
+## Unbalanced Bracke's
 
 ```tgsk
 [print@"hi"

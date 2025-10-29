@@ -1,0 +1,8 @@
+# Empty/invalid forms to test parser robustness
+[]
+[funct:]{ }
+[call@]
+[store@]
+[load@]
+[cd@]
+

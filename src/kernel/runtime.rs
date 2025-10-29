@@ -16,6 +16,9 @@ pub struct Runtime {
     pub tags: HashMap<String, Vec<Node>>, // named blocks from [funct:tag]{...}
     pub effective_root: Option<PathBuf>,
     pub cwd: PathBuf,
+    // safety limits
+    pub call_depth: usize,
+    pub max_call_depth: usize,
 }
 
 impl Runtime {
@@ -43,6 +46,8 @@ impl Runtime {
             tags: HashMap::new(),
             effective_root: root,
             cwd,
+            call_depth: 0,
+            max_call_depth: std::env::var("TAGSPEAK_MAX_CALL_DEPTH").ok().and_then(|s| s.parse::<usize>().ok()).unwrap_or(256),
         })
     }
 

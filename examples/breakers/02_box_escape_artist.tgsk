@@ -1,0 +1,12 @@
+# Attempts to escape the red box via path tricks (should error with E_BOX_VIOLATION)
+[note@"absolute to outside"]
+[cd@"/../../../etc"]
+[load@"passwd"]
+
+[note@"dotdot traversal"]
+[cd@"./subdir/../../../../home"]
+
+[note@"back to root"]
+[cd@"/"]
+[load@"red.tgsk"]
+

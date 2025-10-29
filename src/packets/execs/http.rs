@@ -17,27 +17,56 @@ fn allowed_url(cfg: &config::Config, url: &Url) -> bool {
     if cfg.net_allow.is_empty() {
         return false;
     }
-    let full = url.as_str();
-    let host = url.host_str().unwrap_or("");
+
+    let target_scheme = url.scheme();
+    let target_host = url.host_str().unwrap_or("");
+    let target_port = url.port_or_known_default();
+    let target_path = url.path();
+
     for pat in &cfg.net_allow {
         let p = pat.trim();
         if p.is_empty() {
             continue;
         }
-        // scheme+prefix match
+
+        // 1) URL-style pattern: parse it and compare components
         if p.starts_with("http://") || p.starts_with("https://") {
-            if full.starts_with(p) {
+            if let Ok(pu) = Url::parse(p) {
+                // scheme must match exactly
+                if pu.scheme() != target_scheme { continue; }
+
+                // host must match exactly (case-insensitive)
+                let phost = pu.host_str().unwrap_or("");
+                if !target_host.eq_ignore_ascii_case(phost) { continue; }
+
+                // if pattern specifies a port, require exact match
+                if let Some(pport) = pu.port_or_known_default() {
+                    if Some(pport) != target_port { continue; }
+                }
+
+                // if pattern includes a path (beyond root), require prefix match on path
+                let ppath = pu.path();
+                if ppath != "/" && !ppath.is_empty() {
+                    if !target_path.starts_with(ppath) { continue; }
+                }
+                return true;
+            } else {
+                // malformed allow entry; skip (and keep tight)
+                continue;
+            }
+        }
+
+        // 2) Wildcard host: *.example.com
+        if let Some(suf) = p.strip_prefix("*.") {
+            if target_host.ends_with(suf) {
                 return true;
             }
-        } else if let Some(suf) = p.strip_prefix("*.") {
-            if host.ends_with(suf) {
-                return true;
-            }
-        } else {
-            // bare host
-            if host.eq_ignore_ascii_case(p) {
-                return true;
-            }
+            continue;
+        }
+
+        // 3) Bare host exact match
+        if target_host.eq_ignore_ascii_case(p) {
+            return true;
         }
     }
     false
@@ -61,6 +90,11 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
         _ => bail!("http needs @<url>"),
     };
     let url = Url::parse(&url_s).map_err(|_| anyhow::anyhow!("invalid_url"))?;
+
+    // Reject URLs containing userinfo to prevent allowlist bypass via `user@host`
+    if !url.username().is_empty() || url.password().is_some() {
+        bail!("E_BOX_VIOLATION: url with userinfo not permitted");
+    }
     if !allowed_url(&cfg, &url) {
         bail!("E_BOX_VIOLATION: url not allowed by .tagspeak.toml [network.allow]");
     }

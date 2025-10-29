@@ -7,21 +7,22 @@ use std::time::SystemTime;
 use crate::kernel::values::Document;
 use crate::kernel::{Packet, Runtime, Value};
 
-fn extract_group_line(line: &str, group: &str) -> Option<Vec<String>> {
-    let pat = format!("pub use {group}::{{");
-    let idx = line.find(&pat)?;
-    let rest = &line[idx + pat.len()..];
-    let end = rest.find("};")?;
-    let inner = &rest[..end];
+fn extract_group_block(content: &str, group: &str) -> Vec<String> {
     let mut out = Vec::new();
-    for t in inner.split(',') {
-        let t = t.trim();
-        if t.is_empty() {
-            continue;
+    let pat = format!("pub use {group}::{{");
+    if let Some(start_idx) = content.find(&pat) {
+        let after = &content[start_idx + pat.len()..];
+        if let Some(end_rel) = after.find("};") {
+            let inner = &after[..end_rel];
+            for t in inner.split(',') {
+                let t = t.trim();
+                if t.is_empty() { continue; }
+                // skip allow/alias lines like `r#loop` re-exported as module
+                out.push(t.to_string());
+            }
         }
-        out.push(t.to_string());
     }
-    Some(out)
+    out
 }
 
 fn reflect_packets_from_mod_rs(
@@ -41,28 +42,10 @@ fn reflect_packets_from_mod_rs(
     let mut flow = BTreeSet::new();
     let mut execs = BTreeSet::new();
 
-    for line in content.lines() {
-        if let Some(items) = extract_group_line(line, "core") {
-            for it in items {
-                core.insert(it);
-            }
-        }
-        if let Some(items) = extract_group_line(line, "files") {
-            for it in items {
-                files.insert(it);
-            }
-        }
-        if let Some(items) = extract_group_line(line, "flow") {
-            for it in items {
-                flow.insert(it);
-            }
-        }
-        if let Some(items) = extract_group_line(line, "execs") {
-            for it in items {
-                execs.insert(it);
-            }
-        }
-    }
+    for it in extract_group_block(&content, "core") { core.insert(it); }
+    for it in extract_group_block(&content, "files") { files.insert(it); }
+    for it in extract_group_block(&content, "flow") { flow.insert(it); }
+    for it in extract_group_block(&content, "execs") { execs.insert(it); }
 
     // Normalize tokens → canonical packet names
     let mut canon_core: BTreeSet<String> = BTreeSet::new();
@@ -135,6 +118,78 @@ fn reflect_packets_from_mod_rs(
         "files": to_vec(canon_files),
         "flow": to_vec(canon_flow),
         "execs": to_vec(canon_execs),
+        "helpers": helpers,
+    });
+    Ok(serde_json::json!({ "canon": canon }))
+}
+
+fn reflect_packets_from_fs(root: &Path) -> Result<serde_json::Value> {
+    use std::collections::BTreeSet;
+    let base = root.join("src").join("packets");
+
+    let mut core: BTreeSet<String> = BTreeSet::new();
+    let mut files: BTreeSet<String> = BTreeSet::new();
+    let mut flow: BTreeSet<String> = BTreeSet::new();
+    let mut execs: BTreeSet<String> = BTreeSet::new();
+
+    let scan = |dir: &Path| -> Vec<String> {
+        let mut out = Vec::new();
+        if let Ok(rd) = fs::read_dir(dir) {
+            for ent in rd.flatten() {
+                let p = ent.path();
+                if p.is_file() {
+                    if p.file_name().and_then(|s| s.to_str()) == Some("mod.rs") {
+                        continue;
+                    }
+                    if let Some(stem) = p.file_stem().and_then(|s| s.to_str()) {
+                        out.push(stem.to_string());
+                    }
+                }
+            }
+        }
+        out
+    };
+
+    // Core
+    for name in scan(&base.join("core")) {
+        match name.as_str() {
+            "compare" => {
+                for k in ["eq","ne","lt","le","gt","ge"] { core.insert(k.into()); }
+            }
+            other => { core.insert(other.into()); }
+        }
+    }
+    // Files
+    for name in scan(&base.join("files")) {
+        match name.as_str() {
+            "modify" => { files.insert("mod".into()); }
+            "query" => { files.insert("get".into()); files.insert("exists".into()); }
+            other => { files.insert(other.into()); }
+        }
+    }
+    // Flow
+    for name in scan(&base.join("flow")) {
+        match name.as_str() {
+            "loop" => { flow.insert("loopN".into()); }
+            "conditionals" => { /* expose as sugar below */ }
+            other => { flow.insert(other.into()); }
+        }
+    }
+    for k in ["if","or","else"] { flow.insert(k.into()); }
+
+    // Execs
+    for name in scan(&base.join("execs")) { execs.insert(name); }
+    execs.insert("yellow".into());
+
+    // Helpers
+    let helpers = vec!["key".to_string(), "sect".to_string()];
+
+    let to_vec = |set: BTreeSet<String>| -> Vec<String> { set.into_iter().collect() };
+    let canon = serde_json::json!({
+        "core": to_vec(core),
+        "files": to_vec(files),
+        "flow": to_vec(flow),
+        "execs": to_vec(execs),
         "helpers": helpers,
     });
     Ok(serde_json::json!({ "canon": canon }))
@@ -297,6 +352,17 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
             );
             Ok(Value::Doc(doc))
         }
+        "packets_fs" => {
+            let json = reflect_packets_from_fs(root)?;
+            let doc = Document::new(
+                json,
+                root.join("docs").join("PACKETS.json"),
+                "json".into(),
+                SystemTime::now(),
+                root.clone(),
+            );
+            Ok(Value::Doc(doc))
+        }
         "packets_full" => {
             // Canonical tokens
             let canon = reflect_packets_from_mod_rs(root, None)?;
@@ -325,6 +391,36 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
                 }
             }
 
+            let out = serde_json::json!({
+                "canon": canon.get("canon").cloned().unwrap_or(serde_json::json!({})),
+                "details": serde_json::Value::Object(details),
+            });
+            let doc = Document::new(
+                out,
+                root.join("docs").join("PACKETS.json"),
+                "json".into(),
+                SystemTime::now(),
+                root.clone(),
+            );
+            Ok(Value::Doc(doc))
+        }
+        "packets_full_fs" => {
+            // Canonical tokens from filesystem
+            let canon = reflect_packets_from_fs(root)?;
+            let docs_map = reflect_packet_docs(root);
+
+            // Build a set of known canonical names
+            use std::collections::BTreeSet;
+            let mut known = BTreeSet::new();
+            if let Some(c) = canon.get("canon") {
+                for key in ["core", "files", "flow", "execs", "helpers"] {
+                    if let Some(arr) = c.get(key).and_then(|v| v.as_array()) {
+                        for v in arr { if let Some(s) = v.as_str() { known.insert(s.to_string()); } }
+                    }
+                }
+            }
+            let mut details = serde_json::Map::new();
+            for (k, v) in docs_map { if known.contains(&k) { details.insert(k, v); } }
             let out = serde_json::json!({
                 "canon": canon.get("canon").cloned().unwrap_or(serde_json::json!({})),
                 "details": serde_json::Value::Object(details),

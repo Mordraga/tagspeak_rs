@@ -1,0 +1,5 @@
+# Absurd loop count
+[loop9999999999999999999]{
+  [print@"forever"]
+}
+

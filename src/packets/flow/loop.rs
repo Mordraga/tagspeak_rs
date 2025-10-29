@@ -41,6 +41,15 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
         bail!("use [loop3@tag], [loop:tag@N], or [loop@N]{{...}}");
     };
 
+    // bounds check on iteration count
+    let max_iters: usize = std::env::var("TAGSPEAK_MAX_LOOP_ITERATIONS")
+        .ok()
+        .and_then(|s| s.parse::<usize>().ok())
+        .unwrap_or(1_000_000);
+    if count > max_iters {
+        bail!("E_LOOP_OVERFLOW: count {} exceeds max {}", count, max_iters);
+    }
+
     // choose body: inline or tag
     if let Some(body) = &p.body {
         let mut last = Value::Unit;
