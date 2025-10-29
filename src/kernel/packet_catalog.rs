@@ -7,7 +7,8 @@ pub const KNOWN_PACKET_OPS: &[&str] = &[
     // execs
     "exec", "run", "tagspeak", "yellow", "confirm", "red", "http", "repl", "parse",
     // flow/cond
-    "iter", "input", "eq", "ne", "lt", "le", "gt", "ge", "if", "then", "else", "or", "comp",
+    "iter", "input", "eq", "ne", "lt", "le", "gt", "ge", "if", "then", "else", "or", "break",
+    "return", "interrupt", "comp",
     "comp!", "merge", "del", "ins", "push", "set", "remove", "append", "delete",
     // UI leaf packets
     "label", "button", "textedit", "textbox", "popup", "separator", "spacer", "checkbox", "app", "scope",

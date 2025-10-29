@@ -94,7 +94,13 @@ Notes:
 
 ### Control Flow (Expanded)
 
-- `[loopN]{...}` — repeat enclosed block `N` times. Sugar: `[loop3@tag]`, `[loop:tag@3]`.
+- `[loop@N]{...}` - repeat enclosed block `N` times. Sugar: `[loop3@tag]`, `[loop:tag@3]`. Honors `[break]`, `[return]`, `[interrupt]`.
+- `[loop:forever]{...}` - soft infinite loop with a safety cap; exit with `[break]`, `[return]`, or `[interrupt]`.
+- `[loop:until(condition)]{...}` - evaluates the condition before each pass and exits when it becomes truthy.
+- `[loop:each(item@handle)]{...}` - iterates an array handle, setting `item` (and optional `idx`) while sending the item downstream.
+- `[break]` - exit the current loop only.
+- `[return@value]` - exit the current loop or function early, returning the provided value (defaults to the last value).
+- `[interrupt@value]` - exit the current loop and raise an interrupt signal upstream (useful for cascading control).
 
 - `[if@(cond)] > [then]{...} > [or@(cond)] > [then]{...} > [else] > [then]{...}` — dataflow conditionals with explicit `then` blocks. Comparators and boolean ops allowed in `cond`.
 
@@ -157,10 +163,54 @@ Notes:
 - Script: ../examples/logging/structured_log_toml.tgsk
 - Output: ../examples/logging/logging_outputs/struct_toml.toml
 
+### Structured Flow
+
+- Script: ../examples/basics/flow/structured_loop_count.tgsk
+
+```tgsk
+[funct:tick]{
+  [math@ticks+1]>[store@ticks]
+  [print@"tick"]
+}
+
+[int@0]>[store@ticks]
+[loop@3]{ [call@tick] }
+```
+
+- Script: ../examples/basics/flow/structured_loop_until.tgsk
+
+```tgsk
+[int@0]>[store@count]
+[loop:until@(count>=5)]{
+  [math@count+1]>[store@count]
+  [print@count]
+}
+```
+
+- Script: ../examples/basics/flow/structured_loop_each.tgsk
+
+```tgsk
+[parse(json)@[1,2,3]]>[store@values]
+[loop:each(item, idx@values)]{
+  [math@item+idx]>[store@last_sum]
+  [print@last_sum]
+}
+```
+
+- Script: ../examples/basics/flow/structured_loop_forever.tgsk
+
+```tgsk
+[int@0]>[store@ticks]
+[loop:forever]{
+  [math@ticks+1]>[store@ticks]>[print@ticks]
+  [if@(ticks>=3)]{ [break] }
+}
+```
+
 ## CLI Commands
 
-- `tagspeak run <file.tgsk>` — execute a script from the shell (same as double-clicking or calling the binary directly).
-- `tagspeak build <file.tgsk>` — syntax-check a script without running it; prints `build_ok /relative/path` on success.
+- `tagspeak run <file.tgsk>` - execute a script from the shell (same as double-clicking or calling the binary directly).
+- `tagspeak build <file.tgsk>` - syntax-check a script without running it; prints `build_ok /relative/path` on success.
 - `tagspeak help [packet]` — print inline documentation for a packet (or list the available topics when omitted).
 - `tagspeak lint <file.tgsk>` — run the `[lint]` heuristics against a script inside the current red box.
 

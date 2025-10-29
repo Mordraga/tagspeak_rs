@@ -1,7 +1,8 @@
-use crate::kernel::ast::Arg;
-use crate::kernel::ast::Node;
-use crate::kernel::{Packet, Runtime, Value};
 use anyhow::{Result, bail};
+
+use crate::kernel::ast::{Arg, Node};
+use crate::kernel::runtime::FlowSignal;
+use crate::kernel::{Packet, Runtime, Value};
 
 pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
     let name = match p.arg.as_ref() {
@@ -19,10 +20,20 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
         bail!("E_CALL_DEPTH_EXCEEDED: max recursion depth {} reached", rt.max_call_depth);
     }
     rt.call_depth += 1;
-    let out = rt.eval(&Node::Block(body));
+    let result = rt.eval(&Node::Block(body));
     rt.call_depth = rt.call_depth.saturating_sub(1);
-    let out = out?;
-    Ok(out)
+    let out = result?;
+    match rt.flow_signal.clone() {
+        FlowSignal::Return(Some(val)) => {
+            rt.take_signal();
+            Ok(val)
+        }
+        FlowSignal::Return(None) => {
+            rt.take_signal();
+            Ok(out)
+        }
+        _ => Ok(out),
+    }
 }
 
 #[cfg(test)]

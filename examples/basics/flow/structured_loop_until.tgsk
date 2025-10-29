@@ -1,0 +1,7 @@
+[note@"Keep counting until the guard trips"]
+[int@0]>[store@count]
+
+[loop:until@(count>=5)]{
+  [math@count+1]>[store@count]
+  [print@count]
+}

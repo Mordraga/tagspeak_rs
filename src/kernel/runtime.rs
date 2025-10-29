@@ -1,12 +1,21 @@
 use anyhow::{Result, bail};
 use crate::packets::core::var as pkt_var;
 use std::collections::{HashMap, HashSet};
+use std::mem;
 use std::path::{Path, PathBuf};
 
 use crate::kernel::ast::{Arg, BExpr, Node, Packet};
 use crate::kernel::fs_guard::find_root;
 use crate::kernel::packet_catalog::suggest_packet;
 use crate::kernel::values::Value;
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum FlowSignal {
+    None,
+    Break,
+    Return(Option<Value>),
+    Interrupt(Option<Value>),
+}
 
 pub struct Runtime {
     pub vars: HashMap<String, Value>,
@@ -19,6 +28,7 @@ pub struct Runtime {
     // safety limits
     pub call_depth: usize,
     pub max_call_depth: usize,
+    pub flow_signal: FlowSignal,
 }
 
 impl Runtime {
@@ -44,6 +54,7 @@ impl Runtime {
             rigid: HashSet::new(),
             last: Value::Unit,
             tags: HashMap::new(),
+            flow_signal: FlowSignal::None,
             effective_root: root,
             cwd,
             call_depth: 0,
@@ -124,7 +135,13 @@ impl Runtime {
     fn eval_list(&mut self, list: &[Node]) -> Result<Value> {
         let mut last = Value::Unit;
         for node in list {
+            if self.signal_active() {
+                break;
+            }
             last = self.eval(node)?;
+            if self.signal_active() {
+                break;
+            }
         }
         Ok(last)
     }
@@ -190,6 +207,9 @@ impl Runtime {
                 crate::packets::query::handle(self, p)
             }
             (None, "iter") => crate::packets::iter::handle(self, p),
+            (None, "break") => crate::packets::r#break::handle(self, p),
+            (None, "return") => crate::packets::r#return::handle(self, p),
+            (None, "interrupt") => crate::packets::interrupt::handle(self, p),
             (Some("input"), "line") => crate::packets::input::handle(self, p),
             (None, "input") => crate::packets::input::handle(self, p),
             (None, op) if matches!(op, "eq" | "ne" | "lt" | "le" | "gt" | "ge") => {
@@ -215,6 +235,18 @@ impl Runtime {
                 }
             }
         }
+    }
+
+    pub fn set_signal(&mut self, signal: FlowSignal) {
+        self.flow_signal = signal;
+    }
+
+    pub fn signal_active(&self) -> bool {
+        !matches!(self.flow_signal, FlowSignal::None)
+    }
+
+    pub fn take_signal(&mut self) -> FlowSignal {
+        mem::replace(&mut self.flow_signal, FlowSignal::None)
     }
 
     // small helpers for numeric vars used by packets

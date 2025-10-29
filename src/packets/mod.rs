@@ -38,6 +38,9 @@ pub mod flow {
     pub mod funct;
     pub mod iter;
     pub mod r#loop;
+    pub mod r#break;
+    pub mod r#return;
+    pub mod interrupt;
 }
 
 pub mod execs {
@@ -66,5 +69,5 @@ pub use core::{
 };
 pub use execs::{confirm, exec, http, red, repl, run, tagspeak};
 pub use files::{load, log, modify, query, save, search};
-pub use flow::{call, conditionals, funct, iter, r#loop};
+pub use flow::{call, conditionals, funct, iter, r#break, r#loop, r#return, interrupt};
 pub use ui::{alert as ui_alert, select as ui_select, window as ui_window, app as ui_app, scope as ui_scope};

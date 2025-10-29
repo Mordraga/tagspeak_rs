@@ -1,0 +1,7 @@
+[note@"Iterate over an array and expose both item and index"]
+[parse(json)@[1,2,3]]>[store@values]
+
+[loop:each(item, idx@values)]{
+  [math@item+idx]>[store@last_sum]
+  [print@last_sum]
+}
