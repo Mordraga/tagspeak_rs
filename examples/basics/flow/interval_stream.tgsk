@@ -1,0 +1,10 @@
+[note@"Interval emits ticks until interrupted"]
+[int@0]>[store@ticks]
+
+[interval:ms@100]{
+  [math@ticks+1]>[store@ticks]
+  [print@ticks]
+  [if@(ticks>=3)]{ [interrupt] }
+}
+
+[timeout:ms@450]

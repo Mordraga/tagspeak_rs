@@ -227,7 +227,20 @@ fn parse_packet(sc: &mut Scanner) -> AnyResult<Packet> {
         } else if raw_trimmed.starts_with('"') {
             let mut sc = Scanner::new(raw_trimmed);
             let s = sc.read_quoted()?;
-            Some(Arg::Str(s))
+            let mut has_extra = false;
+            while let Some(ch) = sc.peek() {
+                if ch.is_whitespace() {
+                    sc.next();
+                    continue;
+                }
+                has_extra = true;
+                break;
+            }
+            if !has_extra && !raw_trimmed.contains("${") {
+                Some(Arg::Str(s))
+            } else {
+                Some(Arg::Str(raw_trimmed.to_string()))
+            }
         } else if raw_trimmed.starts_with('(') {
             Some(Arg::CondSrc(raw_trimmed.to_string()))
         } else if let Ok(n) = raw_trimmed.parse::<f64>() {

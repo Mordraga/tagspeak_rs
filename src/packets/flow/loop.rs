@@ -188,9 +188,9 @@ fn parse_tag_arg(arg: Option<&Arg>) -> Result<String> {
 }
 
 fn resolve_tag_body(rt: &Runtime, tag: &str) -> Result<Vec<Node>> {
-    rt.tags
-        .get(tag)
+    rt.get_tag(tag)
         .cloned()
+        .map(|def| def.body)
         .ok_or_else(|| anyhow::anyhow!(format!("unknown tag '{tag}' — define [funct:{tag}]{{...}} first")))
 }
 

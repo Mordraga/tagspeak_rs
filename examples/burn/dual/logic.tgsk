@@ -1,0 +1,10 @@
+[note@"Logic-side burn loop; pairs with timer.tgsk"]
+
+[int@0]>[store@burn]
+
+[loop:forever]{
+  [math@burn+1]>[store@burn]
+  [math@burn*burn]>[store@burn_squared]
+  [math@burn_squared/3.14159]>[store@burn_pi_div]
+  [math@burn_pi_div+100]>[store@junk]
+  }>[print@junk]

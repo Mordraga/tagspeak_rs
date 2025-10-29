@@ -1,8 +1,10 @@
-use anyhow::{Result, bail};
+use anyhow::{Result, bail, Context};
+use anyhow::anyhow;
 use crate::packets::core::var as pkt_var;
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::mem;
 use std::path::{Path, PathBuf};
+use std::thread;
 
 use crate::kernel::ast::{Arg, BExpr, Node, Packet};
 use crate::kernel::fs_guard::find_root;
@@ -17,18 +19,30 @@ pub enum FlowSignal {
     Interrupt(Option<Value>),
 }
 
+#[derive(Clone, Debug)]
+pub struct FunctionDef {
+    pub body: Vec<Node>,
+    pub is_async: bool,
+}
+
+pub struct AsyncTask {
+    pub handle: Option<thread::JoinHandle<anyhow::Result<Value>>>,
+}
+
 pub struct Runtime {
     pub vars: HashMap<String, Value>,
     pub ctx_vars: HashMap<String, Vec<(BExpr, Value)>>,
     pub rigid: HashSet<String>,
     pub last: Value,
-    pub tags: HashMap<String, Vec<Node>>, // named blocks from [funct:tag]{...}
+    pub tags: HashMap<String, FunctionDef>, // named blocks from [funct:tag]{...}
     pub effective_root: Option<PathBuf>,
     pub cwd: PathBuf,
     // safety limits
     pub call_depth: usize,
     pub max_call_depth: usize,
     pub flow_signal: FlowSignal,
+    pub async_tasks: HashMap<String, VecDeque<AsyncTask>>,
+    pub task_counter: usize,
 }
 
 impl Runtime {
@@ -54,6 +68,8 @@ impl Runtime {
             rigid: HashSet::new(),
             last: Value::Unit,
             tags: HashMap::new(),
+            async_tasks: HashMap::new(),
+            task_counter: 0,
             flow_signal: FlowSignal::None,
             effective_root: root,
             cwd,
@@ -94,8 +110,13 @@ impl Runtime {
     }
 
     // ---- tags ----
-    pub fn register_tag(&mut self, name: &str, body: Vec<Node>) {
-        self.tags.insert(name.to_string(), body);
+    pub fn register_tag(&mut self, name: &str, body: Vec<Node>, is_async: bool) {
+        self.tags
+            .insert(name.to_string(), FunctionDef { body, is_async });
+    }
+
+    pub fn get_tag(&self, name: &str) -> Option<&FunctionDef> {
+        self.tags.get(name)
     }
 
     // ---- args ----
@@ -155,6 +176,7 @@ impl Runtime {
             (None, "app") => crate::packets::ui_app::handle(self, p),
             (None, "scope") => crate::packets::ui_scope::handle(self, p),
             // namespaced
+            (Some(ns), "async") if ns.starts_with("fn(") => crate::packets::funct::handle(self, p),
             (Some("funct"), _) => crate::packets::funct::handle(self, p),
             (None, "funct") => crate::packets::funct::handle(self, p),
             (Some("tagspeak"), _) => crate::packets::tagspeak::handle(self, p),
@@ -207,9 +229,15 @@ impl Runtime {
                 crate::packets::query::handle(self, p)
             }
             (None, "iter") => crate::packets::iter::handle(self, p),
+            (None, op) if op.eq_ignore_ascii_case("utc") => crate::packets::clock::handle_utc(self, p),
+            (None, op) if op.eq_ignore_ascii_case("local") => crate::packets::clock::handle_local(self, p),
+            (None, "async") => crate::packets::async_run::handle(self, p),
+            (None, "await") => crate::packets::await_pkt::handle(self, p),
             (None, "break") => crate::packets::r#break::handle(self, p),
             (None, "return") => crate::packets::r#return::handle(self, p),
             (None, "interrupt") => crate::packets::interrupt::handle(self, p),
+            (Some("interval"), _) => crate::packets::interval::handle(self, p),
+            (Some("timeout"), _) => crate::packets::timeout::handle(self, p),
             (Some("input"), "line") => crate::packets::input::handle(self, p),
             (None, "input") => crate::packets::input::handle(self, p),
             (None, op) if matches!(op, "eq" | "ne" | "lt" | "le" | "gt" | "ge") => {
@@ -249,6 +277,92 @@ impl Runtime {
         mem::replace(&mut self.flow_signal, FlowSignal::None)
     }
 
+    pub fn fork(&self) -> Result<Self> {
+        Ok(Self {
+            vars: self.vars.clone(),
+            ctx_vars: self.ctx_vars.clone(),
+            rigid: self.rigid.clone(),
+            last: self.last.clone(),
+            tags: self.tags.clone(),
+            async_tasks: HashMap::new(),
+            task_counter: 0,
+            flow_signal: FlowSignal::None,
+            effective_root: self.effective_root.clone(),
+            cwd: self.cwd.clone(),
+            call_depth: 0,
+            max_call_depth: self.max_call_depth,
+        })
+    }
+
+    pub fn spawn_async_block(&mut self, body: Vec<Node>) -> Result<()> {
+        let mut child = self.fork()?;
+        thread::spawn(move || {
+            if let Err(err) = child.eval(&Node::Block(body)) {
+                eprintln!("async block error: {err:?}");
+            }
+        });
+        Ok(())
+    }
+
+    pub fn enqueue_async_function(&mut self, name: &str) -> Result<()> {
+        let func_ref = self
+            .get_tag(name)
+            .with_context(|| format!("unknown async funct '{name}'"))?;
+        if !func_ref.is_async {
+            bail!("'{name}' is not marked async");
+        }
+        let func = func_ref.clone();
+        let mut child = self.fork()?;
+        let handle = thread::spawn(move || child.eval(&Node::Block(func.body)));
+        let entry = self.async_tasks.entry(name.to_string()).or_default();
+        entry.push_back(AsyncTask {
+            handle: Some(handle),
+        });
+        self.task_counter = self.task_counter.wrapping_add(1);
+        Ok(())
+    }
+
+    pub fn await_async_function(&mut self, name: &str) -> Result<Value> {
+        if !self.async_tasks.contains_key(name) {
+            self.enqueue_async_function(name)?;
+        }
+
+        if self
+            .async_tasks
+            .get(name)
+            .map(|queue| queue.is_empty())
+            .unwrap_or(true)
+        {
+            self.enqueue_async_function(name)?;
+        }
+
+        let (mut task, remove_entry) = {
+            let queue = self
+                .async_tasks
+                .get_mut(name)
+                .with_context(|| format!("no async tasks for '{name}'"))?;
+            let popped = queue
+                .pop_front()
+                .with_context(|| format!("no pending async task for '{name}'"))?;
+            let should_remove = queue.is_empty();
+            (popped, should_remove)
+        };
+
+        let handle = task
+            .handle
+            .take()
+            .with_context(|| "async task missing handle")?;
+        let result = handle
+            .join()
+            .map_err(|_| anyhow!("async task panicked"))??;
+
+        if remove_entry {
+            self.async_tasks.remove(name);
+        }
+
+        Ok(result)
+    }
+
     // small helpers for numeric vars used by packets
     pub fn get_num(&self, name: &str) -> Option<f64> {
         self.get_var(name).and_then(|v| v.try_num())
@@ -283,3 +397,4 @@ mod tests {
         fs::remove_dir_all(base).unwrap();
     }
 }
+

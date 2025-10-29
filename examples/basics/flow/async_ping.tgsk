@@ -1,0 +1,9 @@
+[note@"Define async ping and await result"]
+[fn(ping):async]{
+  [timeout:ms@50]
+  [print@"ping"]
+  [return@"done"]
+}
+
+[async@ping]
+[await@ping]>[print]

@@ -1,0 +1,4 @@
+[note@"Use timeout without a body to pause the timeline"]
+[print@"start"]
+[timeout:ms@100]
+[print@"done"]

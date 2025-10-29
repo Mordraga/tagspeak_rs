@@ -1,0 +1,36 @@
+[note@"Compute burn: tight math + branch loops with timing"]
+[int@0]>[store@iters]
+[int@0]>[store@primes_count]
+[int@0]>[store@fib_acc]
+
+[UTC@unix]>[store@start_unix]
+
+[loop:until@(iters>=500000)]{
+  [math@iters+1]>[store@iters]
+
+  # pseudo prime accumulation
+  [math@iters%97]>[store@mod_chunk]
+  [if@(mod_chunk==0)]{
+    [math@primes_count+1]>[store@primes_count]
+  }
+
+  # Fibonacci-ish accumulator
+  [math@fib_acc+iters]>[store@fib_acc]
+  [math@fib_acc%1000000]>[store@fib_acc]
+
+  # occasional junk branch
+  [math@fib_acc%1234]>[store@branch_seed]
+  [if@(branch_seed>600)]{
+    [math@fib_acc+branch_seed]>[store@fib_acc]
+  }
+}
+
+[UTC@unix]>[store@stop_unix]
+[math@stop_unix-start_unix]>[store@duration_s]
+[print@"--- Burn Summary ---"]
+[print@"Iterations: ${iters}"]
+[print@"Prime hits: ${primes_count}"]
+[print@"Fib accumulator: ${fib_acc}"]
+[print@"Duration (s): ${duration_s}"]
+[math@iters/duration_s]>[store@throughput]
+[print@"Iter/s: ${throughput}"]

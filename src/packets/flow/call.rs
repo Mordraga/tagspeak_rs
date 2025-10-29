@@ -10,11 +10,11 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
         Some(Arg::Str(s)) => s.clone(),
         _ => bail!("call needs @<name>"),
     };
-    let body = rt
-        .tags
-        .get(&name)
+    let func = rt
+        .get_tag(&name)
         .ok_or_else(|| anyhow::anyhow!(format!("unknown funct '{name}'")))?
         .clone();
+    let body = func.body;
     // Evaluate the stored block in current runtime with recursion depth guard
     if rt.call_depth >= rt.max_call_depth {
         bail!("E_CALL_DEPTH_EXCEEDED: max recursion depth {} reached", rt.max_call_depth);

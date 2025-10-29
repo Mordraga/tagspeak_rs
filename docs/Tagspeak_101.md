@@ -53,6 +53,9 @@ Data is always carried forward by the `>` connector:
 
 - `[dump]` — pretty-print the last value (documents as pretty JSON); pass-through.
 
+- `[print]` — print the last value or provided argument. Supports lightweight templating:
+  `[print@"Time: " min ":" sec]` and `${var}` placeholders such as `[print@"Time: ${min}:${sec}"]`.
+
 - `[mod@doc]{...}` — mutate a loaded document. Sugar packets (preferred names): `[set(path)@value]`, `[set(path, missing)@value]`, `[delete(path)]` (alias: `remove`, `del`), `[insert(path)@value]` (alias: `ins`), `[append(list)@value]` (alias: `push`), `[merge(meta)@{...}]`. Flags: `[mod(overwrite)@doc]` promotes `comp()` to `comp!()`, and `[mod(debug)@doc]` prints before/after snapshots.
 
 - `[help@packet]` — returns a quick reference string for the named packet. `[help@*]` lists all topics.
@@ -81,9 +84,9 @@ Data is always carried forward by the `>` connector:
 
 ### Additional File Packets
 
-- `[get(path)@handle]` — read a value at `path` from a document variable; returns that value (or Unit if missing).
+- `[get(path)@handle]` - read a value at `path` from a document variable; returns that value (or Unit if missing).
 
-- `[exists(path)@handle]` — returns a bool indicating whether `path` exists in the document.
+- `[exists(path)@handle]` - returns a bool indicating whether `path` exists in the document.
 
 Note: Path syntax mirrors `[mod]` — dot keys and numeric indexes in brackets, e.g., `user.name`, `items[0]`.
 
@@ -91,6 +94,13 @@ Notes:
 - All file paths resolve inside the nearest `red.tgsk` root; attempts to escape error with `E_BOX_VIOLATION`.
 
 - `[save]`, `[load]`, `[log]`, `[cd]` require a `red.tgsk` present or error with `E_BOX_REQUIRED`.
+
+### Time Packets
+
+- `[UTC]` - emit the current UTC timestamp in ISO-8601 format (millisecond precision).
+- `[UTC@component]` - return a specific UTC component (`year`, `month`, `day`, `hour`, `min`, `sec`, `ms`, `micros`, `nanos`, `weekday`, `ordinal`, `unix`, `iso`).
+- `[local]` - emit the local timestamp in ISO-8601 format.
+- `[local@component]` - mirror `[UTC@...]` but using the local clock.
 
 ### Control Flow (Expanded)
 
@@ -108,16 +118,24 @@ Notes:
 
 - `[else]` — final fallback branch in an if-chain.
 
-- `[funct:tag]{...}` — define a reusable block under `tag`.
+- `[funct:tag]{...}` - define a reusable block under `tag`.
 
-- `[call@tag]` — invoke a function defined with `[funct]`.
+- `[call@tag]` - invoke a function defined with `[funct]`.
 
-- `[iter@handle]{...}` — iterate arrays in a document `handle`; sets `it` (current item) and `idx` (index) during the body.
+- `[iter@handle]{...}` - iterate arrays in a document `handle`; sets `it` (current item) and `idx` (index) during the body.
+
+- `[async]{...}` / `[async@fn]` - spawn a new task from a block or async function without blocking the current flow.
+
+- `[await@fn]` - wait for the next completion of `[fn(fn):async]{...}` and pass its result downstream.
+
+- `[timeout:unit@len]{...}` - pause execution for the given duration (body optional).
+
+- `[interval:unit@len]{...}` - schedule a repeating timer that runs the enclosed block asynchronously until it breaks or interrupts.
 
 
 ### Exec Packets
 
-- `[exec@"cmd"]` — run a shell command; returns stdout string. Modes: `[exec(code)@"cmd"]` (exit code), `[exec(stderr)@"cmd"]` (stderr), `[exec(json)@"cmd"]` (JSON string `{code,stdout,stderr}`).
+- `[exec@"cmd"]` - run a shell command; returns stdout string. Modes: `[exec(code)@"cmd"]` (exit code), `[exec(stderr)@"cmd"]` (stderr), `[exec(json)@"cmd"]` (JSON string `{code,stdout,stderr}`).
   - Requires a yellow consent block.
 
 - `[run@/path/script.tgsk]` – execute another TagSpeak file inside the same red box; updates cwd relative to that file. Depth limited (default 8, `TAGSPEAK_MAX_RUN_DEPTH`).
@@ -205,6 +223,96 @@ Notes:
   [math@ticks+1]>[store@ticks]>[print@ticks]
   [if@(ticks>=3)]{ [break] }
 }
+```
+
+### Temporal Dispatch
+
+- Script: ../examples/basics/flow/async_ping.tgsk
+
+```tgsk
+[fn(ping):async]{
+  [timeout:ms@50]
+  [print@"ping"]
+  [return@"done"]
+}
+
+[async@ping]
+[await@ping]>[print]
+```
+
+- Script: ../examples/basics/flow/interval_once.tgsk
+
+```tgsk
+[interval:ms@100]{
+  [print@"heartbeat"]
+  [break]
+}
+
+[timeout:ms@120]
+```
+
+- Script: ../examples/basics/flow/timeout_delay.tgsk
+
+```tgsk
+[timeout:ms@150]{
+  [print@"Delayed hello"]
+}
+```
+
+- Script: ../examples/basics/flow/async_block.tgsk
+
+```tgsk
+[async]{
+  [timeout:ms@120]
+  [print@"background finished"]
+}
+
+[print@"main continues immediately"]
+[timeout:ms@200]
+```
+
+- Script: ../examples/basics/flow/async_race.tgsk
+
+```tgsk
+[fn(fetch_fast):async]{ [timeout:ms@40] [return@"fast"] }
+[fn(fetch_slow):async]{ [timeout:ms@80] [return@"slow"] }
+
+[async@fetch_fast]
+[async@fetch_slow]
+
+[await@fetch_fast]>[store@fast_result]>[print@fast_result]
+[await@fetch_slow]>[store@slow_result]>[print@slow_result]
+```
+
+- Script: ../examples/basics/flow/interval_stream.tgsk
+
+```tgsk
+[int@0]>[store@ticks]
+[interval:ms@100]{
+  [math@ticks+1]>[store@ticks]
+  [print@ticks]
+  [if@(ticks>=3)]{ [interrupt] }
+}
+[timeout:ms@450]
+```
+
+- Script: ../examples/basics/flow/timeout_leaf.tgsk
+
+```tgsk
+[print@"start"]
+[timeout:ms@100]
+[print@"done"]
+```
+
+### Clock Snapshots
+
+- Script: ../examples/basics/time/clock_components.tgsk
+
+```tgsk
+[UTC]>[store@utc_iso]>[print@utc_iso]
+[UTC@sec]>[print]
+[local]>[store@local_iso]>[print@local_iso]
+[local@day]>[print]
 ```
 
 ## CLI Commands

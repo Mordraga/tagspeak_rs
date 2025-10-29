@@ -1,13 +1,24 @@
+use anyhow::{Result, bail};
+use std::iter::Peekable;
+use std::str::Chars;
+
+use crate::kernel::ast::Arg;
 use crate::kernel::{Packet, Runtime, Value};
-use anyhow::Result;
 
 pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
+    if let Some(Arg::Str(raw)) = p.arg.as_ref() {
+        if let Some(rendered) = render_template(rt, raw)? {
+            println!("{}", rendered);
+            return Ok(Value::Str(rendered));
+        }
+    }
+
     let v = match p.arg.as_ref() {
         Some(arg) => rt.resolve_arg(arg)?,
         None => rt.last.clone(),
     };
     println!("{}", pretty(&v));
-    Ok(v.clone())
+    Ok(v)
 }
 
 fn pretty(v: &Value) -> String {
@@ -20,69 +31,167 @@ fn pretty(v: &Value) -> String {
     }
 }
 
-// Support simple composite printing: tokens of idents and quoted strings
-// Example: [print@sq " is the square of " x]
-#[allow(dead_code)]
-fn format_composite(rt: &Runtime, raw: &str) -> Option<String> {
-    let mut i = 0usize;
-    let chars: Vec<char> = raw.chars().collect();
+fn render_template(rt: &Runtime, raw: &str) -> Result<Option<String>> {
+    let needs_interp = raw.starts_with('"') || raw.contains("${");
+    if !needs_interp {
+        return Ok(None);
+    }
+
+    let mut chars = raw.chars().peekable();
     let mut out = String::new();
-    let mut saw = false;
+    let mut consumed = false;
 
-    while i < chars.len() {
-        // skip whitespace
-        while i < chars.len() && chars[i].is_whitespace() {
-            i += 1;
-        }
-        if i >= chars.len() {
-            break;
+    while let Some(&c) = chars.peek() {
+        if c.is_whitespace() {
+            chars.next();
+            continue;
         }
 
-        match chars[i] {
+        match c {
             '"' => {
-                i += 1; // skip opening quote
-                let mut buf = String::new();
-                while i < chars.len() {
-                    let c = chars[i];
-                    i += 1;
-                    if c == '\\' {
-                        if i < chars.len() {
-                            buf.push(chars[i]);
-                            i += 1;
+                chars.next();
+                let mut literal = String::new();
+                loop {
+                    let Some(ch) = chars.next() else {
+                        bail!("unterminated string literal in print template");
+                    };
+                    match ch {
+                        '\\' => {
+                            let Some(esc) = chars.next() else {
+                                bail!("unterminated escape in string literal");
+                            };
+                            literal.push(match esc {
+                                'n' => '\n',
+                                'r' => '\r',
+                                't' => '\t',
+                                '\\' => '\\',
+                                '"' => '"',
+                                other => other,
+                            });
                         }
-                        continue;
+                        '"' => break,
+                        '$' => {
+                            if matches!(chars.peek(), Some('{')) {
+                                chars.next(); // consume '{'
+                                out.push_str(&literal);
+                                literal.clear();
+                                let placeholder = read_placeholder(&mut chars)?;
+                                out.push_str(&resolve_variable(rt, &placeholder)?);
+                                continue;
+                            } else {
+                                literal.push('$');
+                            }
+                        }
+                        other => literal.push(other),
                     }
-                    if c == '"' {
-                        break;
-                    }
-                    buf.push(c);
                 }
-                out.push_str(&buf);
-                saw = true;
+                out.push_str(&literal);
+                consumed = true;
             }
-            c if c.is_ascii_alphabetic() || c == '_' => {
+            '$' => {
+                chars.next();
+                if chars.next() != Some('{') {
+                    bail!("expected '{{' after '$' in print template");
+                }
+                let placeholder = read_placeholder(&mut chars)?;
+                out.push_str(&resolve_variable(rt, &placeholder)?);
+                consumed = true;
+            }
+            other if is_ident_start(other) => {
                 let mut ident = String::new();
-                ident.push(c);
-                i += 1;
-                while i < chars.len() {
-                    let c2 = chars[i];
-                    if c2.is_ascii_alphanumeric() || c2 == '_' {
-                        ident.push(c2);
-                        i += 1;
+                ident.push(other);
+                chars.next();
+                while let Some(&next) = chars.peek() {
+                    if next.is_ascii_alphanumeric() || next == '_' {
+                        ident.push(next);
+                        chars.next();
                     } else {
                         break;
                     }
                 }
-                let val = rt.get_var(&ident).unwrap_or(Value::Unit);
-                out.push_str(&pretty(&val));
-                saw = true;
+                out.push_str(&resolve_variable(rt, &ident)?);
+                consumed = true;
             }
-            _ => {
-                // unknown token; bail to default behavior
-                return None;
-            }
+            _ => bail!("unexpected token in print template"),
         }
     }
 
-    saw.then_some(out)
+    Ok(consumed.then_some(out))
+}
+
+fn is_ident_start(c: char) -> bool {
+    c.is_ascii_alphabetic() || c == '_'
+}
+
+fn read_placeholder(chars: &mut Peekable<Chars<'_>>) -> Result<String> {
+    let mut placeholder = String::new();
+    let mut closed = false;
+    while let Some(ch) = chars.next() {
+        if ch == '}' {
+            closed = true;
+            break;
+        }
+        placeholder.push(ch);
+    }
+    if !closed {
+        bail!("unterminated placeholder in print template");
+    }
+    Ok(placeholder.trim().to_string())
+}
+
+fn resolve_variable(rt: &Runtime, name: &str) -> Result<String> {
+    if !is_valid_ident(name) {
+        bail!("invalid placeholder name '{name}'");
+    }
+    let val = rt.get_var(name).unwrap_or(Value::Unit);
+    Ok(pretty(&val))
+}
+
+fn is_valid_ident(name: &str) -> bool {
+    let mut chars = name.chars();
+    match chars.next() {
+        Some(first) if is_ident_start(first) => {
+            chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
+        }
+        _ => false,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use anyhow::Error;
+    use crate::{kernel::Runtime, router};
+
+    #[test]
+    fn concat_variables_and_literals() -> Result<()> {
+        let script = "\
+[int@5]>[store@min]\
+[int@42]>[store@sec]\
+[print@\"Time: \" min \":\" sec]";
+        let node = router::parse(script).map_err(Error::new)?;
+        let mut rt = Runtime::new()?;
+        rt.eval(&node)?;
+        match &rt.last {
+            Value::Str(s) => assert_eq!(s, "Time: 5:42"),
+            other => bail!("expected string result, got {other:?}"),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn placeholder_expansion_inside_literal() -> Result<()> {
+        let script = "\
+[int@7]>[store@min]\
+[int@9]>[store@sec]\
+[print@\"Time: ${min}:${sec}\"]";
+        let node = router::parse(script).map_err(Error::new)?;
+        let mut rt = Runtime::new()?;
+        rt.eval(&node)?;
+        match &rt.last {
+            Value::Str(s) => assert_eq!(s, "Time: 7:9"),
+            other => bail!("expected string result, got {other:?}"),
+        }
+        Ok(())
+    }
 }

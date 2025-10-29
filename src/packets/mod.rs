@@ -33,9 +33,12 @@ pub mod files {
 }
 
 pub mod flow {
+    pub mod async_run;
+    pub mod await_pkt;
     pub mod call;
     pub mod conditionals;
     pub mod funct;
+    pub mod interval;
     pub mod iter;
     pub mod r#loop;
     pub mod r#break;
@@ -61,6 +64,11 @@ pub mod ui {
     pub mod scope;
 }
 
+pub mod time {
+    pub mod clock;
+    pub mod timeout;
+}
+
 // Re-export for backward compatibility with existing paths
 #[allow(unused_imports)]
 pub use core::{
@@ -69,5 +77,6 @@ pub use core::{
 };
 pub use execs::{confirm, exec, http, red, repl, run, tagspeak};
 pub use files::{load, log, modify, query, save, search};
-pub use flow::{call, conditionals, funct, iter, r#break, r#loop, r#return, interrupt};
+pub use flow::{async_run, await_pkt, call, conditionals, funct, interval, iter, r#break, r#loop, r#return, interrupt};
+pub use self::time::{clock, timeout};
 pub use ui::{alert as ui_alert, select as ui_select, window as ui_window, app as ui_app, scope as ui_scope};
