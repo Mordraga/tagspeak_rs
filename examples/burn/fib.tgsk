@@ -20,7 +20,7 @@
 
   # occasional junk branch
   [math@fib_acc%1234]>[store@branch_seed]
-  [if@(branch_seed>600)]{
+  [if@(branch_seed>600)]>[then]{
     [math@fib_acc+branch_seed]>[store@fib_acc]
   }
 }
