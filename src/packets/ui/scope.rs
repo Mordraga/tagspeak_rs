@@ -1,6 +1,6 @@
-use anyhow::{Result, bail};
-use crate::kernel::{Packet, Runtime, Value};
 use crate::kernel::ast::Arg;
+use crate::kernel::{Packet, Runtime, Value};
+use anyhow::{Result, bail};
 
 // [scope@"Name"]{ ... }
 // Inside the body, plain [store@var] writes become context-bound to the named scope.
@@ -11,7 +11,10 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
         Some(Arg::Ident(id)) => id.clone(),
         _ => bail!("scope needs @\"name\" or @ident"),
     };
-    let body = p.body.as_ref().ok_or_else(|| anyhow::anyhow!("scope requires a body"))?;
+    let body = p
+        .body
+        .as_ref()
+        .ok_or_else(|| anyhow::anyhow!("scope requires a body"))?;
 
     // Save prev capture flag
     let prev = rt.get_var("__scope_capture");
@@ -20,9 +23,12 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
     let out = rt.eval(&crate::kernel::Node::Block(body.clone()))?;
     // Restore previous
     match prev {
-        Some(v) => { rt.set_var("__scope_capture", v)?; }
-        None => { rt.set_var("__scope_capture", Value::Unit)?; }
+        Some(v) => {
+            rt.set_var("__scope_capture", v)?;
+        }
+        None => {
+            rt.set_var("__scope_capture", Value::Unit)?;
+        }
     }
     Ok(out)
 }
-

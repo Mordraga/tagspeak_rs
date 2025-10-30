@@ -71,7 +71,6 @@ fn centered_box_border(title_text: &str, content_width: usize) -> (String, Strin
     (title, footer)
 }
 
-
 pub fn friendly_hint(detail: &str) -> String {
     let (category, message) = classify_detail(detail);
     format!("{} - {}", category.label(), message)

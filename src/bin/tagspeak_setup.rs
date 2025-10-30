@@ -1,9 +1,12 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::{ArgAction, Parser};
 use std::path::{Path, PathBuf};
 
 #[derive(Parser, Debug)]
-#[command(name = "tagspeak_setup", about = "Terminal setup for TagSpeak file associations")]
+#[command(
+    name = "tagspeak_setup",
+    about = "Terminal setup for TagSpeak file associations"
+)]
 struct Opts {
     /// Show current handler info
     #[arg(long, action = ArgAction::SetTrue)]
@@ -47,8 +50,8 @@ fn main() -> Result<()> {
 
 #[cfg(target_os = "windows")]
 fn cmd_check() -> Result<()> {
-    use winreg::enums::HKEY_CURRENT_USER;
     use winreg::RegKey;
+    use winreg::enums::HKEY_CURRENT_USER;
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
     let classes = hkcu.open_subkey("Software\\Classes").ok();
     let prog = classes
@@ -56,10 +59,11 @@ fn cmd_check() -> Result<()> {
         .and_then(|c| c.open_subkey("TagSpeakFile").ok());
     if let Some(prog) = prog {
         let cmd_key = prog.open_subkey("shell\\open\\command").ok();
-        let cmd: Option<String> = cmd_key
-            .as_ref()
-            .and_then(|k| k.get_value("").ok());
-        println!("Current handler: {}", cmd.unwrap_or_else(|| "<not set>".into()));
+        let cmd: Option<String> = cmd_key.as_ref().and_then(|k| k.get_value("").ok());
+        println!(
+            "Current handler: {}",
+            cmd.unwrap_or_else(|| "<not set>".into())
+        );
     } else {
         println!("No per-user association found.");
     }
@@ -94,8 +98,8 @@ fn cmd_associate(engine: &Path, dry: bool) -> Result<()> {
         return Ok(());
     }
 
-    use winreg::enums::{HKEY_CURRENT_USER, KEY_ALL_ACCESS};
     use winreg::RegKey;
+    use winreg::enums::{HKEY_CURRENT_USER, KEY_ALL_ACCESS};
 
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
     let classes = hkcu.create_subkey("Software\\Classes")?.0;
@@ -144,8 +148,8 @@ fn cmd_uninstall(dry: bool) -> Result<()> {
         println!("  - Delete HKCU/Software/Classes/TagSpeakFile");
         return Ok(());
     }
-    use winreg::enums::{HKEY_CURRENT_USER, KEY_ALL_ACCESS};
     use winreg::RegKey;
+    use winreg::enums::{HKEY_CURRENT_USER, KEY_ALL_ACCESS};
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
     if let Ok(classes) = hkcu.open_subkey_with_flags("Software\\Classes", KEY_ALL_ACCESS) {
         let _ = classes.delete_subkey_all(".tgsk");
@@ -170,7 +174,7 @@ fn cmd_uninstall(_dry: bool) -> Result<()> {
 
 #[cfg(target_os = "windows")]
 fn refresh_icons() {
-    use windows_sys::Win32::UI::Shell::{SHChangeNotify, SHCNE_ASSOCCHANGED, SHCNF_IDLIST};
+    use windows_sys::Win32::UI::Shell::{SHCNE_ASSOCCHANGED, SHCNF_IDLIST, SHChangeNotify};
     unsafe {
         SHChangeNotify(
             SHCNE_ASSOCCHANGED as i32,
@@ -183,4 +187,3 @@ fn refresh_icons() {
 
 #[cfg(not(target_os = "windows"))]
 fn refresh_icons() {}
-

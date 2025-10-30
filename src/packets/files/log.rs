@@ -72,8 +72,6 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
     Ok(rt.last.clone())
 }
 
- 
-
 // ---- helpers ----
 
 enum Mode {
@@ -84,14 +82,15 @@ enum Mode {
 
 fn detect_mode(op: &str, ext: &str) -> Mode {
     if let Some(rest) = op.strip_prefix("log(")
-        && let Some(end) = rest.find(')') {
-            match &rest[..end].to_lowercase() {
-                s if s == "json" => return Mode::Json,
-                s if s == "yaml" => return Mode::Yaml,
-                s if s == "toml" => return Mode::Toml,
-                _ => {}
-            }
+        && let Some(end) = rest.find(')')
+    {
+        match &rest[..end].to_lowercase() {
+            s if s == "json" => return Mode::Json,
+            s if s == "yaml" => return Mode::Yaml,
+            s if s == "toml" => return Mode::Toml,
+            _ => {}
         }
+    }
     match ext.to_lowercase().as_str() {
         "yaml" | "yml" => Mode::Yaml,
         "toml" => Mode::Toml,

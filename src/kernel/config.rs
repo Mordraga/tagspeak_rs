@@ -51,70 +51,72 @@ pub fn load(root: Option<&Path>) -> Config {
     if let Some(root) = root {
         let path = root.join(".tagspeak.toml");
         if let Ok(s) = std::fs::read_to_string(path)
-            && let Ok(val) = s.parse::<toml::Value>() {
-                // security.allow_exec (bool)
-                if let Some(b) = val
-                    .get("security")
-                    .and_then(|t| t.get("allow_exec"))
-                    .and_then(|v| v.as_bool())
-                {
-                    cfg.allow_exec = b;
-                }
-                // security.exec_allowlist ([string])
-                if let Some(list) = val
-                    .get("security")
-                    .and_then(|t| t.get("exec_allowlist"))
-                    .and_then(|v| v.as_array())
-                {
-                    cfg.exec_allowlist = list
-                        .iter()
-                        .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                        .collect();
-                }
-                // run.max_depth (usize)
-                if let Some(n) = val
-                    .get("run")
-                    .and_then(|t| t.get("max_depth"))
-                    .and_then(|v| v.as_integer())
-                    && n > 0 {
-                        cfg.run_max_depth = n as usize;
-                    }
-                // run.require_yellow (bool)
-                if let Some(b) = val
-                    .get("run")
-                    .and_then(|t| t.get("require_yellow"))
-                    .and_then(|v| v.as_bool())
-                {
-                    cfg.require_yellow_run = b;
-                }
-                // prompts.noninteractive (bool)
-                if let Some(b) = val
-                    .get("prompts")
-                    .and_then(|t| t.get("noninteractive"))
-                    .and_then(|v| v.as_bool())
-                {
-                    cfg.prompts_noninteractive = b;
-                }
-                // network.enabled (bool)
-                if let Some(b) = val
-                    .get("network")
-                    .and_then(|t| t.get("enabled"))
-                    .and_then(|v| v.as_bool())
-                {
-                    cfg.net_enabled = b;
-                }
-                // network.allow ([string])
-                if let Some(list) = val
-                    .get("network")
-                    .and_then(|t| t.get("allow"))
-                    .and_then(|v| v.as_array())
-                {
-                    cfg.net_allow = list
-                        .iter()
-                        .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                        .collect();
-                }
+            && let Ok(val) = s.parse::<toml::Value>()
+        {
+            // security.allow_exec (bool)
+            if let Some(b) = val
+                .get("security")
+                .and_then(|t| t.get("allow_exec"))
+                .and_then(|v| v.as_bool())
+            {
+                cfg.allow_exec = b;
             }
+            // security.exec_allowlist ([string])
+            if let Some(list) = val
+                .get("security")
+                .and_then(|t| t.get("exec_allowlist"))
+                .and_then(|v| v.as_array())
+            {
+                cfg.exec_allowlist = list
+                    .iter()
+                    .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                    .collect();
+            }
+            // run.max_depth (usize)
+            if let Some(n) = val
+                .get("run")
+                .and_then(|t| t.get("max_depth"))
+                .and_then(|v| v.as_integer())
+                && n > 0
+            {
+                cfg.run_max_depth = n as usize;
+            }
+            // run.require_yellow (bool)
+            if let Some(b) = val
+                .get("run")
+                .and_then(|t| t.get("require_yellow"))
+                .and_then(|v| v.as_bool())
+            {
+                cfg.require_yellow_run = b;
+            }
+            // prompts.noninteractive (bool)
+            if let Some(b) = val
+                .get("prompts")
+                .and_then(|t| t.get("noninteractive"))
+                .and_then(|v| v.as_bool())
+            {
+                cfg.prompts_noninteractive = b;
+            }
+            // network.enabled (bool)
+            if let Some(b) = val
+                .get("network")
+                .and_then(|t| t.get("enabled"))
+                .and_then(|v| v.as_bool())
+            {
+                cfg.net_enabled = b;
+            }
+            // network.allow ([string])
+            if let Some(list) = val
+                .get("network")
+                .and_then(|t| t.get("allow"))
+                .and_then(|v| v.as_array())
+            {
+                cfg.net_allow = list
+                    .iter()
+                    .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                    .collect();
+            }
+        }
     }
 
     // Env overrides
@@ -122,9 +124,10 @@ pub fn load(root: Option<&Path>) -> Config {
         cfg.allow_exec = b;
     }
     if let Some(n) = parse_usize_env("TAGSPEAK_MAX_RUN_DEPTH")
-        && n > 0 {
-            cfg.run_max_depth = n;
-        }
+        && n > 0
+    {
+        cfg.run_max_depth = n;
+    }
     if let Some(b) = parse_bool_env("TAGSPEAK_NONINTERACTIVE") {
         cfg.prompts_noninteractive = b;
     }

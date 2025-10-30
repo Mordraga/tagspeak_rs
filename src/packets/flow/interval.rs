@@ -17,19 +17,21 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
         .clone();
 
     let mut child = rt.fork()?;
-    thread::spawn(move || loop {
-        thread::sleep(duration);
-        if let Err(err) = child.eval(&Node::Block(body.clone())) {
-            eprintln!("interval loop error: {err:?}");
-            break;
-        }
-        match child.flow_signal.clone() {
-            FlowSignal::Break => {
-                child.take_signal();
+    thread::spawn(move || {
+        loop {
+            thread::sleep(duration);
+            if let Err(err) = child.eval(&Node::Block(body.clone())) {
+                eprintln!("interval loop error: {err:?}");
                 break;
             }
-            FlowSignal::Interrupt(_) => break,
-            _ => {}
+            match child.flow_signal.clone() {
+                FlowSignal::Break => {
+                    child.take_signal();
+                    break;
+                }
+                FlowSignal::Interrupt(_) => break,
+                _ => {}
+            }
         }
     });
 

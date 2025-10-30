@@ -1,9 +1,9 @@
 use anyhow::{Result, bail};
 
+use crate::kernel::Packet;
 use crate::kernel::ast::{Arg, BExpr, Node};
 use crate::kernel::runtime::{FlowSignal, Runtime};
 use crate::kernel::values::{Document, Value};
-use crate::kernel::Packet;
 use crate::packets::flow::conditionals;
 
 const DEFAULT_LOOP_MAX: usize = 1_000_000;
@@ -169,10 +169,7 @@ fn clone_body(p: &Packet) -> Result<Vec<Node>> {
 fn parse_count(rt: &Runtime, arg: Option<&Arg>) -> Result<usize> {
     let raw = match arg {
         Some(Arg::Number(n)) => *n,
-        Some(Arg::Ident(id)) => rt
-            .get_var(id)
-            .and_then(|v| v.try_num())
-            .unwrap_or(0.0),
+        Some(Arg::Ident(id)) => rt.get_var(id).and_then(|v| v.try_num()).unwrap_or(0.0),
         Some(Arg::Str(s)) => s.parse::<f64>().unwrap_or(0.0),
         _ => bail!("loop needs count: [loop@3]{{...}} or [loop:tag@3]"),
     };
@@ -188,10 +185,11 @@ fn parse_tag_arg(arg: Option<&Arg>) -> Result<String> {
 }
 
 fn resolve_tag_body(rt: &Runtime, tag: &str) -> Result<Vec<Node>> {
-    rt.get_tag(tag)
-        .cloned()
-        .map(|def| def.body)
-        .ok_or_else(|| anyhow::anyhow!(format!("unknown tag '{tag}' — define [funct:{tag}]{{...}} first")))
+    rt.get_tag(tag).cloned().map(|def| def.body).ok_or_else(|| {
+        anyhow::anyhow!(format!(
+            "unknown tag '{tag}' — define [funct:{tag}]{{...}} first"
+        ))
+    })
 }
 
 fn parse_loop_condition(p: &Packet) -> Result<BExpr> {
@@ -248,10 +246,7 @@ fn parse_each_spec(spec: &str) -> Result<(String, Option<String>, String)> {
     if parts.next().is_some() {
         bail!("loop:each spec may only contain one '@'");
     }
-    let mut vars = left
-        .split(',')
-        .map(|s| s.trim())
-        .filter(|s| !s.is_empty());
+    let mut vars = left.split(',').map(|s| s.trim()).filter(|s| !s.is_empty());
     let item = vars
         .next()
         .ok_or_else(|| anyhow::anyhow!("loop:each requires an item variable"))?

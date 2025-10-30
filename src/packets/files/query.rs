@@ -106,10 +106,11 @@ fn navigate_read<'a>(rt: &Runtime, root: &'a JsonValue, segs: &[Segment]) -> Opt
                     }
                     if let Some(var) = rt.get_var(k) {
                         if let Some(key) = value_to_key(&var)
-                            && let Some(next) = obj.get(&key) {
-                                cur = next;
-                                continue;
-                            }
+                            && let Some(next) = obj.get(&key)
+                        {
+                            cur = next;
+                            continue;
+                        }
                         if let Some(idx) = value_to_index(&var) {
                             let key_name = idx.to_string();
                             if let Some(next) = obj.get(&key_name) {
@@ -125,10 +126,11 @@ fn navigate_read<'a>(rt: &Runtime, root: &'a JsonValue, segs: &[Segment]) -> Opt
                         continue;
                     }
                     if let Some(var) = rt.get_var(k)
-                        && let Some(idx) = value_to_index(&var) {
-                            cur = arr.get(idx)?;
-                            continue;
-                        }
+                        && let Some(idx) = value_to_index(&var)
+                    {
+                        cur = arr.get(idx)?;
+                        continue;
+                    }
                     return None;
                 } else {
                     return None;

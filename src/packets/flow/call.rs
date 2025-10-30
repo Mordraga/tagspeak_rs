@@ -17,7 +17,10 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
     let body = func.body;
     // Evaluate the stored block in current runtime with recursion depth guard
     if rt.call_depth >= rt.max_call_depth {
-        bail!("E_CALL_DEPTH_EXCEEDED: max recursion depth {} reached", rt.max_call_depth);
+        bail!(
+            "E_CALL_DEPTH_EXCEEDED: max recursion depth {} reached",
+            rt.max_call_depth
+        );
     }
     rt.call_depth += 1;
     let result = rt.eval(&Node::Block(body));

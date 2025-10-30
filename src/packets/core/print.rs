@@ -160,8 +160,8 @@ fn is_valid_ident(name: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use anyhow::Error;
     use crate::{kernel::Runtime, router};
+    use anyhow::Error;
 
     #[test]
     fn concat_variables_and_literals() -> Result<()> {

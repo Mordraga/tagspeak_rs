@@ -16,7 +16,9 @@ fn extract_group_block(content: &str, group: &str) -> Vec<String> {
             let inner = &after[..end_rel];
             for t in inner.split(',') {
                 let t = t.trim();
-                if t.is_empty() { continue; }
+                if t.is_empty() {
+                    continue;
+                }
                 // skip allow/alias lines like `r#loop` re-exported as module
                 out.push(t.to_string());
             }
@@ -42,10 +44,18 @@ fn reflect_packets_from_mod_rs(
     let mut flow = BTreeSet::new();
     let mut execs = BTreeSet::new();
 
-    for it in extract_group_block(&content, "core") { core.insert(it); }
-    for it in extract_group_block(&content, "files") { files.insert(it); }
-    for it in extract_group_block(&content, "flow") { flow.insert(it); }
-    for it in extract_group_block(&content, "execs") { execs.insert(it); }
+    for it in extract_group_block(&content, "core") {
+        core.insert(it);
+    }
+    for it in extract_group_block(&content, "files") {
+        files.insert(it);
+    }
+    for it in extract_group_block(&content, "flow") {
+        flow.insert(it);
+    }
+    for it in extract_group_block(&content, "execs") {
+        execs.insert(it);
+    }
 
     // Normalize tokens → canonical packet names
     let mut canon_core: BTreeSet<String> = BTreeSet::new();
@@ -154,31 +164,50 @@ fn reflect_packets_from_fs(root: &Path) -> Result<serde_json::Value> {
     for name in scan(&base.join("core")) {
         match name.as_str() {
             "compare" => {
-                for k in ["eq","ne","lt","le","gt","ge"] { core.insert(k.into()); }
+                for k in ["eq", "ne", "lt", "le", "gt", "ge"] {
+                    core.insert(k.into());
+                }
             }
-            other => { core.insert(other.into()); }
+            other => {
+                core.insert(other.into());
+            }
         }
     }
     // Files
     for name in scan(&base.join("files")) {
         match name.as_str() {
-            "modify" => { files.insert("mod".into()); }
-            "query" => { files.insert("get".into()); files.insert("exists".into()); }
-            other => { files.insert(other.into()); }
+            "modify" => {
+                files.insert("mod".into());
+            }
+            "query" => {
+                files.insert("get".into());
+                files.insert("exists".into());
+            }
+            other => {
+                files.insert(other.into());
+            }
         }
     }
     // Flow
     for name in scan(&base.join("flow")) {
         match name.as_str() {
-            "loop" => { flow.insert("loopN".into()); }
+            "loop" => {
+                flow.insert("loopN".into());
+            }
             "conditionals" => { /* expose as sugar below */ }
-            other => { flow.insert(other.into()); }
+            other => {
+                flow.insert(other.into());
+            }
         }
     }
-    for k in ["if","or","else"] { flow.insert(k.into()); }
+    for k in ["if", "or", "else"] {
+        flow.insert(k.into());
+    }
 
     // Execs
-    for name in scan(&base.join("execs")) { execs.insert(name); }
+    for name in scan(&base.join("execs")) {
+        execs.insert(name);
+    }
     execs.insert("yellow".into());
 
     // Helpers
@@ -415,12 +444,20 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
             if let Some(c) = canon.get("canon") {
                 for key in ["core", "files", "flow", "execs", "helpers"] {
                     if let Some(arr) = c.get(key).and_then(|v| v.as_array()) {
-                        for v in arr { if let Some(s) = v.as_str() { known.insert(s.to_string()); } }
+                        for v in arr {
+                            if let Some(s) = v.as_str() {
+                                known.insert(s.to_string());
+                            }
+                        }
                     }
                 }
             }
             let mut details = serde_json::Map::new();
-            for (k, v) in docs_map { if known.contains(&k) { details.insert(k, v); } }
+            for (k, v) in docs_map {
+                if known.contains(&k) {
+                    details.insert(k, v);
+                }
+            }
             let out = serde_json::json!({
                 "canon": canon.get("canon").cloned().unwrap_or(serde_json::json!({})),
                 "details": serde_json::Value::Object(details),

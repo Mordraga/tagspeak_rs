@@ -2,8 +2,8 @@ mod error_style;
 mod interpreter;
 mod kernel;
 mod packets;
-mod ui;
 mod router;
+mod ui;
 
 use anyhow::{Result, anyhow};
 use kernel::Runtime;
@@ -221,13 +221,14 @@ fn burn_5s(path: &str) -> Result<()> {
         .get_var("counter")
         .and_then(|v| v.try_num())
         .unwrap_or(0.0);
-    let final_last = match &rt.last { Value::Num(n) => *n, _ => 0.0 };
+    let final_last = match &rt.last {
+        Value::Num(n) => *n,
+        _ => 0.0,
+    };
 
     eprintln!(
         "\n[burn_5s] simulated [loop100000]{{[int@1]>[store@counter]>[math@counter+1]}} for 5s: iterations={}, counter={}, last={}",
-        iters,
-        final_counter as u64,
-        final_last as u64
+        iters, final_counter as u64, final_last as u64
     );
 
     Ok(())

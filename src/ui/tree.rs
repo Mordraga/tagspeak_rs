@@ -50,16 +50,37 @@ pub struct LayoutIntent {
 
 #[derive(Clone, Debug)]
 pub enum NodeKind {
-    Window { title: String },
-    Popup  { title: String },
-    Region { id: String, label: Option<String> },
-    Text { text: String },
-    TextVar { var: String },
-    Button { label: String, action: Option<String> },
-    TextBox { var: String },
-    Checkbox { var: String, label: Option<String> },
+    Window {
+        title: String,
+    },
+    Popup {
+        title: String,
+    },
+    Region {
+        id: String,
+        label: Option<String>,
+    },
+    Text {
+        text: String,
+    },
+    TextVar {
+        var: String,
+    },
+    Button {
+        label: String,
+        action: Option<String>,
+    },
+    TextBox {
+        var: String,
+    },
+    Checkbox {
+        var: String,
+        label: Option<String>,
+    },
     Separator,
-    Spacer { px: f32 },
+    Spacer {
+        px: f32,
+    },
 }
 
 #[derive(Clone, Debug)]
@@ -72,7 +93,12 @@ pub struct TagNode {
 
 impl TagNode {
     pub fn new(kind: NodeKind) -> Self {
-        Self { kind, layout: LayoutIntent::default(), props: HashMap::new(), children: Vec::new() }
+        Self {
+            kind,
+            layout: LayoutIntent::default(),
+            props: HashMap::new(),
+            children: Vec::new(),
+        }
     }
 }
 
@@ -82,5 +108,7 @@ pub struct TagTree {
 }
 
 impl TagTree {
-    pub fn new(root: TagNode) -> Self { Self { root } }
+    pub fn new(root: TagNode) -> Self {
+        Self { root }
+    }
 }

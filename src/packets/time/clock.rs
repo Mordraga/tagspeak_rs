@@ -1,5 +1,5 @@
 use anyhow::{Result, bail};
-use chrono::{DateTime, Local, Utc, Datelike, Timelike, SecondsFormat};
+use chrono::{DateTime, Datelike, Local, SecondsFormat, Timelike, Utc};
 
 use crate::kernel::ast::Arg;
 use crate::kernel::{Packet, Runtime, Value};
@@ -60,8 +60,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use anyhow::Error;
     use crate::{kernel::Runtime, router};
+    use anyhow::Error;
 
     #[test]
     fn utc_returns_iso_string() -> Result<()> {

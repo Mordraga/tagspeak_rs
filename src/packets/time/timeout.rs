@@ -55,8 +55,7 @@ mod tests {
 
     #[test]
     fn timeout_executes_block_after_delay() -> Result<()> {
-        let script =
-            "[int@0]>[store@count]>[timeout:ms@1]{[math@count+1]>[store@count]}";
+        let script = "[int@0]>[store@count]>[timeout:ms@1]{[math@count+1]>[store@count]}";
         let node = router::parse(script).map_err(anyhow::Error::new)?;
         let mut rt = Runtime::new()?;
         rt.eval(&node)?;

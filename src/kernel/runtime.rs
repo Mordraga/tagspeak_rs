@@ -1,9 +1,10 @@
-use anyhow::{Result, bail, Context};
-use anyhow::anyhow;
 use crate::packets::core::var as pkt_var;
+use anyhow::anyhow;
+use anyhow::{Context, Result, bail};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::mem;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 use std::thread;
 
 use crate::kernel::ast::{Arg, BExpr, Node, Packet};
@@ -29,6 +30,69 @@ pub struct AsyncTask {
     pub handle: Option<thread::JoinHandle<anyhow::Result<Value>>>,
 }
 
+#[derive(Clone)]
+pub struct DeadmanRegistry {
+    inner: Arc<DeadmanInner>,
+}
+
+struct DeadmanInner {
+    arms: Mutex<Vec<String>>,
+}
+
+impl DeadmanRegistry {
+    pub fn new() -> Self {
+        Self {
+            inner: Arc::new(DeadmanInner {
+                arms: Mutex::new(Vec::new()),
+            }),
+        }
+    }
+
+    pub fn arm(&self, message: String) {
+        if let Ok(mut guard) = self.inner.arms.lock() {
+            guard.push(message);
+        }
+    }
+
+    pub fn disarm(&self, target: Option<&str>) -> Option<String> {
+        if let Ok(mut guard) = self.inner.arms.lock() {
+            if let Some(t) = target {
+                if let Some(idx) = guard.iter().rposition(|msg| msg == t) {
+                    return Some(guard.remove(idx));
+                }
+            } else {
+                return guard.pop();
+            }
+        }
+        None
+    }
+}
+
+impl Default for DeadmanRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Drop for DeadmanRegistry {
+    fn drop(&mut self) {
+        if Arc::strong_count(&self.inner) != 1 {
+            return;
+        }
+
+        if let Ok(mut guard) = self.inner.arms.lock() {
+            if guard.is_empty() {
+                return;
+            }
+            println!("DEADMAN SWITCH TRIGGERED");
+            for msg in guard.iter() {
+                println!("{msg}");
+            }
+            guard.clear();
+        }
+    }
+}
+
 pub struct Runtime {
     pub vars: HashMap<String, Value>,
     pub ctx_vars: HashMap<String, Vec<(BExpr, Value)>>,
@@ -43,6 +107,7 @@ pub struct Runtime {
     pub flow_signal: FlowSignal,
     pub async_tasks: HashMap<String, VecDeque<AsyncTask>>,
     pub task_counter: usize,
+    pub deadman: DeadmanRegistry,
 }
 
 impl Runtime {
@@ -74,7 +139,11 @@ impl Runtime {
             effective_root: root,
             cwd,
             call_depth: 0,
-            max_call_depth: std::env::var("TAGSPEAK_MAX_CALL_DEPTH").ok().and_then(|s| s.parse::<usize>().ok()).unwrap_or(256),
+            max_call_depth: std::env::var("TAGSPEAK_MAX_CALL_DEPTH")
+                .ok()
+                .and_then(|s| s.parse::<usize>().ok())
+                .unwrap_or(256),
+            deadman: DeadmanRegistry::new(),
         })
     }
 
@@ -198,6 +267,37 @@ impl Runtime {
             (None, "int") => crate::packets::int::handle(self, p),
             (None, "bool") => crate::packets::bool::handle(self, p),
             (None, "env") => crate::packets::env::handle(self, p),
+            (None, op) if op.eq_ignore_ascii_case("pwk") => {
+                crate::packets::fun::handle_power_word_kill(self, p)
+            }
+            (None, op) if op.eq_ignore_ascii_case("summon") => {
+                crate::packets::fun::handle_summon(self, p)
+            }
+            (None, op) if op.eq_ignore_ascii_case("gecko") => {
+                crate::packets::fun::handle_gecko(self, p)
+            }
+            (None, op) if op.eq_ignore_ascii_case("please") => {
+                crate::packets::fun::handle_please(self, p)
+            }
+            (Some(ns), op) if ns.eq_ignore_ascii_case("please") => {
+                if op.eq_ignore_ascii_case("selene") {
+                    crate::packets::fun::handle_please_selene(self, p)
+                } else {
+                    crate::packets::fun::handle_please(self, p)
+                }
+            }
+            (None, op) if op.eq_ignore_ascii_case("deity") => {
+                crate::packets::fun::handle_deity(self, p)
+            }
+            (None, op) if op.eq_ignore_ascii_case("deadman") => {
+                crate::packets::fun::handle_deadman(self, p)
+            }
+            (None, op) if op.eq_ignore_ascii_case("disarm") => {
+                crate::packets::fun::handle_disarm(self, p)
+            }
+            (None, op) if op.eq_ignore_ascii_case("alli") => {
+                crate::packets::fun::handle_alli(self, p)
+            }
             (None, "help") => crate::packets::help::handle(self, p),
             (None, "lint") => crate::packets::lint::handle(self, p),
             (None, "cd") => crate::packets::cd::handle(self, p),
@@ -229,8 +329,12 @@ impl Runtime {
                 crate::packets::query::handle(self, p)
             }
             (None, "iter") => crate::packets::iter::handle(self, p),
-            (None, op) if op.eq_ignore_ascii_case("utc") => crate::packets::clock::handle_utc(self, p),
-            (None, op) if op.eq_ignore_ascii_case("local") => crate::packets::clock::handle_local(self, p),
+            (None, op) if op.eq_ignore_ascii_case("utc") => {
+                crate::packets::clock::handle_utc(self, p)
+            }
+            (None, op) if op.eq_ignore_ascii_case("local") => {
+                crate::packets::clock::handle_local(self, p)
+            }
             (None, "async") => crate::packets::async_run::handle(self, p),
             (None, "await") => crate::packets::await_pkt::handle(self, p),
             (None, "break") => crate::packets::r#break::handle(self, p),
@@ -291,6 +395,7 @@ impl Runtime {
             cwd: self.cwd.clone(),
             call_depth: 0,
             max_call_depth: self.max_call_depth,
+            deadman: self.deadman.clone(),
         })
     }
 
@@ -397,4 +502,3 @@ mod tests {
         fs::remove_dir_all(base).unwrap();
     }
 }
-
