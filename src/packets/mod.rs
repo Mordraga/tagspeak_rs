@@ -12,6 +12,7 @@ pub mod core {
     pub mod len;
     pub mod lint;
     pub mod math;
+    pub mod math_assign;
     pub mod msg;
     pub mod note;
     pub mod obj;
@@ -75,8 +76,8 @@ pub mod fun;
 pub use self::time::{clock, timeout};
 #[allow(unused_imports)]
 pub use core::{
-    array, bool, cd, compare, dump, env, help, input, int, len, lint, math, msg, note, obj, parse,
-    print, rand, reflect, store, var,
+    array, bool, cd, compare, dump, env, help, input, int, len, lint, math, math_assign, msg, note,
+    obj, parse, print, rand, reflect, store, var,
 };
 pub use execs::{confirm, exec, http, red, repl, run, tagspeak};
 pub use files::{load, log, modify, query, save, search};

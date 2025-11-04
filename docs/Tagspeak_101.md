@@ -53,20 +53,21 @@ Data is always carried forward by the `>` connector:
 
 - `[dump]` — pretty-print the last value (documents as pretty JSON); pass-through.
 
-- `[print]` — print the last value or provided argument. Supports lightweight templating:
+- `[print]` – print the last value or provided argument. Supports lightweight templating:
   `[print@"Time: " min ":" sec]` and `${var}` placeholders such as `[print@"Time: ${min}:${sec}"]`.
 
-- `[mod@doc]{...}` — mutate a loaded document. Sugar packets (preferred names): `[set(path)@value]`, `[set(path, missing)@value]`, `[delete(path)]` (alias: `remove`, `del`), `[insert(path)@value]` (alias: `ins`), `[append(list)@value]` (alias: `push`), `[merge(meta)@{...}]`. Flags: `[mod(overwrite)@doc]` promotes `comp()` to `comp!()`, and `[mod(debug)@doc]` prints before/after snapshots.
+- `[mod@doc]{...}` – mutate a loaded document. Sugar packets (preferred names): `[set(path)@value]`, `[set(path, missing)@value]`, `[delete(path)]` (alias: `remove`, `del`), `[insert(path)@value]` (alias: `ins`), `[append(list)@value]` (alias: `push`), `[merge(meta)@{...}]`. Flags: `[mod(overwrite)@doc]` promotes `comp()` to `comp!()`, and `[mod(debug)@doc]` prints before/after snapshots.
 
-- `[help@packet]` — returns a quick reference string for the named packet. `[help@*]` lists all topics.
+- `[help@packet]` – returns a quick reference string for the named packet. `[help@*]` lists all topics.
 
-- `[lint@/path/script.tgsk]` — runs heuristics that flag lingering notes, unsafe exec usage, and TODO markers. Accepts inline script text as well.
+- `[lint@/path/script.tgsk]` – runs heuristics that flag lingering notes, unsafe exec usage, and TODO markers. Accepts inline script text as well.
 
-- `[reflect(packets)]` — introspect canonical packets; `[reflect(packets_full)]` writes `docs/PACKETS.json`. Also `[reflect(vars)]`, `[reflect(runtime)]`, `[reflect(doc)@handle]`.
+- `[reflect(packets)]` – introspect canonical packets; `[reflect(packets_full)]` writes `docs/PACKETS.json`. Also `[reflect(vars)]`, `[reflect(runtime)]`, `[reflect(doc)@handle]`.
 
-- `[var@name]` — return the current value of a runtime variable (or Unit if missing).
+- `[var@name]` – return the current value of a runtime variable (or Unit if missing).
+- Math sugar for numeric vars: `[inc@counter]`, `[dec@counter]`, `[mod@counter+=expr]` / `[mod@counter-=expr]`, and `[mul@counter*=expr]` / `[mul@counter/=expr]`. These require the target variable to exist and contain a numeric value.
 
-- `[input@"Prompt "]` — read a single line from stdin. Returns the entered string. Respects `TAGSPEAK_NONINTERACTIVE=1` (returns Unit). Sugar: `[input:line@"Prompt "]`.
+- `[input@"Prompt "]` – read a single line from stdin. Returns the entered string. Respects `TAGSPEAK_NONINTERACTIVE=1` (returns Unit). Sugar: `[input:line@"Prompt "]`.
 
 ### Comparators
 
@@ -112,7 +113,7 @@ Notes:
 - `[return@value]` - exit the current loop or function early, returning the provided value (defaults to the last value).
 - `[interrupt@value]` - exit the current loop and raise an interrupt signal upstream (useful for cascading control).
 
-- `[if@(cond)] > [then]{...} > [or@(cond)] > [then]{...} > [else] > [then]{...}` — dataflow conditionals with explicit `then` blocks. Comparators and boolean ops allowed in `cond`.
+- `[if@(cond)]{...}` (or explicit `[if@(cond)]>[then]{...}`) with optional `[or@(cond)]{...}` / `[else]{...}` - dataflow conditionals. Comparators and boolean ops allowed in `cond`. Use `[then]{...}` when you prefer the canonical form.
 
 - `[or@(cond)]` — chain additional condition/branch pairs inside an if-chain.
 

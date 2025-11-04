@@ -165,9 +165,9 @@
       "source": "Tagspeak_101.md"
     },
     "if": {
-      "desc": "dataflow conditionals with explicit `then` blocks. Comparators and boolean ops allowed in `cond`.",
+      "desc": "dataflow conditionals with optional `then` packets. Comparators and boolean ops allowed in `cond`.",
       "section": "Control Flow (Expanded)",
-      "sig": "[if@(cond)] > [then]{...} > [or@(cond)] > [then]{...} > [else] > [then]{...}",
+      "sig": "[if@(cond)]{...} (or `[if@(cond)]>[then]{...}`) with optional `[or@(cond)]{...}` / `[else]{...}` branches",
       "source": "Tagspeak_101.md"
     },
     "input": {

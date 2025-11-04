@@ -4,7 +4,7 @@
 [interval:ms@100]{
   [math@ticks+1]>[store@ticks]
   [print@ticks]
-  [if@(ticks>=3)]{ [interrupt] }
+  [if@(ticks>=3)]>[then]{ [interrupt] }
 }
 
 [timeout:ms@450]

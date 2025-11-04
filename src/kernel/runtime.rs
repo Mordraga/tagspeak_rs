@@ -258,6 +258,12 @@ impl Runtime {
             // core
             (None, "note") => crate::packets::note::handle(self, p),
             (None, "math") => crate::packets::math::handle(self, p),
+            (None, "inc") => crate::packets::math_assign::handle_inc(self, p),
+            (None, "dec") => crate::packets::math_assign::handle_dec(self, p),
+            (None, "mul") => crate::packets::math_assign::handle_mul_assign(self, p),
+            (None, "mod") if p.body.is_none() => {
+                crate::packets::math_assign::handle_add_assign(self, p)
+            }
             (None, "store") => crate::packets::store::handle(self, p),
             (None, "print") => crate::packets::print::handle(self, p),
             (None, "var") => pkt_var::handle(self, p),

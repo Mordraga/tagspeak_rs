@@ -376,47 +376,15 @@ fn parse_if(
     }
     sc.skip_comments_and_ws();
 
-    let then_start = sc.pos();
-    let then_pkt = match parse_packet(sc) {
-        Ok(pkt) => pkt,
-        Err(err) => {
-            diagnostics.push(compose_packet_error(sc, then_start, &err.to_string()));
-            resync_after_error(sc, then_start);
-            return None;
-        }
-    };
-    if then_pkt.ns.is_some() || then_pkt.op != "then" {
-        diagnostics.push(plain_error_box(
-            sc,
-            then_start,
-            "expected [then]",
-            "Use [then]{...} after conditional branches.",
-            "Conditional needs [then]",
-        ));
-        resync_after_error(sc, then_start);
-        return None;
-    }
-
-    sc.skip_comments_and_ws();
-    if sc.peek() != Some('{') {
-        diagnostics.push(plain_error_box(
-            sc,
-            sc.pos(),
-            "[then] needs block",
-            "Add a block `{ ... }` immediately after [then].",
-            "Missing [then] block",
-        ));
-        resync_after_error(sc, sc.pos());
-        return None;
-    }
-
-    let then_b = match parse_block(sc, diagnostics) {
-        Some(Node::Block(body)) => body,
-        Some(_) => unreachable!(),
-        None => {
-            resync_after_error(sc, then_start);
-            return None;
-        }
+    let then_b = match parse_branch_body(
+        sc,
+        diagnostics,
+        "expected [then] or inline block",
+        "Use [then]{...} or place a block `{ ... }` right after the condition.",
+        "Conditional branch missing body",
+    ) {
+        Some(body) => body,
+        None => return None,
     };
 
     sc.skip_comments_and_ws();
@@ -462,45 +430,15 @@ fn parse_or_else(sc: &mut Scanner, diagnostics: &mut Vec<ParseDiagnostic>) -> Op
             sc.next();
             sc.skip_comments_and_ws();
         }
-        let then_start = sc.pos();
-        let then_pkt = match parse_packet(sc) {
-            Ok(pkt) => pkt,
-            Err(err) => {
-                diagnostics.push(compose_packet_error(sc, then_start, &err.to_string()));
-                resync_after_error(sc, then_start);
-                return None;
-            }
-        };
-        if then_pkt.ns.is_some() || then_pkt.op != "then" {
-            diagnostics.push(plain_error_box(
-                sc,
-                then_start,
-                "expected [then]",
-                "Use [then]{...} after conditional branches.",
-                "Conditional needs [then]",
-            ));
-            resync_after_error(sc, then_start);
-            return None;
-        }
-        sc.skip_comments_and_ws();
-        if sc.peek() != Some('{') {
-            diagnostics.push(plain_error_box(
-                sc,
-                sc.pos(),
-                "[then] needs block",
-                "Add a block `{ ... }` immediately after [then].",
-                "Missing [then] block",
-            ));
-            resync_after_error(sc, sc.pos());
-            return None;
-        }
-        let then_b = match parse_block(sc, diagnostics) {
-            Some(Node::Block(body)) => body,
-            Some(_) => unreachable!(),
-            None => {
-                resync_after_error(sc, then_start);
-                return None;
-            }
+        let then_b = match parse_branch_body(
+            sc,
+            diagnostics,
+            "expected [then] or inline block",
+            "Use [then]{...} or place a block `{ ... }` right after the branch.",
+            "Conditional branch missing body",
+        ) {
+            Some(body) => body,
+            None => return None,
         };
         sc.skip_comments_and_ws();
         while sc.peek() == Some('>') {
@@ -533,49 +471,78 @@ fn parse_or_else(sc: &mut Scanner, diagnostics: &mut Vec<ParseDiagnostic>) -> Op
             sc.next();
             sc.skip_comments_and_ws();
         }
-        let then_start = sc.pos();
-        let then_pkt = match parse_packet(sc) {
-            Ok(pkt) => pkt,
-            Err(err) => {
-                diagnostics.push(compose_packet_error(sc, then_start, &err.to_string()));
-                resync_after_error(sc, then_start);
-                return None;
-            }
+        match parse_branch_body(
+            sc,
+            diagnostics,
+            "expected [then] or inline block",
+            "Use [then]{...} or place a block `{ ... }` inside the else branch.",
+            "Else branch missing body",
+        ) {
+            Some(body) => Some(body),
+            None => None,
+        }
+    } else {
+        Some(Vec::new())
+    }
+}
+
+fn parse_branch_body(
+    sc: &mut Scanner,
+    diagnostics: &mut Vec<ParseDiagnostic>,
+    missing_detail: &str,
+    missing_hint: &str,
+    missing_summary: &str,
+) -> Option<Vec<Node>> {
+    sc.skip_comments_and_ws();
+    if sc.peek() == Some('{') {
+        return match parse_block(sc, diagnostics) {
+            Some(Node::Block(body)) => Some(body),
+            Some(_) => unreachable!(),
+            None => None,
         };
-        if then_pkt.ns.is_some() || then_pkt.op != "then" {
-            diagnostics.push(plain_error_box(
-                sc,
-                then_start,
-                "expected [then]",
-                "Use [then]{...} inside else branches.",
-                "Conditional needs [then]",
-            ));
+    }
+
+    let then_start = sc.pos();
+    let then_pkt = match parse_packet(sc) {
+        Ok(pkt) => pkt,
+        Err(err) => {
+            diagnostics.push(compose_packet_error(sc, then_start, &err.to_string()));
             resync_after_error(sc, then_start);
             return None;
         }
-        sc.skip_comments_and_ws();
-        if sc.peek() != Some('{') {
-            diagnostics.push(plain_error_box(
-                sc,
-                sc.pos(),
-                "[then] needs block",
-                "Add a block `{ ... }` immediately after [then].",
-                "Missing [then] block",
-            ));
-            resync_after_error(sc, sc.pos());
-            return None;
+    };
+    if then_pkt.ns.is_some() || then_pkt.op != "then" {
+        diagnostics.push(plain_error_box(
+            sc,
+            then_start,
+            missing_detail,
+            missing_hint,
+            missing_summary,
+        ));
+        resync_after_error(sc, then_start);
+        return None;
+    }
+
+    sc.skip_comments_and_ws();
+    if sc.peek() != Some('{') {
+        diagnostics.push(plain_error_box(
+            sc,
+            sc.pos(),
+            "[then] needs block",
+            "Add a block `{ ... }` immediately after [then].",
+            "Missing [then] block",
+        ));
+        resync_after_error(sc, sc.pos());
+        return None;
+    }
+
+    match parse_block(sc, diagnostics) {
+        Some(Node::Block(body)) => Some(body),
+        Some(_) => unreachable!(),
+        None => {
+            resync_after_error(sc, then_start);
+            None
         }
-        let block = match parse_block(sc, diagnostics) {
-            Some(Node::Block(body)) => body,
-            Some(_) => unreachable!(),
-            None => {
-                resync_after_error(sc, then_start);
-                return None;
-            }
-        };
-        Some(block)
-    } else {
-        Some(Vec::new())
     }
 }
 

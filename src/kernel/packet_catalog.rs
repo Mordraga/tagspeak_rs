@@ -2,6 +2,9 @@ pub const KNOWN_PACKET_OPS: &[&str] = &[
     // core
     "note",
     "math",
+    "inc",
+    "dec",
+    "mul",
     "store",
     "print",
     "dump",

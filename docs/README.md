@@ -97,10 +97,10 @@ Make sure Rust (stable) is installed.
 ### Windows
 
 ```bash
-cargo build --bin tagspeak_setup
+cargo run --bin tagspeak_setup
 ```
 
-Then follow the installer’s guidance to build the engine and register the CLI.
+That launches the terminal installer. Pick **Install** to build the engine, add it to `PATH`, and register `.tgsk` associations, or choose **Uninstall** to remove everything cleanly. Running it outside the repo is fine—the wizard will prompt for the TagSpeak source path if it can’t auto-detect it.
 
 ### Linux
 
