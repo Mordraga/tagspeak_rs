@@ -2,7 +2,7 @@
 [math@0]>[store@elapsed_ms]
 
 [UTC@millis]>[store@start_ms]
-[loop@1000000]{
+[loop@100000]{
   [math@counter+1]>[store@counter]
 }
 [UTC@millis]>[store@end_ms]
