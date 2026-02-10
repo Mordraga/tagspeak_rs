@@ -6,9 +6,10 @@ use crate::kernel::{Arg, Packet, Runtime, Value};
 
 fn detect_mode(op: &str) -> Option<&str> {
     if let Some(rest) = op.strip_prefix("parse(")
-        && let Some(end) = rest.find(')') {
-            return Some(&rest[..end]);
-        }
+        && let Some(end) = rest.find(')')
+    {
+        return Some(&rest[..end]);
+    }
     None
 }
 

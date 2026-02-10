@@ -1,93 +1,144 @@
-# 🚨 Red + REPL Packets (Codex Spec)
+**TagSpeak Flow Loops + Functions Spec**
 
-Agents in TagSpeak are layered constructs: they bundle control loops, input, and adapters into higher-level behaviors.
-The following are **red-tier** packets — risky by nature, gated by ritual, and never implicit.
-
----
-
-## 🛑 `[red]`
-
-**Purpose**: Marks a session as *risk-enabled*. Unlocks dangerous or destructive behaviors that are otherwise inert.
-
-* **Default**: off.
-
-* **Scope**: session-wide.
-
-* **Activation**: requires **manual ritual phrase**, human-typed:
-
-  ```
-  I acknowledge red mode. I accept the risk.
-  ```
-
-* **Rules**:
-
-  * Cannot be macro’d, scripted, or auto-set.
-  * Once acknowledged, `session.flag = red` until `/exit`.
-  * Does **not** bypass `[yellow]` (aka `[confirm]`) — each side-effectful packet still requires per-action consent.
-  * Unlocks red-only packets: `[repl]`, `[realtime]`, `[exec:*]`.
+> Codename: "Structured Flow"
+> Purpose: Canonical definition for `[loop]`, `[funct]`, and related flow-control mechanics in TagSpeak.
 
 ---
 
-## 🟡 `[yellow]` / `[confirm]`
+## 🔁 Loop Packets
 
-**Purpose**: Consent gate. Asks before executing its body.
+### `[loop@N]` — Finite Repetition
 
-* **Alias**: `[yellow@...]` and `[confirm@...]` are routed identically by runtime.
-* **Syntax**:
+```tgsk
+[loop@5]{ [call@step] }
+```
 
-  ```tgsk
-  [yellow@"message"]{ [packet] }
-  ```
-
-  (block form requires a body or errors)
-* **Behavior**:
-
-  * Prints header: `[confirm] <message>` then prompts once: `Proceed? [y/N/a]`
-  * `y/yes`: run once.
-  * `a/always`: run and remember for rest of process.
-  * default/N: skip, returns Unit.
-  * Internally increments `__yellow_depth` so gated packets (e.g., `[exec]`) know they are inside a confirm.
-* **Env overrides**:
-
-  * `TAGSPEAK_ALLOW_YELLOW=1|true|yes|y`
-  * Sugar-specific: `TAGSPEAK_ALLOW_EXEC`, `TAGSPEAK_ALLOW_RUN`
-* **Non-interactive**: If `TAGSPEAK_NONINTERACTIVE=1|true`, prompts auto-deny (skip).
-* **Interplay**:
-
-  * `[exec]` requires yellow unless allowed by env or `.tagspeak.toml`.
-  * `[run]` can be configured to require yellow (`require_yellow_run`) in `.tagspeak.toml`.
+* Runs enclosed block N times.
+* Argument must be a literal number or variable.
+* Breakable via `[break]`, `[return]`, or `[interrupt]`.
 
 ---
 
-## 🔁 `[repl]`
+### `[loop:forever]` — Soft Infinite
 
-**Purpose**: Opens a *read–eval–print loop* between TagSpeak and a bound adapter (usually an LLM).
-This is the **first canonical red packet** — intentionally stupid and dangerous, because it lets a model talk through the same DSL designed to control it.
+```tgsk
+[loop:forever]{ [call@tick] }
+```
 
-* **Scope**: one per TTY. Cannot nest.
+* Infinite loop with safe yield points.
+* Auto-yields each iteration if inside `[async]`.
+* Soft exit available via `[break]`, `[return]`, or `[interrupt]`.
 
-* **Structure**:
+---
 
-  ```tgsk
-  [red@"STOP SIGN: risky mode"]
-  [repl:(ollama/gemma3)]{
-    [loop@yes][until@/exit]{
-      [input.line@"$> "]        # auto-yellow, human only
-      > [chat.stream@"$in"]     # model call
-      > [render@plain]          # prints output
-    }
-  }
-  ```
+### `[loop:until(condition)]` — Guarded Loop
 
-* **Behavior**:
+```tgsk
+[loop:until(condition)]{ [call@work] }
+```
 
-  * Wraps a continuous loop.
-  * `[input]` must always come from the human operator.
-  * Output is rendered plain unless transformed downstream.
-  * Exits cleanly on `/exit`.
+* Truthy → exits loop.
+* Falsy → continues.
+* Works with `[var@x]`, `[eq@...]`, or other condition packets.
+* Working Example:
+```
+[funct:count_step]{
+  [math@count+1]>[store@count]
+  [print@count]
+}
 
-* **Why red?**
+[int@0]>[store@count]
 
-  * REPL = self-referential.
-  * LLM in TagSpeak = recursive hazard.
-  * Sugar packet only — no hidden magic. The danger is purely in enabling unbounded interaction.
+[loop:until@(count == 20)]{
+  [call@count_step]
+}
+```
+
+---
+
+### `[loop:each(item@list)]` — Iteration
+
+```tgsk
+[loop:each(x@my_array)]{
+  [print@x]
+}
+```
+
+* Iterates over each item in the list.
+* Sets `x` to the current item.
+* Optional: `[loop:each(x, i@list)]` for index tracking.
+
+---
+
+## 🧠 Function Packets
+
+### `[funct:tag]{...}` — Define Function
+
+```tgsk
+[funct:tick]{ [print@"tick"] }
+```
+
+* Creates a named, reusable block.
+* Does not run until called.
+* Can be async via `[fn(name):async]{}`.
+
+---
+
+### `[call@tag]` — Invoke Function
+
+```tgsk
+[call@tick]
+```
+
+* Calls previously defined function by tag.
+* Passes current value in; returns function’s last value out.
+
+---
+
+### `[return]` — Exit Function or Loop
+
+```tgsk
+[return@42]
+```
+
+* Exits the current `[funct]` or `[loop]` early.
+* Optional value returned.
+
+---
+
+### `[break]` / `[interrupt]`
+
+* `[break]`: exits the current loop only.
+* `[interrupt]`: exits loop **and** raises signal upstream (used to cascade break logic).
+
+---
+
+## 🧪 Flow Notes
+
+* Loops can be nested.
+* Functions can call other functions.
+* Functions **can** contain loops.
+* Use `[async]{ [loop] }` for time-based behavior.
+* Loop guards (`[loop:until(...)]`) expect clean boolean context.
+
+---
+
+## ✅ Example
+
+```tgsk
+[funct:tick]{ [print@"tick"] }
+[loop@3]{ [call@tick] }
+```
+
+---
+
+## 🔧 Runtime Notes
+
+* `[loop@N]` → for-loop.
+* `[loop:forever]` → `loop { yield; }`
+* `[loop:until]` → `while !cond { ... }`
+* `[funct]` → registers block under tag.
+* `[call]` → inlines or dispatches stored function.
+* `[break]`, `[return]` are signal-passing control packets.
+
+---

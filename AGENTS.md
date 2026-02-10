@@ -212,7 +212,7 @@ Produces `out.json`: `2`
 
 ```tgsk
 [log(json)@profile.json]{
-  [key(name)@"Saryn"]
+  [key(name)@"Mordraga"]
   [key(age)@25]
   [key(active)@true]
 }
@@ -222,7 +222,7 @@ Produces `out.json`: `2`
 
 ```tgsk
 [log(yaml)@profile.yaml]{
-  [key(name)@"Saryn"]
+  [key(name)@"Mordraga"]
   [key(age)@25]
 }
 ```

@@ -309,4 +309,26 @@ mod tests {
         assert_eq!(rt.get_num("x"), Some(30.0));
         Ok(())
     }
+
+    #[test]
+    fn inline_blocks_without_then() -> Result<()> {
+        let script = "[int@0]>[store@x]\n\
+                      [if@(x==0)]{[math@5]>[store@x]}[else]{[math@9]>[store@x]}";
+        let mut rt = Runtime::new()?;
+        let node = router::parse(script).map_err(anyhow::Error::new)?;
+        rt.eval(&node)?;
+        assert_eq!(rt.get_num("x"), Some(5.0));
+        Ok(())
+    }
+
+    #[test]
+    fn or_branch_inline_block() -> Result<()> {
+        let script = "[if@(1==0)]{[math@1]>[store@y]}\
+                      [or@(1==1)]{[math@2]>[store@y]}";
+        let mut rt = Runtime::new()?;
+        let node = router::parse(script).map_err(anyhow::Error::new)?;
+        rt.eval(&node)?;
+        assert_eq!(rt.get_num("y"), Some(2.0));
+        Ok(())
+    }
 }

@@ -13,14 +13,15 @@ enum ExecMode {
 
 fn detect_mode(op: &str) -> ExecMode {
     if let Some(rest) = op.strip_prefix("exec(")
-        && let Some(end) = rest.find(')') {
-            match &rest[..end].to_lowercase() {
-                s if s == "stderr" => return ExecMode::Stderr,
-                s if s == "code" => return ExecMode::Code,
-                s if s == "json" => return ExecMode::Json,
-                _ => {}
-            }
+        && let Some(end) = rest.find(')')
+    {
+        match &rest[..end].to_lowercase() {
+            s if s == "stderr" => return ExecMode::Stderr,
+            s if s == "code" => return ExecMode::Code,
+            s if s == "json" => return ExecMode::Json,
+            _ => {}
         }
+    }
     ExecMode::Stdout
 }
 

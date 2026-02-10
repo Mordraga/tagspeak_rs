@@ -10,7 +10,7 @@
 [get(0)@arr]>[print] [note@ First element of array]
 
 [obj]{ 
-    [key(name)@"Saryn"] 
+    [key(name)@"Mordraga"] 
     [key(age)@25] 
     [sect@meta]{ 
         [key(role)@"dev"] 

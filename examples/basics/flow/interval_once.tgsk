@@ -1,0 +1,7 @@
+[note@"Fire a single heartbeat using interval"]
+[interval:ms@100]{
+  [print@"heartbeat"]
+  [break]
+}
+
+[timeout:ms@120]

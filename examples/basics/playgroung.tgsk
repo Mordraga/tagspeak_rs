@@ -1,1 +1,4 @@
-[print@"Hey Clockwork! <3"]
+[funct:hello_vtubers]{
+  [msg@"HI!!!"]>[store@greeting]
+}
+[loop:hello_vtubers@3]>[print@greeting]

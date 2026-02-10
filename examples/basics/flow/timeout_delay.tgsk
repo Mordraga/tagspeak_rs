@@ -1,0 +1,4 @@
+[note@"Delay execution before greeting"]
+[timeout:ms@150]{
+  [print@"Delayed hello"]
+}

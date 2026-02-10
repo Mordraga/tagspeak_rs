@@ -71,7 +71,6 @@ fn centered_box_border(title_text: &str, content_width: usize) -> (String, Strin
     (title, footer)
 }
 
-
 pub fn friendly_hint(detail: &str) -> String {
     let (category, message) = classify_detail(detail);
     format!("{} - {}", category.label(), message)
@@ -204,9 +203,9 @@ fn packet_hint(lower: &str) -> Option<String> {
                 .to_string(),
         );
     }
-    if lower.contains("expected [then]") {
+    if lower.contains("expected [then]") || lower.contains("inline block") {
         return Some(
-            "Missing a [then]{...} block after your condition. Let's add it to complete the flow."
+            "Add a [then]{...} block or place an inline `{ ... }` right after the branch to keep the flow connected."
                 .to_string(),
         );
     }

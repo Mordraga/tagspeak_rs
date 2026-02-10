@@ -1,24 +1,113 @@
-use anyhow::{Result, bail};
 use crate::packets::core::var as pkt_var;
-use std::collections::{HashMap, HashSet};
+use anyhow::anyhow;
+use anyhow::{Context, Result, bail};
+use std::collections::{HashMap, HashSet, VecDeque};
+use std::mem;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
+use std::thread;
 
 use crate::kernel::ast::{Arg, BExpr, Node, Packet};
 use crate::kernel::fs_guard::find_root;
 use crate::kernel::packet_catalog::suggest_packet;
 use crate::kernel::values::Value;
 
+#[derive(Clone, Debug, PartialEq)]
+pub enum FlowSignal {
+    None,
+    Break,
+    Return(Option<Value>),
+    Interrupt(Option<Value>),
+}
+
+#[derive(Clone, Debug)]
+pub struct FunctionDef {
+    pub body: Vec<Node>,
+    pub is_async: bool,
+}
+
+pub struct AsyncTask {
+    pub handle: Option<thread::JoinHandle<anyhow::Result<Value>>>,
+}
+
+#[derive(Clone)]
+pub struct DeadmanRegistry {
+    inner: Arc<DeadmanInner>,
+}
+
+struct DeadmanInner {
+    arms: Mutex<Vec<String>>,
+}
+
+impl DeadmanRegistry {
+    pub fn new() -> Self {
+        Self {
+            inner: Arc::new(DeadmanInner {
+                arms: Mutex::new(Vec::new()),
+            }),
+        }
+    }
+
+    pub fn arm(&self, message: String) {
+        if let Ok(mut guard) = self.inner.arms.lock() {
+            guard.push(message);
+        }
+    }
+
+    pub fn disarm(&self, target: Option<&str>) -> Option<String> {
+        if let Ok(mut guard) = self.inner.arms.lock() {
+            if let Some(t) = target {
+                if let Some(idx) = guard.iter().rposition(|msg| msg == t) {
+                    return Some(guard.remove(idx));
+                }
+            } else {
+                return guard.pop();
+            }
+        }
+        None
+    }
+}
+
+impl Default for DeadmanRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Drop for DeadmanRegistry {
+    fn drop(&mut self) {
+        if Arc::strong_count(&self.inner) != 1 {
+            return;
+        }
+
+        if let Ok(mut guard) = self.inner.arms.lock() {
+            if guard.is_empty() {
+                return;
+            }
+            println!("DEADMAN SWITCH TRIGGERED");
+            for msg in guard.iter() {
+                println!("{msg}");
+            }
+            guard.clear();
+        }
+    }
+}
+
 pub struct Runtime {
     pub vars: HashMap<String, Value>,
     pub ctx_vars: HashMap<String, Vec<(BExpr, Value)>>,
     pub rigid: HashSet<String>,
     pub last: Value,
-    pub tags: HashMap<String, Vec<Node>>, // named blocks from [funct:tag]{...}
+    pub tags: HashMap<String, FunctionDef>, // named blocks from [funct:tag]{...}
     pub effective_root: Option<PathBuf>,
     pub cwd: PathBuf,
     // safety limits
     pub call_depth: usize,
     pub max_call_depth: usize,
+    pub flow_signal: FlowSignal,
+    pub async_tasks: HashMap<String, VecDeque<AsyncTask>>,
+    pub task_counter: usize,
+    pub deadman: DeadmanRegistry,
 }
 
 impl Runtime {
@@ -44,10 +133,17 @@ impl Runtime {
             rigid: HashSet::new(),
             last: Value::Unit,
             tags: HashMap::new(),
+            async_tasks: HashMap::new(),
+            task_counter: 0,
+            flow_signal: FlowSignal::None,
             effective_root: root,
             cwd,
             call_depth: 0,
-            max_call_depth: std::env::var("TAGSPEAK_MAX_CALL_DEPTH").ok().and_then(|s| s.parse::<usize>().ok()).unwrap_or(256),
+            max_call_depth: std::env::var("TAGSPEAK_MAX_CALL_DEPTH")
+                .ok()
+                .and_then(|s| s.parse::<usize>().ok())
+                .unwrap_or(256),
+            deadman: DeadmanRegistry::new(),
         })
     }
 
@@ -83,8 +179,13 @@ impl Runtime {
     }
 
     // ---- tags ----
-    pub fn register_tag(&mut self, name: &str, body: Vec<Node>) {
-        self.tags.insert(name.to_string(), body);
+    pub fn register_tag(&mut self, name: &str, body: Vec<Node>, is_async: bool) {
+        self.tags
+            .insert(name.to_string(), FunctionDef { body, is_async });
+    }
+
+    pub fn get_tag(&self, name: &str) -> Option<&FunctionDef> {
+        self.tags.get(name)
     }
 
     // ---- args ----
@@ -124,7 +225,13 @@ impl Runtime {
     fn eval_list(&mut self, list: &[Node]) -> Result<Value> {
         let mut last = Value::Unit;
         for node in list {
+            if self.signal_active() {
+                break;
+            }
             last = self.eval(node)?;
+            if self.signal_active() {
+                break;
+            }
         }
         Ok(last)
     }
@@ -138,6 +245,7 @@ impl Runtime {
             (None, "app") => crate::packets::ui_app::handle(self, p),
             (None, "scope") => crate::packets::ui_scope::handle(self, p),
             // namespaced
+            (Some(ns), "async") if ns.starts_with("fn(") => crate::packets::funct::handle(self, p),
             (Some("funct"), _) => crate::packets::funct::handle(self, p),
             (None, "funct") => crate::packets::funct::handle(self, p),
             (Some("tagspeak"), _) => crate::packets::tagspeak::handle(self, p),
@@ -150,6 +258,12 @@ impl Runtime {
             // core
             (None, "note") => crate::packets::note::handle(self, p),
             (None, "math") => crate::packets::math::handle(self, p),
+            (None, "inc") => crate::packets::math_assign::handle_inc(self, p),
+            (None, "dec") => crate::packets::math_assign::handle_dec(self, p),
+            (None, "mul") => crate::packets::math_assign::handle_mul_assign(self, p),
+            (None, "mod") if p.body.is_none() => {
+                crate::packets::math_assign::handle_add_assign(self, p)
+            }
             (None, "store") => crate::packets::store::handle(self, p),
             (None, "print") => crate::packets::print::handle(self, p),
             (None, "var") => pkt_var::handle(self, p),
@@ -159,6 +273,37 @@ impl Runtime {
             (None, "int") => crate::packets::int::handle(self, p),
             (None, "bool") => crate::packets::bool::handle(self, p),
             (None, "env") => crate::packets::env::handle(self, p),
+            (None, op) if op.eq_ignore_ascii_case("pwk") => {
+                crate::packets::fun::handle_power_word_kill(self, p)
+            }
+            (None, op) if op.eq_ignore_ascii_case("summon") => {
+                crate::packets::fun::handle_summon(self, p)
+            }
+            (None, op) if op.eq_ignore_ascii_case("gecko") => {
+                crate::packets::fun::handle_gecko(self, p)
+            }
+            (None, op) if op.eq_ignore_ascii_case("please") => {
+                crate::packets::fun::handle_please(self, p)
+            }
+            (Some(ns), op) if ns.eq_ignore_ascii_case("please") => {
+                if op.eq_ignore_ascii_case("selene") {
+                    crate::packets::fun::handle_please_selene(self, p)
+                } else {
+                    crate::packets::fun::handle_please(self, p)
+                }
+            }
+            (None, op) if op.eq_ignore_ascii_case("deity") => {
+                crate::packets::fun::handle_deity(self, p)
+            }
+            (None, op) if op.eq_ignore_ascii_case("deadman") => {
+                crate::packets::fun::handle_deadman(self, p)
+            }
+            (None, op) if op.eq_ignore_ascii_case("disarm") => {
+                crate::packets::fun::handle_disarm(self, p)
+            }
+            (None, op) if op.eq_ignore_ascii_case("alli") => {
+                crate::packets::fun::handle_alli(self, p)
+            }
             (None, "help") => crate::packets::help::handle(self, p),
             (None, "lint") => crate::packets::lint::handle(self, p),
             (None, "cd") => crate::packets::cd::handle(self, p),
@@ -190,6 +335,19 @@ impl Runtime {
                 crate::packets::query::handle(self, p)
             }
             (None, "iter") => crate::packets::iter::handle(self, p),
+            (None, op) if op.eq_ignore_ascii_case("utc") => {
+                crate::packets::clock::handle_utc(self, p)
+            }
+            (None, op) if op.eq_ignore_ascii_case("local") => {
+                crate::packets::clock::handle_local(self, p)
+            }
+            (None, "async") => crate::packets::async_run::handle(self, p),
+            (None, "await") => crate::packets::await_pkt::handle(self, p),
+            (None, "break") => crate::packets::r#break::handle(self, p),
+            (None, "return") => crate::packets::r#return::handle(self, p),
+            (None, "interrupt") => crate::packets::interrupt::handle(self, p),
+            (Some("interval"), _) => crate::packets::interval::handle(self, p),
+            (Some("timeout"), _) => crate::packets::timeout::handle(self, p),
             (Some("input"), "line") => crate::packets::input::handle(self, p),
             (None, "input") => crate::packets::input::handle(self, p),
             (None, op) if matches!(op, "eq" | "ne" | "lt" | "le" | "gt" | "ge") => {
@@ -215,6 +373,105 @@ impl Runtime {
                 }
             }
         }
+    }
+
+    pub fn set_signal(&mut self, signal: FlowSignal) {
+        self.flow_signal = signal;
+    }
+
+    pub fn signal_active(&self) -> bool {
+        !matches!(self.flow_signal, FlowSignal::None)
+    }
+
+    pub fn take_signal(&mut self) -> FlowSignal {
+        mem::replace(&mut self.flow_signal, FlowSignal::None)
+    }
+
+    pub fn fork(&self) -> Result<Self> {
+        Ok(Self {
+            vars: self.vars.clone(),
+            ctx_vars: self.ctx_vars.clone(),
+            rigid: self.rigid.clone(),
+            last: self.last.clone(),
+            tags: self.tags.clone(),
+            async_tasks: HashMap::new(),
+            task_counter: 0,
+            flow_signal: FlowSignal::None,
+            effective_root: self.effective_root.clone(),
+            cwd: self.cwd.clone(),
+            call_depth: 0,
+            max_call_depth: self.max_call_depth,
+            deadman: self.deadman.clone(),
+        })
+    }
+
+    pub fn spawn_async_block(&mut self, body: Vec<Node>) -> Result<()> {
+        let mut child = self.fork()?;
+        thread::spawn(move || {
+            if let Err(err) = child.eval(&Node::Block(body)) {
+                eprintln!("async block error: {err:?}");
+            }
+        });
+        Ok(())
+    }
+
+    pub fn enqueue_async_function(&mut self, name: &str) -> Result<()> {
+        let func_ref = self
+            .get_tag(name)
+            .with_context(|| format!("unknown async funct '{name}'"))?;
+        if !func_ref.is_async {
+            bail!("'{name}' is not marked async");
+        }
+        let func = func_ref.clone();
+        let mut child = self.fork()?;
+        let handle = thread::spawn(move || child.eval(&Node::Block(func.body)));
+        let entry = self.async_tasks.entry(name.to_string()).or_default();
+        entry.push_back(AsyncTask {
+            handle: Some(handle),
+        });
+        self.task_counter = self.task_counter.wrapping_add(1);
+        Ok(())
+    }
+
+    pub fn await_async_function(&mut self, name: &str) -> Result<Value> {
+        if !self.async_tasks.contains_key(name) {
+            self.enqueue_async_function(name)?;
+        }
+
+        if self
+            .async_tasks
+            .get(name)
+            .map(|queue| queue.is_empty())
+            .unwrap_or(true)
+        {
+            self.enqueue_async_function(name)?;
+        }
+
+        let (mut task, remove_entry) = {
+            let queue = self
+                .async_tasks
+                .get_mut(name)
+                .with_context(|| format!("no async tasks for '{name}'"))?;
+            let popped = queue
+                .pop_front()
+                .with_context(|| format!("no pending async task for '{name}'"))?;
+            let should_remove = queue.is_empty();
+            (popped, should_remove)
+        };
+
+        let handle = task
+            .handle
+            .take()
+            .with_context(|| "async task missing handle")?;
+        let result = handle
+            .join()
+            .map_err(|_| anyhow!("async task panicked"))??;
+
+        if remove_entry {
+            self.async_tasks.remove(name);
+        }
+
+        Ok(result)
     }
 
     // small helpers for numeric vars used by packets

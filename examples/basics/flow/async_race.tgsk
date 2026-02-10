@@ -1,0 +1,15 @@
+[note@"Run multiple async functions and await their results"]
+[fn(fetch_fast):async]{
+  [timeout:ms@40]
+  [return@"fast"]
+}
+[fn(fetch_slow):async]{
+  [timeout:sec@1]
+  [return@"slow"]
+}
+
+[async@fetch_fast]
+[async@fetch_slow]
+
+[await@fetch_fast]>[store@fast_result]>[print@fast_result]
+[await@fetch_slow]>[store@slow_result]>[print@slow_result]

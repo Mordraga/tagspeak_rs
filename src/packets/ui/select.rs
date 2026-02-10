@@ -92,7 +92,7 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
 
 #[cfg(feature = "ui_egui")]
 fn run_select_gui(options: &[String]) -> Result<Option<String>> {
-    use eframe::{egui, NativeOptions};
+    use eframe::{NativeOptions, egui};
     use std::sync::{Arc, Mutex};
 
     struct SelectApp {
@@ -127,7 +127,11 @@ fn run_select_gui(options: &[String]) -> Result<Option<String>> {
     let chosen_clone = chosen.clone();
     let opts_vec = options.to_vec();
 
-    let app = SelectApp { opts: opts_vec, idx: 0, chosen: chosen_clone };
+    let app = SelectApp {
+        opts: opts_vec,
+        idx: 0,
+        chosen: chosen_clone,
+    };
     let _ = eframe::run_native(
         "TagSpeak Select",
         NativeOptions::default(),

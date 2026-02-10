@@ -1,0 +1,12 @@
+[note@"5-second burn test using local clock snapshots"]
+
+[UTC@unix]>[store@start_unix]
+[int@0]>[store@elapsed]
+[int@0]>[store@count]
+
+[loop:until@(elapsed>=5)]{
+  [store@count]
+  [UTC@unix]>[store@current_unix]
+  [math@current_unix-start_unix]>[store@elapsed]
+}>[print@"Final Count: "${count}"| Elapsed Time: "${elapsed}" seconds"]
+

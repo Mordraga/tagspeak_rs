@@ -1,0 +1,9 @@
+[note@"Count three ticks with a reusable function"]
+[int@0]>[store@ticks]
+
+[funct:tick]{
+  [math@ticks+1]>[store@ticks]
+  [print@"tick"]
+}
+
+[loop@3]{ [call@tick] }

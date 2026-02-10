@@ -1,0 +1,9 @@
+[note@"Soft infinite loop that breaks after three iterations"]
+[int@0]>[store@ticks]
+
+[loop:forever]{
+  [math@ticks+1]>[store@ticks]>[print@ticks]
+  [if(ticks>=900)]>[then]{
+    [break]
+    }
+}

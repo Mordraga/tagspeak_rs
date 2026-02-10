@@ -1,5 +1,5 @@
-use anyhow::Result;
 use crate::kernel::{Packet, Runtime, Value};
+use anyhow::Result;
 
 fn is_noninteractive() -> bool {
     std::env::var("TAGSPEAK_NONINTERACTIVE")
@@ -47,7 +47,7 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
 
 #[cfg(feature = "ui_egui")]
 fn show_alert_gui(message: &str) -> Result<()> {
-    use eframe::{egui, NativeOptions};
+    use eframe::{NativeOptions, egui};
 
     struct AlertApp {
         msg: String,
@@ -68,7 +68,10 @@ fn show_alert_gui(message: &str) -> Result<()> {
         }
     }
 
-    let app = AlertApp { msg: message.to_string(), acknowledged: false };
+    let app = AlertApp {
+        msg: message.to_string(),
+        acknowledged: false,
+    };
     let _ = eframe::run_native(
         "TagSpeak Alert",
         NativeOptions::default(),

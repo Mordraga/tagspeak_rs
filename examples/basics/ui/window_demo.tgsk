@@ -2,11 +2,11 @@
 [msg@""]>[store@url]
 
 [funct:add_one]{ 
-    [math@clicks+1]>[store:fluid@clicks]>[print@clicks]
+    [inc@clicks]>[print@clicks]
 }
 
 [funct:minus_one]{
-    [math@clicks-1]>[store:fluid@clicks]>[print@clicks] 
+    [dec@clicks]>[print@clicks] 
 }
 
 [funct:add_five]{
@@ -49,6 +49,7 @@
                     [label@"Fives Counter"]
                     [button@"Add five"]{ [call@add_five] }
                     [button@"Minus five"]{ [call@minus_five] } 
+                    [textbox@"Test!"]
                 }
             }
         }

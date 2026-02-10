@@ -25,13 +25,14 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
 
     if let Some(prev) = before
         && prev.json != doc.json
-            && let (Ok(before_s), Ok(after_s)) = (
-                serde_json::to_string_pretty(&prev.json),
-                serde_json::to_string_pretty(&doc.json),
-            ) {
-                println!("[mod(debug)] before:\n{before_s}");
-                println!("[mod(debug)] after:\n{after_s}");
-            }
+        && let (Ok(before_s), Ok(after_s)) = (
+            serde_json::to_string_pretty(&prev.json),
+            serde_json::to_string_pretty(&doc.json),
+        )
+    {
+        println!("[mod(debug)] before:\n{before_s}");
+        println!("[mod(debug)] after:\n{after_s}");
+    }
 
     rt.set_var(handle, Value::Doc(doc.clone()))?;
     Ok(Value::Doc(doc))

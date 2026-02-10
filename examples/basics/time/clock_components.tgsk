@@ -1,0 +1,6 @@
+[note@"Snapshot UTC and local components"]
+[UTC]>[store@utc_iso]>[print@utc_iso]
+[UTC@sec]>[store@utc_seconds]>[print@utc_seconds]
+
+[local]>[store@local_iso]>[print@local_iso]
+[local@day]>[store@local_day]>[print@local_day]

@@ -97,10 +97,10 @@ Make sure Rust (stable) is installed.
 ### Windows
 
 ```bash
-cargo build --bin tagspeak_setup
+cargo run --bin tagspeak_setup
 ```
 
-Then follow the installer’s guidance to build the engine and register the CLI.
+That launches the terminal installer. Pick **Install** to build the engine, add it to `PATH`, and register `.tgsk` associations, or choose **Uninstall** to remove everything cleanly. Running it outside the repo is fine—the wizard will prompt for the TagSpeak source path if it can’t auto-detect it.
 
 ### Linux
 
@@ -228,7 +228,7 @@ allow = ["https://api.example.com", "*.example.org"]
 
 ## About the Dev
 
-Hello! I’m **Saryn** (she/they), the **sole developer and systems designer** behind **TagSpeak**—a tiny packet‑based DSL for human ↔ AI workflows.
+Hello! I’m **Mordraga** (she/they), the **sole developer and systems designer** behind **TagSpeak**—a tiny packet‑based DSL for human ↔ AI workflows.
 
 ### Design Philosophy
 
@@ -341,7 +341,7 @@ Please report vulnerabilities via GitHub Security Advisories (private) rather th
 
 ## MIT License
 
-Copyright (c) 2025 Saryn Harris
+Copyright (c) 2025 Mordraga
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

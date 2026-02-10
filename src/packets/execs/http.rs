@@ -7,9 +7,10 @@ use crate::kernel::{Arg, Packet, Runtime, Value};
 
 fn detect_method(op: &str) -> Option<&str> {
     if let Some(rest) = op.strip_prefix("http(")
-        && let Some(end) = rest.find(')') {
-            return Some(&rest[..end]);
-        }
+        && let Some(end) = rest.find(')')
+    {
+        return Some(&rest[..end]);
+    }
     None
 }
 
@@ -33,21 +34,29 @@ fn allowed_url(cfg: &config::Config, url: &Url) -> bool {
         if p.starts_with("http://") || p.starts_with("https://") {
             if let Ok(pu) = Url::parse(p) {
                 // scheme must match exactly
-                if pu.scheme() != target_scheme { continue; }
+                if pu.scheme() != target_scheme {
+                    continue;
+                }
 
                 // host must match exactly (case-insensitive)
                 let phost = pu.host_str().unwrap_or("");
-                if !target_host.eq_ignore_ascii_case(phost) { continue; }
+                if !target_host.eq_ignore_ascii_case(phost) {
+                    continue;
+                }
 
                 // if pattern specifies a port, require exact match
                 if let Some(pport) = pu.port_or_known_default() {
-                    if Some(pport) != target_port { continue; }
+                    if Some(pport) != target_port {
+                        continue;
+                    }
                 }
 
                 // if pattern includes a path (beyond root), require prefix match on path
                 let ppath = pu.path();
                 if ppath != "/" && !ppath.is_empty() {
-                    if !target_path.starts_with(ppath) { continue; }
+                    if !target_path.starts_with(ppath) {
+                        continue;
+                    }
                 }
                 return true;
             } else {
@@ -114,28 +123,31 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
         for node in body {
             if let Node::Packet(pkt) = node {
                 let op = pkt.op.as_str();
-                if op.starts_with("key(") && op.ends_with(')')
-                    && let Some(name) = op.get(4..op.len() - 1) {
-                        if let Some(h) = name.strip_prefix("header.") {
-                            let val = match pkt.arg.as_ref() {
-                                Some(Arg::Str(s)) => s.clone(),
-                                Some(Arg::Ident(i)) => i.clone(),
-                                Some(Arg::Number(n)) => n.to_string(),
-                                _ => String::new(),
-                            };
-                            if !h.is_empty() {
-                                req = req.header(h, val);
-                            }
-                        } else if name == "json" {
-                            if let Some(arg) = pkt.arg.as_ref() {
-                                let j = arg_to_json(rt, arg)?;
-                                req = req.json(&j);
-                            }
-                        } else if name == "body"
-                            && let Some(Arg::Str(s)) = pkt.arg.as_ref() {
-                                req = req.body(s.clone());
-                            }
+                if op.starts_with("key(")
+                    && op.ends_with(')')
+                    && let Some(name) = op.get(4..op.len() - 1)
+                {
+                    if let Some(h) = name.strip_prefix("header.") {
+                        let val = match pkt.arg.as_ref() {
+                            Some(Arg::Str(s)) => s.clone(),
+                            Some(Arg::Ident(i)) => i.clone(),
+                            Some(Arg::Number(n)) => n.to_string(),
+                            _ => String::new(),
+                        };
+                        if !h.is_empty() {
+                            req = req.header(h, val);
+                        }
+                    } else if name == "json" {
+                        if let Some(arg) = pkt.arg.as_ref() {
+                            let j = arg_to_json(rt, arg)?;
+                            req = req.json(&j);
+                        }
+                    } else if name == "body"
+                        && let Some(Arg::Str(s)) = pkt.arg.as_ref()
+                    {
+                        req = req.body(s.clone());
                     }
+                }
             }
         }
     }

@@ -72,8 +72,6 @@ pub fn handle(rt: &mut Runtime, p: &Packet) -> Result<Value> {
     Ok(rt.last.clone())
 }
 
- 
-
 // ---- helpers ----
 
 enum Mode {
@@ -84,14 +82,15 @@ enum Mode {
 
 fn detect_mode(op: &str, ext: &str) -> Mode {
     if let Some(rest) = op.strip_prefix("log(")
-        && let Some(end) = rest.find(')') {
-            match &rest[..end].to_lowercase() {
-                s if s == "json" => return Mode::Json,
-                s if s == "yaml" => return Mode::Yaml,
-                s if s == "toml" => return Mode::Toml,
-                _ => {}
-            }
+        && let Some(end) = rest.find(')')
+    {
+        match &rest[..end].to_lowercase() {
+            s if s == "json" => return Mode::Json,
+            s if s == "yaml" => return Mode::Yaml,
+            s if s == "toml" => return Mode::Toml,
+            _ => {}
         }
+    }
     match ext.to_lowercase().as_str() {
         "yaml" | "yml" => Mode::Yaml,
         "toml" => Mode::Toml,
@@ -242,7 +241,7 @@ mod tests {
         let script = base.join("sub").join("main.tgsk");
         fs::write(
             &script,
-            "[log(json)@/profile.json]{[key(name)@\"Saryn\"][key(age)@25][key(active)@true]}",
+            "[log(json)@/profile.json]{[key(name)@\"Mordraga\"][key(age)@25][key(active)@true]}",
         )?;
         let node =
             crate::router::parse(&fs::read_to_string(&script)?).map_err(anyhow::Error::new)?;
@@ -250,7 +249,7 @@ mod tests {
         rt.eval(&node)?;
         let content = fs::read_to_string(base.join("profile.json"))?;
         let val: serde_json::Value = serde_json::from_str(&content)?;
-        assert_eq!(val["name"], "Saryn");
+        assert_eq!(val["name"], "Mordraga");
         assert_eq!(val["age"], 25);
         assert_eq!(val["active"], true);
         fs::remove_dir_all(base)?;

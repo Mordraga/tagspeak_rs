@@ -1,11 +1,14 @@
 use crate::kernel::Runtime;
 use crate::ui::tree::*;
 use anyhow::Result;
-use eframe::{egui, NativeOptions};
+use eframe::{NativeOptions, egui};
 use std::sync::{Arc, Mutex};
 
 #[derive(Default)]
-struct ActionOut { call: Option<String>, scope: Option<String> }
+struct ActionOut {
+    call: Option<String>,
+    scope: Option<String>,
+}
 
 pub fn render(tree: &TagTree, rt: &mut Runtime) -> Result<()> {
     struct App {
@@ -38,35 +41,83 @@ pub fn render(tree: &TagTree, rt: &mut Runtime) -> Result<()> {
 
             if !top_children.is_empty() {
                 egui::TopBottomPanel::top("tgsk_top").show(ctx, |ui| {
-                    let mut node = TagNode { kind: NodeKind::Region { id: "top".into(), label: None }, layout: LayoutIntent::default(), props: Default::default(), children: top_children.clone() };
+                    let mut node = TagNode {
+                        kind: NodeKind::Region {
+                            id: "top".into(),
+                            label: None,
+                        },
+                        layout: LayoutIntent::default(),
+                        props: Default::default(),
+                        children: top_children.clone(),
+                    };
                     render_region(ui, &mut node, &self.action, self.rt_ptr);
                 });
             }
             if !left_children.is_empty() {
                 egui::SidePanel::left("tgsk_left").show(ctx, |ui| {
-                    let mut node = TagNode { kind: NodeKind::Region { id: "left".into(), label: None }, layout: LayoutIntent::default(), props: Default::default(), children: left_children.clone() };
+                    let mut node = TagNode {
+                        kind: NodeKind::Region {
+                            id: "left".into(),
+                            label: None,
+                        },
+                        layout: LayoutIntent::default(),
+                        props: Default::default(),
+                        children: left_children.clone(),
+                    };
                     render_region(ui, &mut node, &self.action, self.rt_ptr);
                 });
             }
             if !right_children.is_empty() {
                 egui::SidePanel::right("tgsk_right").show(ctx, |ui| {
-                    let mut node = TagNode { kind: NodeKind::Region { id: "right".into(), label: None }, layout: LayoutIntent::default(), props: Default::default(), children: right_children.clone() };
+                    let mut node = TagNode {
+                        kind: NodeKind::Region {
+                            id: "right".into(),
+                            label: None,
+                        },
+                        layout: LayoutIntent::default(),
+                        props: Default::default(),
+                        children: right_children.clone(),
+                    };
                     render_region(ui, &mut node, &self.action, self.rt_ptr);
                 });
             }
             egui::CentralPanel::default().show(ctx, |ui| {
                 if !center_children.is_empty() {
-                    let mut node = TagNode { kind: NodeKind::Region { id: "center".into(), label: None }, layout: LayoutIntent::default(), props: Default::default(), children: center_children.clone() };
+                    let mut node = TagNode {
+                        kind: NodeKind::Region {
+                            id: "center".into(),
+                            label: None,
+                        },
+                        layout: LayoutIntent::default(),
+                        props: Default::default(),
+                        children: center_children.clone(),
+                    };
                     render_region(ui, &mut node, &self.action, self.rt_ptr);
                 }
                 if !others_children.is_empty() {
-                    let mut node = TagNode { kind: NodeKind::Region { id: "others".into(), label: None }, layout: LayoutIntent::default(), props: Default::default(), children: others_children.clone() };
+                    let mut node = TagNode {
+                        kind: NodeKind::Region {
+                            id: "others".into(),
+                            label: None,
+                        },
+                        layout: LayoutIntent::default(),
+                        props: Default::default(),
+                        children: others_children.clone(),
+                    };
                     render_region(ui, &mut node, &self.action, self.rt_ptr);
                 }
             });
             if !bottom_children.is_empty() {
                 egui::TopBottomPanel::bottom("tgsk_bottom").show(ctx, |ui| {
-                    let mut node = TagNode { kind: NodeKind::Region { id: "bottom".into(), label: None }, layout: LayoutIntent::default(), props: Default::default(), children: bottom_children.clone() };
+                    let mut node = TagNode {
+                        kind: NodeKind::Region {
+                            id: "bottom".into(),
+                            label: None,
+                        },
+                        layout: LayoutIntent::default(),
+                        props: Default::default(),
+                        children: bottom_children.clone(),
+                    };
                     render_region(ui, &mut node, &self.action, self.rt_ptr);
                 });
             }
@@ -75,7 +126,15 @@ pub fn render(tree: &TagTree, rt: &mut Runtime) -> Result<()> {
             for ch in self.root.children.iter_mut() {
                 if let NodeKind::Popup { title } = &ch.kind {
                     egui::Window::new(title.clone()).show(ctx, |ui| {
-                        let mut single_root = TagNode { kind: NodeKind::Region { id: "popup_root".to_string(), label: None }, layout: LayoutIntent::default(), props: Default::default(), children: ch.children.clone() };
+                        let mut single_root = TagNode {
+                            kind: NodeKind::Region {
+                                id: "popup_root".to_string(),
+                                label: None,
+                            },
+                            layout: LayoutIntent::default(),
+                            props: Default::default(),
+                            children: ch.children.clone(),
+                        };
                         render_region(ui, &mut single_root, &self.action, self.rt_ptr);
                     });
                 }
@@ -91,20 +150,38 @@ pub fn render(tree: &TagTree, rt: &mut Runtime) -> Result<()> {
                     let rt: &mut Runtime = &mut *self.rt_ptr;
                     // Capture scope for context-bound writes during this call
                     let prev_cap = rt.get_var("__scope_capture");
-                    if let Some(sc) = pending_scope { let _ = rt.set_var("__scope_capture", crate::kernel::values::Value::Str(sc)); }
-                    let packet = crate::kernel::ast::Packet { ns: None, op: "call".to_string(), arg: Some(crate::kernel::ast::Arg::Str(call)), body: None };
+                    if let Some(sc) = pending_scope {
+                        let _ =
+                            rt.set_var("__scope_capture", crate::kernel::values::Value::Str(sc));
+                    }
+                    let packet = crate::kernel::ast::Packet {
+                        ns: None,
+                        op: "call".to_string(),
+                        arg: Some(crate::kernel::ast::Arg::Str(call)),
+                        body: None,
+                    };
                     let _ = rt.eval(&crate::kernel::ast::Node::Packet(packet));
                     // restore
                     match prev_cap {
-                        Some(v) => { let _ = rt.set_var("__scope_capture", v); }
-                        None => { let _ = rt.set_var("__scope_capture", crate::kernel::values::Value::Unit); }
+                        Some(v) => {
+                            let _ = rt.set_var("__scope_capture", v);
+                        }
+                        None => {
+                            let _ =
+                                rt.set_var("__scope_capture", crate::kernel::values::Value::Unit);
+                        }
                     }
                 }
             }
         }
     }
 
-    fn render_region(ui: &mut egui::Ui, node: &mut TagNode, action: &Arc<Mutex<ActionOut>>, rt_ptr: *mut Runtime) {
+    fn render_region(
+        ui: &mut egui::Ui,
+        node: &mut TagNode,
+        action: &Arc<Mutex<ActionOut>>,
+        rt_ptr: *mut Runtime,
+    ) {
         // Partition children by location for a basic region layout
         let mut top = Vec::new();
         let mut bottom = Vec::new();
@@ -127,7 +204,12 @@ pub fn render(tree: &TagTree, rt: &mut Runtime) -> Result<()> {
         }
 
         // helpers
-        fn render_node(ui: &mut egui::Ui, node: &mut TagNode, action: &Arc<Mutex<ActionOut>>, rt_ptr: *mut Runtime) {
+        fn render_node(
+            ui: &mut egui::Ui,
+            node: &mut TagNode,
+            action: &Arc<Mutex<ActionOut>>,
+            rt_ptr: *mut Runtime,
+        ) {
             match &mut node.kind {
                 NodeKind::Region { id, label, .. } => {
                     // Apply spacing and padding scopes
@@ -143,13 +225,21 @@ pub fn render(tree: &TagTree, rt: &mut Runtime) -> Result<()> {
 
                     // Set __ui_scope to region id during render
                     let prev_scope = unsafe { (&*rt_ptr).get_var("__ui_scope") };
-                    unsafe { let _ = (&mut *rt_ptr).set_var("__ui_scope", crate::kernel::values::Value::Str(id.clone())); }
+                    unsafe {
+                        let _ = (&mut *rt_ptr)
+                            .set_var("__ui_scope", crate::kernel::values::Value::Str(id.clone()));
+                    }
 
                     // Apply width intent (default to fill for center-like regions)
                     if let Some(w) = width {
                         match w {
-                            Width::Fill => { ui.set_min_width(ui.available_width()); },
-                            Width::Px(px) => { ui.set_min_width(px); ui.set_max_width(px); },
+                            Width::Fill => {
+                                ui.set_min_width(ui.available_width());
+                            }
+                            Width::Px(px) => {
+                                ui.set_min_width(px);
+                                ui.set_max_width(px);
+                            }
                         }
                     } else {
                         // Default-fill only when explicitly marked Center; avoid monopolizing width in inline/horizontal scopes
@@ -160,39 +250,67 @@ pub fn render(tree: &TagTree, rt: &mut Runtime) -> Result<()> {
 
                     // Apply spacing and padding by scoping style and wrapping frame
                     let mut render_body = |ui: &mut egui::Ui| {
-                        if let Some(lbl) = label { ui.heading(lbl.as_str()); }
+                        if let Some(lbl) = label {
+                            ui.heading(lbl.as_str());
+                        }
                         match &node.layout.behavior {
                             Some(LayoutBehavior::Grid { columns, .. }) => {
-                                let grid = egui::Grid::new(format!("grid_{:p}", &node.children as *const _)).num_columns(*columns as usize);
+                                let grid = egui::Grid::new(format!(
+                                    "grid_{:p}",
+                                    &node.children as *const _
+                                ))
+                                .num_columns(*columns as usize);
                                 grid.show(ui, |ui| {
                                     for (i, ch) in node.children.iter_mut().enumerate() {
                                         render_node(ui, ch, action, rt_ptr);
-                                        if (i + 1) % (*columns as usize) == 0 { ui.end_row(); }
+                                        if (i + 1) % (*columns as usize) == 0 {
+                                            ui.end_row();
+                                        }
                                     }
                                 });
                             }
                             _ => {
-                                let egui_align = match align { Some(Align::Start) | None => egui::Align::Min, Some(Align::Center) => egui::Align::Center, Some(Align::End) => egui::Align::Max };
+                                let egui_align = match align {
+                                    Some(Align::Start) | None => egui::Align::Min,
+                                    Some(Align::Center) => egui::Align::Center,
+                                    Some(Align::End) => egui::Align::Max,
+                                };
                                 match node.layout.direction {
                                     Some(Direction::Horizontal) => {
                                         // Default: evenly split horizontal space across children unless any child has explicit pixel width.
-                                        let has_px = node.children.iter().any(|c| matches!(c.layout.width, Some(Width::Px(_))));
+                                        let has_px = node
+                                            .children
+                                            .iter()
+                                            .any(|c| matches!(c.layout.width, Some(Width::Px(_))));
                                         let count = node.children.len();
                                         if count > 1 && !has_px {
                                             ui.columns(count, |cols| {
-                                                for (i, ch) in node.children.iter_mut().enumerate() {
+                                                for (i, ch) in node.children.iter_mut().enumerate()
+                                                {
                                                     render_node(&mut cols[i], ch, action, rt_ptr);
                                                 }
                                             });
                                         } else {
-                                            let _ = ui.with_layout(egui::Layout::left_to_right(egui_align), |ui| {
-                                                for ch in node.children.iter_mut() { render_node(ui, ch, action, rt_ptr); }
-                                            });
+                                            let _ = ui.with_layout(
+                                                egui::Layout::left_to_right(egui_align),
+                                                |ui| {
+                                                    for ch in node.children.iter_mut() {
+                                                        render_node(ui, ch, action, rt_ptr);
+                                                    }
+                                                },
+                                            );
                                         }
                                     }
-                                    _ => { let _ = ui.with_layout(egui::Layout::top_down(egui_align), |ui| {
-                                        for ch in node.children.iter_mut() { render_node(ui, ch, action, rt_ptr); }
-                                    }); },
+                                    _ => {
+                                        let _ = ui.with_layout(
+                                            egui::Layout::top_down(egui_align),
+                                            |ui| {
+                                                for ch in node.children.iter_mut() {
+                                                    render_node(ui, ch, action, rt_ptr);
+                                                }
+                                            },
+                                        );
+                                    }
                                 };
                             }
                         }
@@ -200,14 +318,19 @@ pub fn render(tree: &TagTree, rt: &mut Runtime) -> Result<()> {
 
                     let want_border = debug || border.unwrap_or(0.0) > 0.0;
                     let stroke_width = border.unwrap_or(1.0).max(0.0);
-                    let color = border_color.map(|(r,g,b,a)| egui::Color32::from_rgba_unmultiplied(r, g, b, a))
+                    let color = border_color
+                        .map(|(r, g, b, a)| egui::Color32::from_rgba_unmultiplied(r, g, b, a))
                         .unwrap_or(egui::Color32::from_rgb(80, 160, 255));
 
-                    if let Some(p) = padding { 
+                    if let Some(p) = padding {
                         let mut frame = egui::Frame::none().inner_margin(egui::Margin::same(p));
-                        if want_border { frame = frame.stroke(egui::Stroke::new(stroke_width, color)); }
+                        if want_border {
+                            frame = frame.stroke(egui::Stroke::new(stroke_width, color));
+                        }
                         frame.show(ui, |ui| {
-                            if debug { ui.small(format!("[region:{}]", id)); }
+                            if debug {
+                                ui.small(format!("[region:{}]", id));
+                            }
                             if let Some(sp) = spacing {
                                 ui.scope(|ui| {
                                     let mut st: egui::Style = ui.style().as_ref().clone();
@@ -215,7 +338,9 @@ pub fn render(tree: &TagTree, rt: &mut Runtime) -> Result<()> {
                                     ui.set_style(st);
                                     render_body(ui);
                                 });
-                            } else { render_body(ui); }
+                            } else {
+                                render_body(ui);
+                            }
                         });
                     } else if let Some(sp) = spacing {
                         ui.scope(|ui| {
@@ -223,12 +348,18 @@ pub fn render(tree: &TagTree, rt: &mut Runtime) -> Result<()> {
                             st.spacing.item_spacing = egui::vec2(sp, sp);
                             ui.set_style(st);
                             if want_border {
-                                egui::Frame::none().stroke(egui::Stroke::new(stroke_width, color)).show(ui, |ui| {
-                                    if debug { ui.small(format!("[region:{}]", id)); }
-                                    render_body(ui);
-                                });
+                                egui::Frame::none()
+                                    .stroke(egui::Stroke::new(stroke_width, color))
+                                    .show(ui, |ui| {
+                                        if debug {
+                                            ui.small(format!("[region:{}]", id));
+                                        }
+                                        render_body(ui);
+                                    });
                             } else {
-                                if debug { ui.small(format!("[region:{}]", id)); }
+                                if debug {
+                                    ui.small(format!("[region:{}]", id));
+                                }
                                 render_body(ui);
                             }
                         });
@@ -237,7 +368,9 @@ pub fn render(tree: &TagTree, rt: &mut Runtime) -> Result<()> {
                             egui::Frame::none()
                                 .stroke(egui::Stroke::new(stroke_width, color))
                                 .show(ui, |ui| {
-                                    if debug { ui.small(format!("[region:{}]", id)); }
+                                    if debug {
+                                        ui.small(format!("[region:{}]", id));
+                                    }
                                     render_body(ui);
                                 });
                         } else {
@@ -249,12 +382,19 @@ pub fn render(tree: &TagTree, rt: &mut Runtime) -> Result<()> {
                     unsafe {
                         let rt: &mut Runtime = &mut *rt_ptr;
                         match prev_scope {
-                            Some(v) => { let _ = rt.set_var("__ui_scope", v); }
-                            None => { let _ = rt.set_var("__ui_scope", crate::kernel::values::Value::Unit); }
+                            Some(v) => {
+                                let _ = rt.set_var("__ui_scope", v);
+                            }
+                            None => {
+                                let _ =
+                                    rt.set_var("__ui_scope", crate::kernel::values::Value::Unit);
+                            }
                         }
                     }
                 }
-                NodeKind::Text { text } => { ui.label(text.as_str()); }
+                NodeKind::Text { text } => {
+                    ui.label(text.as_str());
+                }
                 NodeKind::TextVar { var } => {
                     let text = unsafe {
                         let rt: &mut Runtime = &mut *rt_ptr;
@@ -276,7 +416,9 @@ pub fn render(tree: &TagTree, rt: &mut Runtime) -> Result<()> {
                             {
                                 let mut guard = action.lock().unwrap();
                                 guard.call = Some(a);
-                                if let Some(crate::kernel::values::Value::Str(s)) = current_scope { guard.scope = Some(s); }
+                                if let Some(crate::kernel::values::Value::Str(s)) = current_scope {
+                                    guard.scope = Some(s);
+                                }
                             }
                             // Ensure a follow-up frame runs to process the action
                             ui.ctx().request_repaint();
@@ -287,7 +429,9 @@ pub fn render(tree: &TagTree, rt: &mut Runtime) -> Result<()> {
                     let mut buf = String::new();
                     unsafe {
                         let rt: &mut Runtime = &mut *rt_ptr;
-                        if let Some(crate::kernel::values::Value::Str(s)) = rt.get_var(var) { buf = s; }
+                        if let Some(crate::kernel::values::Value::Str(s)) = rt.get_var(var) {
+                            buf = s;
+                        }
                     }
                     let resp = ui.text_edit_singleline(&mut buf);
                     if resp.changed() {
@@ -301,9 +445,15 @@ pub fn render(tree: &TagTree, rt: &mut Runtime) -> Result<()> {
                     let mut checked = false;
                     unsafe {
                         let rt: &mut Runtime = &mut *rt_ptr;
-                        if let Some(crate::kernel::values::Value::Bool(b)) = rt.get_var(var) { checked = b; }
+                        if let Some(crate::kernel::values::Value::Bool(b)) = rt.get_var(var) {
+                            checked = b;
+                        }
                     }
-                    let resp = if let Some(lbl) = label { ui.checkbox(&mut checked, lbl.as_str()) } else { ui.checkbox(&mut checked, "") };
+                    let resp = if let Some(lbl) = label {
+                        ui.checkbox(&mut checked, lbl.as_str())
+                    } else {
+                        ui.checkbox(&mut checked, "")
+                    };
                     if resp.changed() {
                         unsafe {
                             let rt: &mut Runtime = &mut *rt_ptr;
@@ -311,10 +461,14 @@ pub fn render(tree: &TagTree, rt: &mut Runtime) -> Result<()> {
                         }
                     }
                 }
-                NodeKind::Separator => { ui.separator(); }
-                NodeKind::Spacer { px } => { ui.add_space(*px); }
-                NodeKind::Window { .. } => {/* handled at root */}
-                NodeKind::Popup { .. } => {/* handled at root */}
+                NodeKind::Separator => {
+                    ui.separator();
+                }
+                NodeKind::Spacer { px } => {
+                    ui.add_space(*px);
+                }
+                NodeKind::Window { .. } => { /* handled at root */ }
+                NodeKind::Popup { .. } => { /* handled at root */ }
             }
         }
 
@@ -332,13 +486,21 @@ pub fn render(tree: &TagTree, rt: &mut Runtime) -> Result<()> {
 
         // Top region (horizontal by default within its frame)
         if !top.is_empty() {
-            ui.horizontal(|ui| { for n in &mut top { render_node(ui, *n, action, rt_ptr); } });
+            ui.horizontal(|ui| {
+                for n in &mut top {
+                    render_node(ui, *n, action, rt_ptr);
+                }
+            });
             ui.separator();
         }
         // middle row: left | center | right
         ui.horizontal(|ui| {
             if !left.is_empty() {
-                ui.vertical(|ui| { for n in &mut left { render_node(ui, *n, action, rt_ptr); } });
+                ui.vertical(|ui| {
+                    for n in &mut left {
+                        render_node(ui, *n, action, rt_ptr);
+                    }
+                });
             }
             // Ensure center region claims available width when no explicit width is set
             ui.vertical(|ui| {
@@ -352,18 +514,36 @@ pub fn render(tree: &TagTree, rt: &mut Runtime) -> Result<()> {
                 }
             });
             if !right.is_empty() {
-                ui.vertical(|ui| { for n in &mut right { render_node(ui, *n, action, rt_ptr); } });
+                ui.vertical(|ui| {
+                    for n in &mut right {
+                        render_node(ui, *n, action, rt_ptr);
+                    }
+                });
             }
         });
         if !bottom.is_empty() {
             ui.separator();
-            ui.horizontal(|ui| { for n in &mut bottom { render_node(ui, *n, action, rt_ptr); } });
+            ui.horizontal(|ui| {
+                for n in &mut bottom {
+                    render_node(ui, *n, action, rt_ptr);
+                }
+            });
         }
-        for n in others { render_node(ui, n, action, rt_ptr); }
+        for n in others {
+            render_node(ui, n, action, rt_ptr);
+        }
     }
 
     let action = Arc::new(Mutex::new(ActionOut::default()));
-    let app = App { root: tree.root.clone(), action: action.clone(), rt_ptr: rt as *mut Runtime };
-    let _ = eframe::run_native("TagSpeak UI", NativeOptions::default(), Box::new(|_cc| Box::new(app)));
+    let app = App {
+        root: tree.root.clone(),
+        action: action.clone(),
+        rt_ptr: rt as *mut Runtime,
+    };
+    let _ = eframe::run_native(
+        "TagSpeak UI",
+        NativeOptions::default(),
+        Box::new(|_cc| Box::new(app)),
+    );
     Ok(())
 }

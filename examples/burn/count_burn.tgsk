@@ -1,5 +1,11 @@
-[int@0]>[store@count]
+[math@0]>[store@counter]
+[math@0]>[store@elapsed_ms]
 
-[loop@45794]{
-    [math@count+1]>[store@count]
+[UTC@millis]>[store@start_ms]
+[loop@1000000]{
+  [math@counter+1]>[store@counter]
 }
+[UTC@millis]>[store@end_ms]
+
+[math@abs(start_ms-end_ms)]>[store@elapsed_ms]
+[print@"Completed "${counter}" iterations in "${elapsed_ms}" milliseconds."]

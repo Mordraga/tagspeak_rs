@@ -1,0 +1,8 @@
+[note@"Spawn an async block without blocking the main timeline"]
+[async]{
+  [timeout:ms@120]
+  [print@"background finished"]
+}
+
+[print@"main continues immediately"]
+[timeout:ms@200]

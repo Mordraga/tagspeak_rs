@@ -374,9 +374,9 @@
     "prefix": "[recipe:slog-json]",
     "body": [
       "[log(json)@/${1:profile}.json]{",
-      "  [key(name)@\"${2:Saryn}\"]",
+      "  [key(name)@\"${2:Mordraga}\"]",
       "  [key(age)@${3:25}]",
-      "  [sect@${4:contact}]{[key(email)@\"${5:saryn@example.com}\"]}",
+      "  [sect@${4:contact}]{[key(email)@\"${5:mordraga@example.com}\"]}",
       "}"
     ],
     "description": "Structured JSON logging with nested section"
@@ -385,7 +385,7 @@
     "prefix": "[recipe:slog-yaml]",
     "body": [
       "[log(yaml)@/${1:profile}.yaml]{",
-      "  [key(name)@\"${2:Saryn}\"]",
+      "  [key(name)@\"${2:Mordraga}\"]",
       "  [key(age)@${3:25}]",
       "}"
     ],
